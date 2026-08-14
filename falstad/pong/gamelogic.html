@@ -1,0 +1,38 @@
+<meta name="viewport" content="width=820">
+<title>Circuit Simulator Applet</title>
+<link rel="SHORTCUT ICON" href="favicon.ico">
+<link rel="stylesheet" href="pong.css" type="text/css">
+<body>
+<hr>
+<div class="split">
+<div id="split-0">
+<iframe id="circuitFrame" src="../circuitjs.html?startCircuit=gamelogic.txt&mouseMode=DragAll"></iframe>
+</div>
+<div id="split-1">
+<div id="info"></div>
+Here is the circuit that keeps track of whether a game is running.  It uses discrete transistors rather
+than chips to implement a latch.  When the coin switch is briefly pressed, it brings SRST high for a short
+time, and also brings <span class="overline">RUN</span> low, which turns off attract mode and starts
+the game.
+<p>
+When STOP G is asserted at the top left, that turns off the latch and brings <span class="overline">RUN</span> high.
+<p>
+The "Antenna" input is intended to prevent free games initiated by a static shock to, say, the coin logic.  If you
+apply a voltage to "Antenna" by clicking the logic input in the lower right, it will stop the game.
+<p>
+A buffer has been added to this circuit to convert from TTL to CMOS logic (since the logic gates in this simulator
+have a threshold of 2.5 V, but the original circuit used TTL gates).
+<p>
+Next: <a href="serve.html">Serve Timer</a>.
+<p>
+<a href="index.html">Index</a>
+</div>
+
+<script type="module">
+
+import Split from './split.js';
+
+Split(['#split-0', '#split-1'], { sizes: [70, 30] });
+
+</script>
+

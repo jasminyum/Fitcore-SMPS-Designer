@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="manifest" href="/circuit/manifest.json">
+    <meta name='gwt:property' content='locale=en_UK'>
+    <title></title>
+
+    <style>
+        canvas {
+            filter: brightness(1.8) contrast(0.88);
+        }
+
+        body {
+            background-color: #121212 !important;
+            color: #e0e0e0 !important;
+            font-family: 'Segoe UI', Arial, sans-serif !important;
+            margin: 0;
+            padding: 0;
+            overflow: hidden !important;
+        }
+
+        input[type=range] {
+            filter: grayscale(1) brightness(0.8) sepia(1) hue-rotate(180deg) saturate(3);
+        }
+
+        button,
+        input[type="button"],
+        input[type="submit"],
+        .gwt-Button {
+            background-color: #3f51b5 !important;
+            background-image: none !important;
+            color: #ffffff !important;
+            border: 1px solid #3f51b5 !important;
+            border-radius: 4px !important;
+            display: inline-block !important;
+            padding: 0 12px !important;
+            margin: 4px 2px !important;
+            height: 28px !important;
+            min-height: 28px !important;
+            max-height: 28px !important;
+            line-height: 26px !important;
+            font-size: 12px !important;
+            white-space: nowrap !important;
+            vertical-align: top !important;
+            cursor: pointer !important;
+            font-weight: bold !important;
+            text-shadow: none !important;
+            box-shadow: none !important;
+            box-sizing: border-box !important;
+        }
+
+            button:hover,
+            input[type="button"]:hover,
+            .gwt-Button:hover {
+                background-color: #5c6bc0 !important;
+                border-color: #5c6bc0 !important;
+            }
+
+            button[disabled],
+            input[type="button"][disabled],
+            .gwt-Button[disabled],
+            .gwt-Button-disabled {
+                background-color: #2a2a2a !important;
+                border-color: #444444 !important;
+                color: #777777 !important;
+                cursor: not-allowed !important;
+            }
+
+        .gwt-MenuBar-horizontal, .gwt-MenuBar-vertical {
+            display: none !important;
+        }
+
+        .gwt-DialogBox,
+        .gwt-DialogBox table,
+        .gwt-DialogBox tbody,
+        .gwt-DialogBox tr,
+        .gwt-DialogBox td {
+            background-color: #1e1e1e !important;
+            background-image: none !important;
+            border: none !important;
+            color: #e0e0e0 !important;
+        }
+
+        .gwt-DialogBox {
+            border: 1px solid #3f51b5 !important;
+            border-radius: 8px !important;
+            box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.8) !important;
+            overflow: hidden !important;
+        }
+
+            .gwt-DialogBox .Caption {
+                background-color: #2a2a2a !important;
+                color: #ffffff !important;
+                padding: 10px 15px !important;
+                border-bottom: 1px solid #3f51b5 !important;
+                font-weight: bold !important;
+                cursor: move !important;
+            }
+
+            .gwt-DialogBox .dialogContent {
+                padding: 15px !important;
+                background-color: transparent !important;
+            }
+
+            .gwt-DialogBox span,
+            .gwt-DialogBox label,
+            .gwt-DialogBox div {
+                background-color: transparent !important;
+                color: #e0e0e0 !important;
+            }
+
+        .gwt-TextBox, input[type="text"], input[type="number"] {
+            background-color: #121212 !important;
+            color: #81c784 !important;
+            border: 1px solid #444 !important;
+            padding: 4px 6px !important;
+            border-radius: 4px !important;
+            margin-top: 5px !important;
+            height: 24px !important;
+            box-sizing: border-box !important;
+        }
+
+        .gwt-Button.expand-but {
+            background-color: #3f51b5 !important;
+            border-radius: 3px !important;
+            color: #ffffff !important;
+            border: none !important;
+            margin: 0 5px 0 0 !important;
+            padding: 0px 4px 2px 4px !important;
+            width: auto !important;
+            height: auto !important;
+            min-height: auto !important;
+            max-height: auto !important;
+            line-height: normal !important;
+        }
+
+        .radioPanel label, .gwt-Label {
+            font-size: 13px !important;
+        }
+
+        .gwt-SplitLayoutPanel canvas {
+            height: 100% !important;
+        }
+    </style>
+
+    <style>
+        .disabled {
+            color: lightgray;
+        }
+
+        .topSpace {
+            margin-top: 12px;
+        }
+
+        .cursorPointer {
+            cursor: default;
+        }
+
+        .cursorCross {
+            cursor: crosshair;
+        }
+
+        .cursorSplitter {
+            cursor: row-resize;
+        }
+
+        .gwt-MenuItem-disabled {
+            color: lightgray;
+        }
+
+        .offScreen {
+            position: absolute;
+            right: 101%;
+            overflow: hidden;
+        }
+
+        .gwt-Frame {
+            border: 0px !important;
+        }
+
+        .gwt-MenuItem {
+            font-size: 12px !important;
+        }
+
+        .gwt-MenuBar-horizontal {
+            font-size: 12px !important;
+        }
+
+        .gwt-Label-selected {
+            font-size: 1.3em;
+            font-weight: 700;
+            border-top: 1px solid black;
+            border-bottom: 1px solid black;
+        }
+
+        .gwt-Label-1off {
+            color: DarkGray;
+        }
+
+        .gwt-Label-2off {
+            font-size: 0.8em;
+            color: LightGray;
+        }
+
+        .gwt-Button.chbut {
+            padding: 3px;
+            margin: 3px;
+        }
+
+            .gwt-Button.chbut.chsel {
+                font-weight: bold;
+            }
+
+        .gwt-Button.chbut-black {
+            background: black;
+            color: white;
+        }
+
+        .gwt-Button.chbut-white {
+            background: white;
+            color: black;
+        }
+
+        .gwt-TextBox.scalebox {
+            width: 100px;
+        }
+
+        .radioPanel label {
+            margin-right: 15px;
+        }
+    </style>
+
+    <link rel="stylesheet" href="font/fontello.css">
+</head>
+<body>
+
+    <script language="javascript" src="lz-string.min.js"></script>
+    <script language="javascript" src="circuitjs1/circuitjs1.nocache.js"></script>
+    <iframe src="javascript:''" id="__gwt_historyFrame" style="width:0;height:0;border:0"></iframe>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js').then(registration => {
+                    console.log('Service Worker registered with scope:', registration.scope);
+                }).catch(error => {
+                    console.error('Service Worker registration failed:', error);
+                });
+            });
+        }
+
+        setInterval(function () {
+            var elements = document.querySelectorAll('div, span');
+            elements.forEach(function (el) {
+                var text = (el.textContent || el.innerText || "").trim();
+
+                if (text === 'Power Brightness' || text === 'Current Circuit:' || text === 'Current Circuit') {
+                    var parentRow = el.closest('tr');
+                    if (parentRow) {
+                        parentRow.style.display = 'none';
+
+                        if (text.includes('Power Brightness')) {
+                            var nextRow = parentRow.nextElementSibling;
+                            if (nextRow) nextRow.style.display = 'none';
+                        }
+                    } else {
+                        el.style.display = 'none';
+                    }
+                }
+            });
+        }, 500);
+
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,36 @@
+<meta name="viewport" content="width=820">
+<title>Circuit Simulator Applet</title>
+<link rel="SHORTCUT ICON" href="favicon.ico">
+<link rel="stylesheet" href="pong.css" type="text/css">
+<body>
+<hr>
+<div class="split">
+<div id="split-0">
+<iframe id="circuitFrame" src="../circuitjs.html?startCircuit=scorectrs.txt&mouseMode=DragAll"></iframe>
+</div>
+<div id="split-1">
+<div id="info"></div>
+This is the circuit that keeps track of the score.  When <span class="overline">MISSED</span> goes low,
+that increments either score 1 or score 2, depending on whether L or R is active.  (An inverter between L and R
+has been added here to ensure that they're not both active at the same time.)  When one of the scores reaches
+15, then STOP G is brought high, ending the game.  There is also a switch which the arcade operator
+could have used to end the game at 11 instead of 15.
+<p>
+You can reset the score by bringing SRST high at the bottom left.
+<p>
+Of course there's nothing stopping you from continuing to increment the score past 11 or 15.  This wouldn't be possible
+in the actual game because <span class="overline">MISSED</span> cannot go low in attract mode.
+<p>
+Next: <a href="gamelogic.html">Game Logic</a>.
+<p>
+<a href="index.html">Index</a>
+</div>
+
+<script type="module">
+
+import Split from './split.js';
+
+Split(['#split-0', '#split-1'], { sizes: [70, 30] });
+
+</script>
+

@@ -1,0 +1,171 @@
+
+    /**
+     * Tries fast pattern routes (L and Z shapes).
+     * Returns compressed pixel path if successful, else empty list.
+     */
+    private ArrayList<Point> tryPatternRouting(int startR, int startC, int goalR, int goalC) {
+	if (startR == goalR && startC == goalC) {
+	    ArrayList<Point> result = new ArrayList<Point>();
+	    result.add(new Point(startC * gridSize + originX, startR * gridSize + originY));
+	    return result;
+	}
+
+	int[] startPrefs = getPreferredEscapeDirections(startR, startC);
+	double bestCost = Double.POSITIVE_INFINITY;
+	List<int[]> bestCorners = null;
+
+	// ─────────────────────────────────────────────
+	// 1. L-shapes (1 bend)
+	// ─────────────────────────────────────────────
+
+	if (startR != goalR && startC != goalC) {
+	    // A: horizontal then vertical
+	    List<int[]> path1 = new ArrayList<int[]>();
+	    path1.add(new int[]{startR, startC});
+	    path1.add(new int[]{startR, goalC});
+	    path1.add(new int[]{goalR, goalC});
+	    int dir1 = (goalC > startC) ? RIGHT : LEFT;
+	    double cost1 = evaluatePath(path1, dir1, startPrefs);
+	    if (cost1 >= 0 && cost1 < bestCost) {
+		bestCost = cost1;
+		bestCorners = path1;
+	    }
+
+	    // B: vertical then horizontal
+	    List<int[]> path2 = new ArrayList<int[]>();
+	    path2.add(new int[]{startR, startC});
+	    path2.add(new int[]{goalR, startC});
+	    path2.add(new int[]{goalR, goalC});
+	    int dir2 = (goalR > startR) ? DOWN : UP;
+	    double cost2 = evaluatePath(path2, dir2, startPrefs);
+	    if (cost2 >= 0 && cost2 < bestCost) {
+		bestCost = cost2;
+		bestCorners = path2;
+	    }
+	} else if (startR == goalR) {
+	    // straight horizontal
+	    List<int[]> path = new ArrayList<int[]>();
+	    path.add(new int[]{startR, startC});
+	    path.add(new int[]{goalR, goalC});
+	    int dir = (goalC > startC) ? RIGHT : LEFT;
+	    double cost = evaluatePath(path, dir, startPrefs);
+	    if (cost >= 0 && cost < bestCost) {
+		bestCost = cost;
+		bestCorners = path;
+	    }
+	} else {
+	    // straight vertical
+	    List<int[]> path = new ArrayList<int[]>();
+	    path.add(new int[]{startR, startC});
+	    path.add(new int[]{goalR, goalC});
+	    int dir = (goalR > startR) ? DOWN : UP;
+	    double cost = evaluatePath(path, dir, startPrefs);
+	    if (cost >= 0 && cost < bestCost) {
+		bestCost = cost;
+		bestCorners = path;
+	    }
+	}
+
+	// ─────────────────────────────────────────────
+	// 2. Z-shapes (2 bends) — try detour on both sides
+	// ─────────────────────────────────────────────
+
+	int detourMargin = 3;
+
+	// Variant 1: vertical – horizontal – vertical (detour column)
+	if (startR != goalR) {
+	    int midR = (startR + goalR) / 2;
+	    for (int side : new int[]{-1, +1}) {
+		int detourCol = startC + side * detourMargin;
+		if (!isValid(0, detourCol)) continue;
+
+		List<int[]> z = new ArrayList<int[]>();
+		z.add(new int[]{startR, startC});
+		if (startC != detourCol)
+		    z.add(new int[]{startR, detourCol});
+		if (startR != goalR)
+		    z.add(new int[]{goalR, detourCol});
+		if (detourCol != goalC)
+		    z.add(new int[]{goalR, goalC});
+		if (z.size() >= 2) {
+		    int dir = (detourCol > startC) ? RIGHT : LEFT;
+		    double cost = evaluatePath(z, dir, startPrefs);
+		    if (cost >= 0 && cost < bestCost) {
+			bestCost = cost;
+			bestCorners = z;
+		    }
+		}
+
+		// also try going to midpoint row first
+		detourCol = goalC + side * detourMargin;
+		if (!isValid(0, detourCol)) continue;
+		z = new ArrayList<int[]>();
+		z.add(new int[]{startR, startC});
+		if (startC != detourCol)
+		    z.add(new int[]{startR, detourCol});
+		if (startR != goalR)
+		    z.add(new int[]{goalR, detourCol});
+		if (detourCol != goalC)
+		    z.add(new int[]{goalR, goalC});
+		if (z.size() >= 2) {
+		    int dir = (detourCol > startC) ? RIGHT : LEFT;
+		    double cost = evaluatePath(z, dir, startPrefs);
+		    if (cost >= 0 && cost < bestCost) {
+			bestCost = cost;
+			bestCorners = z;
+		    }
+		}
+	    }
+	}
+
+	// Variant 2: horizontal – vertical – horizontal (detour row)
+	if (startC != goalC) {
+	    for (int side : new int[]{-1, +1}) {
+		int detourRow = startR + side * detourMargin;
+		if (!isValid(detourRow, 0)) continue;
+
+		List<int[]> z = new ArrayList<int[]>();
+		z.add(new int[]{startR, startC});
+		if (startR != detourRow)
+		    z.add(new int[]{detourRow, startC});
+		if (startC != goalC)
+		    z.add(new int[]{detourRow, goalC});
+		if (detourRow != goalR)
+		    z.add(new int[]{goalR, goalC});
+		if (z.size() >= 2) {
+		    int dir = (detourRow > startR) ? DOWN : UP;
+		    double cost = evaluatePath(z, dir, startPrefs);
+		    if (cost >= 0 && cost < bestCost) {
+			bestCost = cost;
+			bestCorners = z;
+		    }
+		}
+
+		detourRow = goalR + side * detourMargin;
+		if (!isValid(detourRow, 0)) continue;
+		z = new ArrayList<int[]>();
+		z.add(new int[]{startR, startC});
+		if (startR != detourRow)
+		    z.add(new int[]{detourRow, startC});
+		if (startC != goalC)
+		    z.add(new int[]{detourRow, goalC});
+		if (detourRow != goalR)
+		    z.add(new int[]{goalR, goalC});
+		if (z.size() >= 2) {
+		    int dir = (detourRow > startR) ? DOWN : UP;
+		    double cost = evaluatePath(z, dir, startPrefs);
+		    if (cost >= 0 && cost < bestCost) {
+			bestCost = cost;
+			bestCorners = z;
+		    }
+		}
+	    }
+	}
+
+	if (bestCorners == null) {
+	    return new ArrayList<Point>();
+	}
+
+	return pixelsFromGridPoints(bestCorners);
+    }
+

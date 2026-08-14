@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title data-i18n="card_inductor_title">İndüktör Hesapla</title>
+    <meta content="" name="description">
+    <meta content="" name="keywords">
+    <meta property="og:title" content="">
+    <meta property="og:image" content="">
+    <meta property="og:url" content="">
+    <meta property="og:site_name" content="">
+    <meta property="og:description" content="">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:site" content="">
+    <meta name="twitter:title" content="">
+    <meta name="twitter:description" content="">
+    <meta name="twitter:image" content="">
+    <link href="assets/img/favicon.png" rel="icon">
+    <link href="assets/img/apple-touch-icon.png" rel="apple-touch-icon">
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,700,700i%7CRaleway:300,400,500,700,800" rel="stylesheet">
+    <link href="assets/vendor/aos/aos.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+    <link href="assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
+    <link href="assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
+    <link href="assets/css/style.css" rel="stylesheet">
+    <link href="assets/css/design.css" rel="stylesheet">
+</head>
+<body>
+    <header id="header" class="d-flex align-items-center">
+        <div class="container d-flex align-items-center justify-content-between">
+            <a href="index.html" class="logo mr-auto"><img src="assets/img/logo.png" alt=""></a>
+            <nav id="navbar" class="navbar">
+                <ul>
+                    <li><a class="nav-link scrollto active" href="index.html" data-i18n="nav_home">Anasayfa</a></li>
+                    <li><a class="nav-link scrollto" href="yardim.html" data-i18n="nav_help">Yardım</a></li>
+                    <li><a class="nav-link scrollto" href="index.html#contact" data-i18n="nav_feedback">Feedback Formu</a></li>
+                    <li id="language" class="dropdown">
+                        <a href="javascript:void(0);" onclick="this.parentElement.classList.toggle('mobile-active');">
+                            <span>🌍 Dil / Language</span> <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <ul>
+                            <li><a href="javascript:void(0);" onclick="changeLanguage('tr');">🇹🇷 Türkçe</a></li>
+                            <li><a href="javascript:void(0);" onclick="changeLanguage('en');">🇬🇧 English</a></li>
+                            <li><a href="javascript:void(0);" onclick="changeLanguage('de');">🇩🇪 Deutsch</a></li>
+                        </ul>
+                    </li>
+                </ul>
+                <i class="bi bi-list mobile-nav-toggle"></i>
+            </nav>
+        </div>
+    </header>
+
+    <main id="main">
+        <section class="breadcrumbs">
+            <div class="container">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2 data-i18n="card_inductor_title">İndüktör Hesapla</h2>
+                    <ol>
+                        <li><a href="index.html" data-i18n="nav_home">Anasayfa</a></li>
+                        <li data-i18n="inductor_breadcrumb">İndüktör Hesaplama</li>
+                    </ol>
+                </div>
+            </div>
+        </section>
+
+        <section class="inner-page">
+            <div id="container" class="container">
+
+                <div class="row mb-4">
+                    <div id="inputs" class="col-md-7">
+                        <h2 data-i18n="input_header">Giriş Bilgileri</h2>
+                        <div class="input-group mb-3">
+                            <label for="vin_min" class="input-group-text" data-i18n="label_inductance">İndüktans/L [µHenry]:</label>
+                            <input id="vin_min" step="0.1" placeholder="µH" type="number" class="form-control" value="100">
+                        </div>
+                        <div class="input-group mb-3">
+                            <label for="vin_max" class="input-group-text" data-i18n="label_imax">Imax [Amper]:</label>
+                            <input id="vin_max" step="0.1" placeholder="A" type="number" class="form-control" value="5">
+                        </div>
+
+                        <div class="input-group mb-3 flex-wrap flex-md-nowrap">
+                            <label class="input-group-text" data-i18n="label_eff_mode">Verim Modu</label>
+                            <select id="effMode" class="form-select" onchange="toggleEffMode()">
+                                <option value="ideal" data-i18n="opt_ideal">İdeal</option>
+                                <option value="real" data-i18n="opt_real">Gerçek (Power Loss)</option>
+                            </select>
+
+                            <div id="idealInputGroup" style="display: contents;">
+                                <label style="border-radius: 0;" class="input-group-text" data-i18n="label_eff">Verim [%]</label>
+                                <input id="verim" type="number" class="form-control eff-input" placeholder="95" value="95" style="border-bottom-left-radius: 0; border-top-left-radius: 0;">
+                            </div>
+                        </div>
+
+                        <div id="realInputGroup" style="display:none;">
+                            <div class="param-group mb-3">
+                                <h5 data-i18n="inductor_pl_params">İndüktör (Power Loss) Parametreleri</h5>
+                                <div class="input-group input-group-sm mb-2">
+                                    <span class="input-group-text" data-i18n="label_dcr_ohm">DCR [Ω]</span>
+                                    <input type="number" id="p_dcr" value="0.045" class="form-control">
+                                </div>
+                                <div class="input-group input-group-sm mb-2">
+                                    <span class="input-group-text" data-i18n="label_acr_mult">ACR Çarpanı (DCR'nin katı)</span>
+                                    <input type="number" id="p_acr_mult" value="1.5" class="form-control">
+                                </div>
+                                <div class="input-group input-group-sm mb-2">
+                                    <span class="input-group-text" data-i18n="label_working_freq">Çalışma Frekansı [kHz]</span>
+                                    <input type="number" id="p_fsw" value="100" class="form-control">
+                                </div>
+                                <div class="input-group input-group-sm mb-2">
+                                    <span class="input-group-text" data-i18n="label_vout_nom">Çıkış Gerilimi (Vout) [V]</span>
+                                    <input type="number" id="p_vout" value="24" class="form-control">
+                                </div>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text" data-i18n="label_delta_il_pct">ΔIL (% of Imax)</span>
+                                    <input type="number" id="p_ripple_pct" value="30" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="param-group mt-3" style="text-align: center;">
+                            <h5 style="border-bottom: none; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                                <span data-i18n="core_selection_mode">Çekirdek & Tel Seçim Modu</span>
+                                <button type="button" class="btn btn-sm btn-outline-warning" onclick="showModeInfo()" style="border-radius: 50%; width: 24px; height: 24px; padding: 0; line-height: 1; font-weight: bold;">i</button>
+                            </h5>
+                            <div class="btn-group w-75" role="group">
+                                <input type="radio" class="btn-check" name="coreSelectionMode" id="modeStandard" value="standard" checked>
+                                <label data-i18n="mod1" class="btn btn-outline-info" for="modeStandard" style="border-color: #3f51b5; color: #e0e0e0;">Standart Mod</label>
+
+                                <input type="radio" class="btn-check" name="coreSelectionMode" id="modeAdvanced" value="advanced">
+                                <label data-i18n="mod2" class="btn btn-outline-info" for="modeAdvanced" style="border-color: #3f51b5; color: #e0e0e0; ">Advanced Mod (AI)</label>
+                            </div>
+                        </div>
+
+                        <button id="calculateButton" onclick="hesapla()" class="btn btn-primary w-100" data-i18n="btn_calc">Hesapla</button>
+                    </div>
+
+                    <div id="hello19" class="col-md-5 d-flex flex-column justify-content-between">
+                        <div>
+                            <h2 data-i18n="results_title">Sonuçlar</h2>
+                            <table class="table table-bordered">
+                                <tr>
+                                    <th data-i18n="res_L">İndüktans Değeri (L)</th>
+                                    <td><span id="lOutput">-</span> μH</td>
+                                </tr>
+                                <tr>
+                                    <th data-i18n="res_deltaIL">ΔIL (Max)</th>
+                                    <td><span id="deltaILMax">-</span> A</td>
+                                </tr>
+                                <tr>
+                                    <th data-i18n="res_Wmax">Wmax (Enerji)</th>
+                                    <td><span id="wmax1">-</span> µJoule</td>
+                                </tr>
+                                <tr id="lossResultRow" style="display:none;">
+                                    <th data-i18n="label_loss_est">Tahmini Verim Kaybı</th>
+                                    <td><span id="loss">-</span> %</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div id="buttons" class="d-flex gap-2 justify-content-end mt-auto">
+                            <button id="printButton" onclick="window.print()" class="btn btn-primary" data-i18n="btn_print">Yazdır</button>
+                            <button id="openButton" onclick="openSelectedTable()" class="btn btn-primary" data-i18n="btn_suggest">Uygun İndüktör Önerileri</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="powerLossSection" class="row mt-3" style="display: none;">
+                    <div class="col-md-12">
+                        <div class="param-group">
+                            <h2 data-i18n="real_power_loss_title">Gerçek Güç Kaybı (Power Loss) Analizi</h2>
+                            <div class="table-responsive">
+                                <table class="table table-sm ploss-table text-center">
+                                    <thead>
+                                        <tr>
+                                            <th data-i18n="th_dc_loss">DC İletim Kaybı (P_DCR)</th>
+                                            <th data-i18n="th_ac_loss">AC İletim Kaybı (P_ACR)</th>
+                                            <th data-i18n="th_core_loss">Çekirdek Kaybı (P_Core - Tahmini)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td id="res_pdcr">-</td>
+                                            <td id="res_pacr">-</td>
+                                            <td id="res_pcore">-</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                <table class="table table-sm ploss-table mt-2">
+                                    <tr class="total-row text-center" style="font-size: 1.2em;">
+                                        <td width="50%"><span data-i18n="total_inductor_loss">Toplam İndüktör Kaybı (P_total):</span> <span id="res_ptotal">-</span></td>
+                                        <td width="50%"><span data-i18n="calc_efficiency">Hesaplanan Genel Verim (η):</span> <span id="res_peff">-</span></td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="charts" class="mt-4">
+                    <h2 data-i18n="charts_title">Grafikler</h2>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <canvas id="ilChart" width="600" height="300"></canvas>
+                        </div>
+                        <div class="col-md-6">
+                            <canvas id="effChart" width="600" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <footer id="footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="copyright"> © Copyright <strong>ATAQ Advanced Technology</strong>. <span data-i18n="footer_rights">Tüm hakları saklıdır.</span> </div>
+                    <div class="credits"> Designed and developed by <a style="color: #00AEEF !important;" href="https://www.linkedin.com/in/yasemin-algin/">Yasemin Tuğba Algın</a> </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+    <div id="preloader"></div>
+
+    <!-- JS Kütüphaneleri -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="assets/vendor/aos/aos.js"></script>
+    <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/vendor/glightbox/js/glightbox.min.js"></script>
+    <script src="assets/vendor/isotope-layout/isotope.pkgd.min.js"></script>
+    <script src="assets/vendor/swiper/swiper-bundle.min.js"></script>
+    <script src="assets/vendor/typed.js/typed.min.js"></script>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
+
+    <!-- UI ve Ortak Bileşenler -->
+    <script src="assets/js/common/language.js"></script>
+    <script src="assets/js/main.js"></script>
+    <script src="assets/js/common/firebase_config.js"></script>
+    <script src="assets/js/common/api_service.js"></script>
+    <script src="assets/js/common/core_database.js"></script>
+    <script src="assets/js/common/magnetic_utils.js"></script>
+    <script src="assets/js/common/ui_modal.js"></script>
+    <script src="assets/js/common/advanced_optimizer.js" defer="defer"></script>
+
+    <!-- Topology Script -->
+    <script src="assets/js/topologies/inductor.js" defer="defer"></script>
+</body>
+</html>

@@ -1,0 +1,352 @@
+<meta name="viewport" content="width=820">
+<title>Circuit Simulator Applet</title>
+<link rel="SHORTCUT ICON" href="favicon.ico">
+<link rel="stylesheet" href="pong.css" type="text/css">
+<body>
+<hr>
+<div class="split">
+<div id="split-0">
+<iframe id="circuitFrame" src="../circuitjs.html?startCircuit=vonly.txt&mouseMode=DragAll"></iframe>
+</div>
+<div id="split-1">
+<button onclick="startGame()">New Game</button>
+<button onclick="stopGame()">Attract Mode</button>
+<div class="checkbox">Autoplay: <input type="checkbox" id="autoplayCheck"><br>
+&nbsp;<br>
+<canvas id="canvas" width=375 height=246 style="background-color:black;"></canvas>
+<p>
+In this circuit, the horizontal counters have been removed to speed up the simulation.  The analog parts of the
+circuit (like the serve timer and the paddle timers) have also been removed.  Now you can
+actually play the game.  You can still slow the simulation down enough to step through it line-by-line.
+<p>
+You can move the paddles with the mouse.  There is also an autoplay mode if you're as bad at this game as I am.
+<p>
+Next: <a href="scorectrs.html">Score Counters</a>.
+<p>
+<a href="index.html">Index</a>
+</div>
+
+<script type="module">
+
+import Split from './split.js';
+
+Split(['#split-0', '#split-1'], { sizes: [70, 30] });
+
+// get iframe the simulator is running in.  Must have same origin as this file!
+var iframe = document.getElementById("circuitFrame");
+
+var sim;
+var freq, ampl;
+var v1, h256, video, ctx, vblank, vpad1, vpad2, vvid, Aa, Ba;
+var pad1 = 100, pad2 = 100, lineCount;
+
+var nettext = '';
+var highlightY = -1;
+var savedLine;
+var resetCounter = 50;  // keep SRST high for short period at start
+var attractMode = false;
+
+function didAnalyze(sim) {
+  // get nodes we need
+  v1 = sim.getNode("1V");
+  h256 = sim.getNode("256H");
+  video = sim.getNode("VIDEO");
+  vblank = sim.getNode("VBLANK");
+  vpad1 = sim.getNode("/VPAD1");
+  vpad2 = sim.getNode("/VPAD2");
+  vvid = sim.getNode("/VVID");
+  Aa = sim.getNode("Aa");
+  Ba = sim.getNode("Ba");
+}
+
+// called when simulator updates its display
+function didUpdate(sim) {
+  var info = document.getElementById("info");
+
+  // erase highlight
+  if (savedLine)
+    ctx.putImageData(savedLine, 0, highlightY);
+
+  // if frame rate is slow, draw highlight just above line we are updating
+  highlightY = y-1;
+  ctx.fillStyle = "red";
+  savedLine = ctx.getImageData(0, highlightY, 455, 1);
+  if (lineCount < 150)
+    ctx.fillRect(0, highlightY, 455, 1);
+  ctx.fillStyle = "white";
+
+  // serve ball?
+  if (serveTime > 0 && sim.getTime() > serveTime) {
+    serveTime = 0;
+    if (!attractMode)
+      ballx = 200;
+  }
+  sim.setExtVoltage("/SERVE", serveTime == 0 ? 5 : 0);
+
+  // time to clear SC?
+  if (scTime > 0 && sim.getTime() > scTime) {
+    scTime = 0;
+    sim.setExtVoltage("SC", 0);
+  }
+  if (resetCounter == 0 && sim.getNodeVoltage("STOP G") > 2.5)
+    sim.setExtVoltage("/RUN", 5);
+  lineCount = 0;
+}
+
+var lastv1 = -1;
+var y = 0;
+var ballx = 200;
+var clearedY = -1;
+var oldmiss = true, oldhit = true;
+var serveTime = 0;
+var scTime = 0;
+var needH256 = 0;
+var oldVblank = false;
+var ballY;
+var padAdj = 0;
+
+// called every timestep
+function didStep(sim) {
+  // are we waiting for 256H to have the right value so we can call setHit()?
+  if (needH256 > 0) {
+    var h = h256.getVoltage();
+    if ((h > 2.5) == (ballx > 256)) {
+      needH256--;
+      if (needH256 == 0)
+        setHit(sim, true)
+    }
+  }
+
+  // wait for 1V to change
+  var c = v1.getVoltage();
+  if (c == lastv1)
+    return;
+  lastv1 = c;
+  y++;
+  lineCount++;
+
+  // get Aa and Ba to figure out which way ball is moving
+  var Aaval = (Aa.getVoltage() > 2.5) ? 1 : 0;
+  var Baval = (Ba.getVoltage() > 2.5) ? 1 : 0;
+  ballx += 2-(Aaval+Baval*2);
+  var miss = (ballx < 0 || ballx >= 375);
+  if (miss != oldmiss) {
+    if (ballx < 0)
+      ballx += 375;
+    if (ballx >= 375)
+      ballx -= 375;
+    sim.setExtVoltage("/MISS", miss ? 0 : 5);
+    oldmiss = miss;
+    if (miss) {
+      // set serve timer to 1.7 seconds from now
+      serveTime = sim.getTime() + 1.7;
+
+      // set SC and /SERVE high
+      sim.setExtVoltage("SC", 5);
+      sim.setExtVoltage("/SERVE", 5);
+
+      // put SC back to low in .5 sec
+      scTime = sim.getTime() + .5;
+    }
+  }
+
+  // vertical blanking?
+  if (vblank.getVoltage() > 2.5) {
+    y = 0;
+    clearedY = -1;
+    if (!oldVblank) {
+      sim.setExtVoltage("PADTRIGGER1", 5);
+      sim.setExtVoltage("PADTRIGGER2", 5);
+      attractMode = sim.getNodeVoltage("ATTRACT") > 2.5;
+
+      // autoplay?  set paddle locations to ball Y
+      if (autoplayCheck.checked)
+        pad1 = pad2 = Math.max(1, ballY-8+padAdj);
+    }
+    oldVblank = true;
+  } else
+    oldVblank = false;
+
+  // trigger paddles
+  if (y == pad1)
+    sim.setExtVoltage("PADTRIGGER1", 0);
+  if (y == pad2)
+    sim.setExtVoltage("PADTRIGGER2", 0);
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, y, 455, 1);
+  ctx.fillStyle = "white";
+
+  // draw ball
+  if (video.getVoltage() > 2.5 && (serveTime == 0 || attractMode)) {
+    ctx.fillRect(ballx, y, 4, 1);
+    ballY = y;
+  }
+  var hit = false;
+
+  if (vpad1.getVoltage() < 2.5 && !attractMode) {
+    // draw paddle 1
+    ctx.fillRect(48, y, 4, 1);
+    // check for hit
+    if ((ballx >= 48 && ballx <= 52) && vvid.getVoltage() < 2.5)
+      hit = true;
+  }
+  if (vpad2.getVoltage() < 2.5 && !attractMode) {
+    // draw paddle 2
+    ctx.fillRect(48+256, y, 4, 1);
+    // check for hit
+    if ((ballx >= 48+256 && ballx <= 52+256) && vvid.getVoltage() < 2.5)
+      hit = true;
+  }
+  if (hit != oldhit) {
+    if (hit) {
+      // we got a hit but we need to wait until 256H has the correct value
+      // before setting HIT, so that the vertical ball control will set the vertical speed
+      // to the correct value.  actually wait 10 iterations after that so that
+      // we have a chance to process all the logic.
+      needH256 = 10;
+    } else
+      setHit(sim, false);
+    oldhit = hit;
+  }
+
+  // draw net
+  if (y % 8 < 4)
+    ctx.fillRect(256-80, y, 1, 1);
+  var realY = y+16;
+
+  // draw score
+  if (realY >= 32 && realY < 64) {
+    ctx.translate(-80, 0);
+    ctx.fillStyle = "#d4d4d4";
+    drawScore(realY);
+    ctx.translate(+80, 0);
+  }
+
+  if (resetCounter > 0) {
+    resetCounter--;
+    sim.setExtVoltage("SRST", resetCounter == 0 ? 0 : 5);
+  }
+}
+
+var code11, code12, code21, code22;
+
+function getCode(name) {
+  var s1 = sim.getNodeVoltage(name + "_1") > 2.5 ? 1 : 0;
+  var s2 = sim.getNodeVoltage(name + "_2") > 2.5 ? 2 : 0;
+  var s4 = sim.getNodeVoltage(name + "_4") > 2.5 ? 4 : 0;
+  var s8 = sim.getNodeVoltage(name + "_8") > 2.5 ? 8 : 0;
+  return decoder[s1+s2+s4+s8];
+}
+
+function drawScore(ry) {
+  if (ry == 32) {
+    code11 = sim.getNodeVoltage("SCORE1_10") > 2.5 ? decoder[1] : null;
+    code12 = getCode("SCORE1");
+    code21 = sim.getNodeVoltage("SCORE2_10") > 2.5 ? decoder[1] : null;
+    code22 = getCode("SCORE2");
+  }
+  drawScoreDigit(128, ry, code11);
+  drawScoreDigit(128+32, ry, code12);
+  drawScoreDigit(256+64, ry, code21);
+  drawScoreDigit(256+64+32, ry, code22);
+}
+
+// 7-segment decoder values
+var decoder = [
+                [true,true,true,true,true,true,false],//0
+                [false,true,true,false,false,false,false],//1
+                [true,true,false,true,true,false,true],//2
+                [true,true,true,true,false,false,true],//3
+                [false,true,true,false,false,true,true],//4
+                [true,false,true,true,false,true,true],//5
+                [true,false,true,true,true,true,true],//6
+                [true,true,true,false,false,false,false],//7
+                [true,true,true,true,true,true,true],//8
+                [true,true,true,false,false,true,true]//9
+];
+
+// draw horizontal slice of score digit
+function drawScoreDigit(x, ry, code) {
+  if (!code)
+    return;
+  if (ry & 16) {
+    if (code[4])
+      ctx.fillRect(x+16, y, 4, 1); // E
+    if (code[2])
+      ctx.fillRect(x+16+4+8, y, 4, 1); // C
+    if (code[3] && (ry & (4+8)) == 12)
+      ctx.fillRect(x+16, y, 16, 1); // D
+  } else {
+    if (code[5])
+      ctx.fillRect(x+16, y, 4, 1); // F
+    if (code[1])
+      ctx.fillRect(x+16+4+8, y, 4, 1); // B
+    if (code[0] && (ry & (4+8)) == 0)
+      ctx.fillRect(x+16, y, 16, 1); // A
+    if (code[6] && (ry & (4+8)) == 12)
+      ctx.fillRect(x+16, y, 16, 1); // G
+  }
+  // c, 16V=1, 16H=1, 4H=1, 8H=1
+  // a: 16V=0, 8V=0, 4V=0, 16H=1
+  // g: 4V=1, 8V=1, 16H=1, 16V=0
+  // d: 16V=1, 4V,8V,16H=1
+}
+
+function setHit(sim, hit) {
+  sim.setExtVoltage("HIT", hit ? 5 : 0);
+  sim.setExtVoltage("/HIT1", hit && ballx < 256 ? 0 : 5);
+  sim.setExtVoltage("/HIT2", hit && ballx > 256 ? 0 : 5);
+
+  // add random adjustment so we're not just hitting the ball horizontally every time
+  padAdj = Math.floor(Math.random()*8)-5;
+}
+
+window.startGame = function () {
+  sim.setExtVoltage("/RUN", 0);
+
+  // keep SRST high for short period at start
+  resetCounter = 50;
+
+  // start serve timer
+  serveTime = sim.getTime() + 1.7;
+  sim.setExtVoltage("/SERVE", 0);
+}
+
+window.stopGame = function () {
+  sim.setExtVoltage("/RUN", 5);
+}
+
+// callback called when simulation is done initializing
+function simLoaded() {
+  // get simulator object
+  sim = iframe.contentWindow.CircuitJS1;
+
+  // set up callbacks on update and timestep
+  sim.onupdate = didUpdate;
+  sim.ontimestep = didStep;
+  sim.onanalyze = didAnalyze;
+
+  ctx = canvas.getContext("2d");
+  //ctx.fillRect(0, 0, 455, 262);
+  ctx.strokeStyle = "white";
+  ctx.fillStyle = "white";
+
+  canvas.onmousemove = function (event) {
+    var rect = canvas.getBoundingClientRect();
+    var mouseX = Math.floor((event.clientX - rect.left) * 375 / rect.width);
+    var mouseY = Math.floor((event.clientY - rect.top) * 246 / rect.height);
+    var padY = Math.max(mouseY-8, 1);
+
+    // move paddles
+    if (mouseX < 256-80)
+      pad1 = padY;
+    else
+      pad2 = padY;
+  }
+}
+
+// set up callback
+iframe.contentWindow.oncircuitjsloaded = simLoaded;
+
+</script>
+

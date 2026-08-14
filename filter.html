@@ -1,0 +1,440 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>5th Order Input Filter Analysis</title>
+    <link href="assets/img/favicon.png" rel="icon">
+    <link href="assets/img/apple-touch-icon.png" rel="apple-touch-icon">
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,700,700i%7CRaleway:300,400,500,700,800" rel="stylesheet">
+    <link href="assets/vendor/aos/aos.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+    <link href="assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
+    <link href="assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
+    <link href="assets/css/style.css" rel="stylesheet">
+    <link href="assets/css/design.css" rel="stylesheet">
+    <style>
+        .cw {
+            fill: none;
+            stroke: #ffffff;
+            stroke-width: 2;
+        }
+        .cc {
+            fill: none;
+            stroke: #ffffff;
+            stroke-width: 2.5;
+            stroke-linejoin: round;
+        }
+        .cl {
+            font-family: 'Open Sans', sans-serif;
+            font-size: 12px;
+            fill: #ffffff;
+            font-weight: 600;
+        }
+
+        .clv {
+            font-family: 'Open Sans', sans-serif;
+            font-size: 10px;
+            fill: #cccccc;
+        }
+
+        .cn {
+            fill: #ffffff;
+        }
+        .cb {
+            fill: transparent;
+            stroke: #ffffff;
+            stroke-width: 1.5;
+        }
+        .gt {
+            fill: none;
+            stroke: #ffffff;
+            stroke-width: 1.5;
+        }
+        .param-group {
+            padding: 18px;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+            .param-group h5 {
+                font-family: 'Raleway',sans-serif;
+                font-weight: 700;
+                font-size: 15px;
+                margin-bottom: 12px;
+                color: #2c3e50;
+            }
+
+        .input-group-text {
+            min-width: 260px;
+        }
+    </style>
+</head>
+<body>
+    <header id="header" class="d-flex align-items-center">
+        <div class="container d-flex align-items-center justify-content-between">
+            <a href="index.html" class="logo mr-auto"><img src="assets/img/logo.png" alt=""></a>
+            <nav id="navbar" class="navbar">
+                <ul>
+                    <li><a class="nav-link scrollto active" href="index.html" data-i18n="nav_home">Anasayfa</a></li>
+                    <li><a class="nav-link scrollto" href="yardim.html" data-i18n="nav_help">Yardım</a></li>
+                    <li><a class="nav-link scrollto" href="index.html#contact" data-i18n="nav_feedback">Feedback Formu</a></li>
+                    <li id="language" class="dropdown">
+                        <a href="javascript:void(0);" onclick="this.parentElement.classList.toggle('mobile-active');">
+                            <span>🌍 Dil / Language</span> <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <ul>
+                            <li><a href="javascript:void(0);" onclick="changeLanguage('tr');">🇹🇷 Türkçe</a></li>
+                            <li><a href="javascript:void(0);" onclick="changeLanguage('en');">🇬🇧 English</a></li>
+                            <li><a href="javascript:void(0);" onclick="changeLanguage('de');">🇩🇪 Deutsch</a></li>
+                        </ul>
+                    </li>
+                </ul>
+                <i class="bi bi-list mobile-nav-toggle"></i>
+            </nav>
+        </div>
+    </header>
+
+    <main id="main">
+        <section class="breadcrumbs">
+            <div class="container">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2 data-i18n="card_filter_title">SMPS 5th Order Giriş Filtresi Hesaplama</h2>
+                    <ol>
+                        <li><a href="index.html" data-i18n="nav_home">Anasayfa</a></li>
+                        <li data-i18n="filter_breadcrumb">Giriş Filtresi Tasarımı</li>
+                    </ol>
+                </div>
+            </div>
+        </section>
+
+        <section class="inner-page">
+            <div id="container" class="container">
+                <div class="row mb-4">
+
+                    <div id="inputs" class="col-md-7">
+                        <h2 data-i18n="input_filter_header">Sistem ve Filtre Parametreleri</h2>
+
+                        <div class="param-group">
+                            <h5 data-i18n="filter_5th_circuit_title">5th Order Input Filter – Devre Şeması</h5>
+
+                            <div class="text-center w-100">
+                                <svg viewBox="0 0 700 310" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg">
+
+                                    <circle cx="40" cy="130" r="25" class="cb" />
+                                    <text x="35" y="119" class="cl">+</text>
+                                    <text x="35" y="146" class="cl">−</text>
+                                    <text x="30" y="133" class="clv">Vin</text>
+
+                                    <line x1="40" y1="105" x2="40" y2="55" class="cw" />
+                                    <line x1="40" y1="55" x2="75" y2="55" class="cw" />
+
+                                    <path d="M75,55 Q83,30 91,55 T107,55 T123,55 T139,55" class="cc" />
+                                    <text x="107" y="20" class="cl" text-anchor="middle">Ls</text>
+                                    <text x="107" y="85" class="clv" text-anchor="middle">K5</text>
+
+                                    <line x1="139" y1="55" x2="158" y2="55" class="cw" />
+
+                                    <path d="M158,55 L164,37 L174,73 L184,37 L194,73 L200,55" class="cc" />
+                                    <text x="179" y="20" class="cl" text-anchor="middle">Rs</text>
+                                    <text x="179" y="85" class="clv" text-anchor="middle">K6</text>
+
+                                    <line x1="200" y1="55" x2="240" y2="55" class="cw" />
+
+                                    <circle cx="240" cy="55" r="5" class="cn" />
+
+                                    <line x1="240" y1="55" x2="270" y2="55" class="cw" />
+
+                                    <path d="M270,55 Q278,30 286,55 T302,55 T318,55 T334,55" class="cc" />
+                                    <text x="302" y="20" class="cl" text-anchor="middle">L2</text>
+                                    <text x="302" y="85" class="clv" text-anchor="middle">K3</text>
+
+                                    <line x1="334" y1="55" x2="353" y2="55" class="cw" />
+
+                                    <path d="M353,55 L359,37 L369,73 L379,37 L389,73 L395,55" class="cc" />
+                                    <text x="374" y="20" class="cl" text-anchor="middle">R2</text>
+                                    <text x="374" y="85" class="clv" text-anchor="middle">K4</text>
+
+                                    <line x1="395" y1="55" x2="460" y2="55" class="cw" />
+
+                                    <circle cx="460" cy="55" r="5" class="cn" />
+
+                                    <line x1="460" y1="55" x2="570" y2="55" class="cw" />
+
+                                    <rect x="570" y="45" width="118" height="140" rx="6" fill="none" stroke="#27ae60" stroke-width="2" />
+                                    <text x="629" y="105" class="cl" text-anchor="middle" data-i18n="svg_switching">Switching</text>
+                                    <text x="629" y="123" class="cl" text-anchor="middle" data-i18n="svg_power">Power</text>
+                                    <text x="629" y="141" class="cl" text-anchor="middle" data-i18n="svg_supply">Supply</text>
+
+                                    <line x1="240" y1="55" x2="240" y2="78" class="cw" />
+
+                                    <path d="M240,78 L230,88 L250,100 L230,112 L250,124 L240,133" class="cc" />
+                                    <text x="260" y="95" class="cl">Rcf</text>
+                                    <text x="260" y="110" class="clv">K12</text>
+
+                                    <line x1="225" y1="136" x2="255" y2="136" class="cc" />
+                                    <line x1="225" y1="146" x2="255" y2="146" class="cc" />
+                                    <line x1="240" y1="133" x2="240" y2="136" class="cw" />
+                                    <line x1="240" y1="146" x2="240" y2="162" class="cw" />
+                                    <text x="265" y="145" class="cl">Cf</text>
+                                    <text x="265" y="157" class="clv">K11</text>
+
+                                    <line x1="240" y1="162" x2="240" y2="260" class="cw" />
+
+                                    <line x1="460" y1="55" x2="460" y2="78" class="cw" />
+
+                                    <path d="M460,78 L450,88 L470,100 L450,112 L470,124 L460,133" class="cc" />
+                                    <text x="480" y="95" class="cl">Rf</text>
+                                    <text x="480" y="110" class="clv">K8</text>
+
+                                    <line x1="445" y1="156" x2="475" y2="156" class="cc" />
+                                    <line x1="445" y1="166" x2="475" y2="166" class="cc" />
+                                    <line x1="460" y1="133" x2="460" y2="156" class="cw" />
+                                    <line x1="460" y1="166" x2="460" y2="193" class="cw" />
+                                    <text x="485" y="165" class="cl">Cp</text>
+                                    <text x="485" y="177" class="clv">K7</text>
+
+                                    <line x1="460" y1="193" x2="460" y2="260" class="cw" />
+
+                                    <circle cx="530" cy="55" r="4" class="cn" />
+                                    <line x1="530" y1="55" x2="530" y2="78" class="cw" />
+
+                                    <path d="M530,78 L520,88 L540,100 L520,112 L540,124 L530,133" class="cc" />
+                                    <text x="545" y="95" class="cl">Rd</text>
+                                    <text x="545" y="110" class="clv">K10</text>
+
+                                    <line x1="515" y1="136" x2="545" y2="136" class="cc" />
+                                    <line x1="515" y1="146" x2="545" y2="146" class="cc" />
+                                    <line x1="530" y1="133" x2="530" y2="136" class="cw" />
+                                    <line x1="530" y1="146" x2="530" y2="162" class="cw" />
+                                    <text x="550" y="145" class="cl">Cd</text>
+                                    <text x="550" y="157" class="clv">K9</text>
+
+                                    <line x1="530" y1="162" x2="530" y2="260" class="cw" />
+
+                                    <line x1="40" y1="260" x2="570" y2="260" class="cw" />
+                                    <line x1="40" y1="155" x2="40" y2="260" class="cw" />
+                                    <line x1="570" y1="185" x2="570" y2="260" class="cw" />
+
+                                    <line x1="285" y1="260" x2="285" y2="275" class="cw" />
+                                    <line x1="268" y1="275" x2="302" y2="275" class="gt" />
+                                    <line x1="273" y1="281" x2="297" y2="281" class="gt" />
+                                    <line x1="278" y1="287" x2="292" y2="287" class="gt" />
+
+                                </svg>
+                            </div>
+                        </div>                                                <div class="param-group">
+                            <h5 data-i18n="psu_params">Güç Kaynağı (SMPS) Değerleri</h5>
+                            <div class="input-group mb-2">
+                                <label for="V_in_min" class="input-group-text" data-i18n="label_vin_min">Min. Giriş Gerilimi [V]:</label>
+                                <input id="V_in_min" type="number" step="0.1" class="form-control" value="6.0">
+                            </div>
+                            <div class="input-group mb-2">
+                                <label for="V_in_nom" class="input-group-text" data-i18n="label_vin_nom">Nominal Giriş Gerilimi [V]:</label>
+                                <input id="V_in_nom" type="number" step="0.1" class="form-control" value="12.0">
+                            </div>
+                            <div class="input-group mb-2">
+                                <label for="V_in_max" class="input-group-text" data-i18n="label_vin_max">Maks. Giriş Gerilimi [V]:</label>
+                                <input id="V_in_max" type="number" step="0.1" class="form-control" value="22.0">
+                            </div>
+                            <div class="input-group mb-2">
+                                <label for="V_out" class="input-group-text" data-i18n="label_vout">Çıkış Gerilimi (V_out) [V]:</label>
+                                <input id="V_out" type="number" step="0.1" class="form-control" value="2.0">
+                            </div>
+                            <div class="input-group mb-2">
+                                <label for="Efficiency_pct" class="input-group-text" data-i18n="chart_eff_pct">Verim [%]:</label>
+                                <input id="Efficiency_pct" type="number" step="0.1" class="form-control" value="90.0">
+                            </div>
+                            <div class="input-group mb-2">
+                                <label for="I_out_max" class="input-group-text" data-i18n="label_iout_max">Maks. Çıkış Akımı (I_out) [A]:</label>
+                                <input id="I_out_max" type="number" step="0.1" class="form-control" value="12.0">
+                            </div>
+                            <div class="input-group mb-2">
+                                <label for="F_sw" class="input-group-text" data-i18n="label_fsw">Anahtarlama Frekansı [kHz]:</label>
+                                <input id="F_sw" type="number" step="1" class="form-control" value="400.0">
+                            </div>
+                        </div>
+
+                        <div class="param-group">
+                            <h5 data-i18n="filter_series_inductors">Seri Filtre Endüktörleri (K5/K6 ve K3/K4)</h5>
+                            <div class="input-group mb-2">
+                                <label for="L_s" class="input-group-text" data-i18n="label_ls_source">Ls — Kaynak Endüktörü (K5) [µH]:</label>
+                                <input id="L_s" type="number" step="0.1" class="form-control" value="3.0">
+                            </div>
+                            <div class="input-group mb-2">
+                                <label for="R_s" class="input-group-text" data-i18n="label_rs_series">Rs — Ls Seri Direnci (K6) [Ω]:</label>
+                                <input id="R_s" type="number" step="0.01" class="form-control" value="0.05">
+                            </div>
+                            <div class="input-group mb-2">
+                                <label for="L_f" class="input-group-text" data-i18n="label_l2_series">L2 — İkinci Seri Endüktör (K3) [µH]:</label>
+                                <input id="L_f" type="number" step="0.1" class="form-control" value="2.0">
+                            </div>
+                            <div class="input-group mb-2">
+                                <label for="R_f" class="input-group-text" data-i18n="label_r2_series">R2 — L2 Seri Direnci (K4) [Ω]:</label>
+                                <input id="R_f" type="number" step="0.01" class="form-control" value="0.05">
+                            </div>
+                        </div>
+
+                        <div class="param-group">
+                            <h5 data-i18n="filter_main_cap">Ana Filtre Kapasitörü (K11/K12)</h5>
+                            <div class="input-group mb-2">
+                                <label for="C_f" class="input-group-text" data-i18n="label_cf_filter">Cf — Filtre Kapasitörü (K11) [µF]:</label>
+                                <input id="C_f" type="number" step="0.1" class="form-control" value="6.6">
+                            </div>
+                            <div class="input-group mb-2">
+                                <label for="R_cf" class="input-group-text" data-i18n="label_rcf_esr">Rcf — Cf ESR Direnci (K12) [Ω]:</label>
+                                <input id="R_cf" type="number" step="0.01" class="form-control" value="0.2">
+                            </div>
+                        </div>
+
+                        <div class="param-group">
+                            <h5 data-i18n="filter_parallel_branch">Paralel Çıkış Kapasitör Dalı (K7/K8)</h5>
+                            <div class="input-group mb-2">
+                                <label for="L_d" class="input-group-text" data-i18n="label_cp_parallel">Cp — Paralel Kapasitör (K7) [µF]:</label>
+                                <input id="L_d" type="number" step="0.1" class="form-control" value="2.2">
+                            </div>
+                            <div class="input-group mb-2">
+                                <label for="R_d" class="input-group-text" data-i18n="label_rf_series">Rf — Cp Seri Direnci (K8) [Ω]:</label>
+                                <input id="R_d" type="number" step="0.01" class="form-control" value="1.0">
+                            </div>
+                        </div>
+
+                        <div class="param-group">
+                            <h5 data-i18n="filter_damping_network">Sönümleme (Damping) Ağı (K9/K10)</h5>
+                            <div class="input-group mb-2">
+                                <label for="C_d" class="input-group-text" data-i18n="label_cd_damping">Cd — Sönümleme Kapasitörü (K9) [µF]:</label>
+                                <input id="C_d" type="number" step="1" class="form-control" value="44.0">
+                            </div>
+                            <div class="input-group mb-2">
+                                <label for="R_rd" class="input-group-text" data-i18n="label_rd_damping">Rd — Sönümleme Direnci (K10) [Ω]:</label>
+                                <input id="R_rd" type="number" step="0.01" class="form-control" value="0.2">
+                            </div>
+                        </div>
+
+                        <div class="param-group">
+                            <h5 data-i18n="ramp_params">Eğim Kompanzasyonu (Compensating Ramp)</h5>
+                            <div class="input-group mb-2">
+                                <label for="V_gate" class="input-group-text" data-i18n="label_v_gate">Gate Sürücü Voltajı [V]:</label>
+                                <input id="V_gate" type="number" step="0.1" class="form-control" value="12.0">
+                            </div>
+                            <div class="input-group mb-2">
+                                <label for="R_ramp" class="input-group-text" data-i18n="label_r_ramp">Rampa Direnci [kΩ]:</label>
+                                <input id="R_ramp" type="number" step="0.1" class="form-control" value="23.0">
+                            </div>
+                            <div class="input-group mb-2">
+                                <label for="C_ramp" class="input-group-text" data-i18n="label_c_ramp">Rampa Kapasitörü [µF]:</label>
+                                <input id="C_ramp" type="number" step="0.001" class="form-control" value="0.01">
+                            </div>
+                        </div>
+
+                        <button id="calculateButton" onclick="hesaplaFiltre()" class="btn btn-primary w-100 mt-3" data-i18n="btn_calc">
+                            Hesapla / Calculate
+                        </button>
+                    </div>                                        <div id="results" class="col-md-5 d-flex flex-column justify-content-between">
+                        <div>
+                            <h2 data-i18n="results_impedance_title">Sonuçlar &amp; Empedans Analizi</h2>
+
+                            <table class="table table-bordered mb-2">
+                                <tr class="table-info">
+                                    <th data-i18n="tbl_neg_rin">Negatif Giriş Direnci |R_in|</th>
+                                    <td><span id="res_Rin">-</span> <span>Ω</span></td>
+                                </tr>
+                                <tr class="table-warning">
+                                    <th data-i18n="tbl_peak_zout">Filtre Tepe Çıkış Empedansı |Z_out|</th>
+                                    <td><span id="res_Zout">-</span> <span>Ω</span></td>
+                                </tr>
+                                <tr>
+                                    <th data-i18n="tbl_lc_fres">LC Rezonans Frekansı f_res</th>
+                                    <td><span id="res_Fres">-</span> kHz</td>
+                                </tr>
+                                <tr>
+                                    <th data-i18n="tbl_peak_ramp">Tepe Rampa Değeri V_peak</th>
+                                    <td><span id="res_Vpeak">-</span> V</td>
+                                </tr>
+                                <tr id="statusRow">
+                                    <th data-i18n="tbl_middlebrook">Middlebrook Sönümleme Durumu</th>
+                                    <td><span id="res_status" class="badge bg-secondary">-</span></td>
+                                </tr>
+                            </table>
+
+                            <div class="alert alert-warning mt-3" id="dampingWarning" style="display:none; font-size:14px;" data-i18n="warn_damping_oscillation">
+                                <i class="bi bi-exclamation-triangle-fill"></i>
+                                <strong>UYARI:</strong> Filtre empedansı güç kaynağı giriş empedansına çok yakın veya
+                                filtre düzgün sönümlenmemiş! Osilasyon riski mevcut.
+                            </div>
+
+                            <div class="param-group mt-3" style="font-size:12px;">
+                                <h5 style="font-size:13px;" data-i18n="k_var_ref_title">K-Değişken Referansı</h5>
+                                <table class="table table-sm mb-0">
+                                    <tr><td><b>K3</b></td><td data-i18n="k_var_l2">L2 — 2. seri endüktör</td></tr>
+                                    <tr><td><b>K4</b></td><td data-i18n="k_var_r2">R2 — L2 seri direnci</td></tr>
+                                    <tr><td><b>K5</b></td><td data-i18n="k_var_ls">Ls — kaynak / 1. seri endüktör</td></tr>
+                                    <tr><td><b>K6</b></td><td data-i18n="k_var_rs">Rs — Ls seri direnci</td></tr>
+                                    <tr><td><b>K7</b></td><td data-i18n="k_var_cp">Cp — paralel çıkış kapasitörü</td></tr>
+                                    <tr><td><b>K8</b></td><td data-i18n="k_var_rf">Rf — Cp seri direnci</td></tr>
+                                    <tr><td><b>K9</b></td><td data-i18n="k_var_cd">Cd — sönümleme kapasitörü</td></tr>
+                                    <tr><td><b>K10</b></td><td data-i18n="k_var_rd">Rd — sönümleme direnci</td></tr>
+                                    <tr><td><b>K11</b></td><td data-i18n="k_var_cf">Cf — ana filtre kapasitörü</td></tr>
+                                    <tr><td><b>K12</b></td><td data-i18n="k_var_rcf">Rcf — Cf ESR direnci</td></tr>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div id="buttons" class="d-flex gap-2 justify-content-end mt-3">
+                            <button onclick="window.print()" class="btn btn-primary" data-i18n="btn_print_report">Raporu Yazdır</button>
+                            <button onclick="exportFilterParams()" class="btn btn-primary" data-i18n="btn_export_csv">CSV Aktar</button>
+                        </div>
+                    </div>
+                </div>                <br>
+
+                <div id="charts" class="mt-4">
+                    <h2 data-i18n="bode_impedance_charts">Bode Plot ve Empedans Grafikleri</h2>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <canvas id="bodeMagChart" width="600" height="300"></canvas>
+                        </div>
+                        <div class="col-md-6">
+                            <canvas id="bodePhaseChart" width="600" height="300"></canvas>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <canvas id="impedanceChart" width="600" height="300"></canvas>
+                        </div>
+                        <div class="col-md-6">
+                            <canvas id="rampChart" width="600" height="300"></canvas>
+                        </div>
+                    </div>
+                    <br>
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <footer id="footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="copyright">© Copyright <strong>ATAQ Advanced Technology</strong>. Tüm hakları saklıdır.</div>
+                    <div class="credits">Designed and developed by <a style="color:#00AEEF !important;" href="https://www.linkedin.com/in/yasemin-algin/">Yasemin Tuğba Algın</a></div>
+                </div>
+            </div>
+        </div>
+    </footer>
+    <div id="preloader"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="assets/vendor/aos/aos.js"></script>
+    <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/vendor/glightbox/js/glightbox.min.js"></script>
+    <script src="assets/vendor/isotope-layout/isotope.pkgd.min.js"></script>
+    <script src="assets/vendor/swiper/swiper-bundle.min.js"></script>
+    <script src="assets/vendor/typed.js/typed.min.js"></script>
+    <script src="assets/js/common/language.js"></script>
+    <script src="assets/js/main.js"></script>
+    <script src="assets/js/filters/filter1.js" defer></script>
+</body>
+</html>

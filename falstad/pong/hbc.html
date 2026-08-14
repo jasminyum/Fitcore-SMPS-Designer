@@ -1,0 +1,42 @@
+<meta name="viewport" content="width=820">
+<title>Circuit Simulator Applet</title>
+<link rel="SHORTCUT ICON" href="favicon.ico">
+<link rel="stylesheet" href="pong.css" type="text/css">
+<body>
+<hr>
+<div class="split">
+<div id="split-0">
+<iframe id="circuitFrame" src="../circuitjs.html?startCircuit=hbc.txt&mouseMode=DragAll"></iframe>
+</div>
+<div id="split-1">
+<div id="info"></div>
+Here is a closer look at the horizontal ball control.  VRESET goes high at the end of every frame.  In the
+real circuit, that's every 262 horizontal lines, but here, it's every 10 lines.  When we load 138 into the
+horizontal ball counter, then the ball doesn't move horizontally.  At the end of every frame, we briefly
+load 137 into the counter, which causes the ball to move one pixel to the right.
+<p>
+You can click on the input (on the "H") attached to the <span class="overline">HIT2</span> line to manually
+bring it low.  That simulates a hit on paddle 2, which will cause the ball to move to the left (loading
+139 into the counter every frame).
+<p>
+Every time there's a hit, the speed counter counts up.  When it hits 4, then the MOVE signal lasts two lines
+instead of one, causing the ball to move faster (two pixels per frame).  When the counter hits 12, the MOVE signal
+lasts 3 lines.  The speed counter resets to zero when <span class="overline">MISS</span> goes low or when
+the game is reset (<span class="overline">SRST</span>) goes low, both of which you can do manually.
+<p>
+If ATTRACT is high, then the ball switches direction whenever SC goes high, which happens when the ball hits the
+horizontal edges of the screen.
+<p>
+Next: <a href="vbc.html">Vertical Ball Control</a>.
+<p>
+<a href="index.html">Index</a>
+</div>
+
+<script type="module">
+
+import Split from './split.js';
+
+Split(['#split-0', '#split-1'], { sizes: [70, 30] });
+
+</script>
+
