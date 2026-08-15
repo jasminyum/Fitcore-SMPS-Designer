@@ -1,5 +1,7 @@
 # SMPS Calculation & Design Tool
 
+www.ataqileriteknoloji.com
+
 A browser-based calculation, optimization, and circuit-simulation tool for switch-mode power supply (SMPS) topologies. It includes 17 topology pages, a magnetics (coil/transformer) optimization engine running on Firebase Cloud Functions, a custom thermal-analysis simulation based on the actual selected components, and an embedded Falstad/CircuitJS circuit simulator.
 
 ## Contents
