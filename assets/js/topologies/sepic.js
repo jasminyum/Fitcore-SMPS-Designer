@@ -1,5 +1,6 @@
 // ================================================================
-// SEPIC Converter Calc (Modern Architecture)
+// SEPIC Converter Calc
+// SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
 
 window.l1_rms = 0;
@@ -19,7 +20,7 @@ window.d_wire_L2 = 0;
 window.max_wire_d_mm = 0;
 
 // ================================================================
-// UI MOD DEÐÝÞÝMÝ VE DOÐRULTUCU YÖNETÝMÝ
+// UI MOD Change
 // ================================================================
 function toggleEffMode() {
     var effMode = document.getElementById("effMode").value;
@@ -45,7 +46,7 @@ function toggleEffMode() {
 
             if (lblVd) lblVd.innerText = getT("lbl_diode_vd") || "Diode Vd [V]";
             if (lblTrr) lblTrr.innerText = getT("lbl_trr_irr") || "trr [ns] / Irr [A]";
-            if (thPonH) thPonH.innerText = getT("th_diode_cond") || "Diyot Ýletim (Pdiode_cond)";
+            if (thPonH) thPonH.innerText = getT("th_diode_cond") || "Diyot Ãletim (Pdiode_cond)";
             if (thPdiode) thPdiode.innerText = getT("th_diode_rr") || "Diyot Rev. Rec. (Prr)";
         } else {
             if (document.getElementById("wrap_ron_h")) document.getElementById("wrap_ron_h").style.display = "flex";
@@ -53,7 +54,7 @@ function toggleEffMode() {
 
             if (lblVd) lblVd.innerText = getT("lbl_body_diode_vsd") || "Body Diode Vsd [V]";
             if (lblTrr) lblTrr.innerText = getT("lbl_body_diode_trr") || "Body Diode trr [ns] / Irr [A]";
-            if (thPonH) thPonH.innerText = getT("th_high_side_cond") || "High-Side Ýletim (Pon_H)";
+            if (thPonH) thPonH.innerText = getT("th_high_side_cond") || "High-Side Ãletim (Pon_H)";
             if (thPdiode) thPdiode.innerText = getT("th_ext_diode_sync") || "Harici Diyot (Sync=0W)";
         }
     }
@@ -64,7 +65,7 @@ window.addEventListener('DOMContentLoaded', (event) => {
 });
 
 // ================================================================
-// GÝRÝÞ DOÐRULAMA
+// Input Validation
 // ================================================================
 function checkUserInput() {
     var vin_min = parseFloat(document.getElementById('vin_min').value);
@@ -90,7 +91,7 @@ function checkUserInput() {
 
     if (f_khz < 0.1 || f_khz > 2000) {
         var getT = window.getT || function (k) { return k; };
-        alert(getT("alert_freq_invalid") || "Frekans aralýðý geçerli deðil.");
+        alert(getT("alert_freq_invalid") || "Frekans aralÃ½Ã°Ã½ geÃ§erli deÃ°il.");
         f_khz = 100.0;
     }
 
@@ -116,7 +117,7 @@ function setDefaultValues() {
 }
 
 // ================================================================
-// ANA HESAPLAMA (SEPIC)
+// Main (SEPIC)
 // ================================================================
 function updateChartsAndTable() {
     var vin_min = parseFloat(document.getElementById('vin_min').value);
@@ -176,7 +177,7 @@ function updateChartsAndTable() {
         modeWarnEl.style.backgroundColor = '#fff3cd';
 
         var modeNameTranslated = getT("mode_" + actualMode) || actualMode;
-        modeWarnEl.innerHTML = (getT("warn_mode_prefix") || "Uyarý: Devre ") + vin_nom + (getT("warn_mode_mid") || "V nominal giriþte <strong>") + modeNameTranslated + (getT("warn_mode_suffix") || "</strong> modunda çalýþýyor.");
+        modeWarnEl.innerHTML = (getT("warn_mode_prefix") || "UyarÃ½: Devre ") + vin_nom + (getT("warn_mode_mid") || "V nominal giriÃ¾te <strong>") + modeNameTranslated + (getT("warn_mode_suffix") || "</strong> modunda Ã§alÃ½Ã¾Ã½yor.");
     } else {
         modeWarnEl.style.display = 'none';
     }
@@ -260,7 +261,7 @@ function updateChartsAndTable() {
 }
 
 // ================================================================
-// GERÇEK KAYIP HESAPLAMALARI (SEPIC)
+// Real Power Loss (SEPIC)
 // ================================================================
 function getRealParams() {
     return {
@@ -301,12 +302,12 @@ function calculateRealEfficiency(vin, vout, iout, f_sw_hz, L1_H, L2_H, p) {
 
     if (K < Kcrit) {
         // ==============================================================
-        // DCM MODU
+        // DCM
         // ==============================================================
         D = M * Math.sqrt(K);
         D2 = D * vin / (vout + Uf);
 
-        // Pik akýmlarý
+        // Peak currents
         var IL1_pk = (vin * D) / (L1_H * f_sw_hz);
         var IL2_pk = (vin * D) / (L2_H * f_sw_hz);
 
@@ -327,7 +328,7 @@ function calculateRealEfficiency(vin, vout, iout, f_sw_hz, L1_H, L2_H, p) {
 
     } else {
         // ==============================================================
-        // CCM / CRM MODU
+        // CCM / CRM MODE
         // ==============================================================
         D = (vout + Uf) / (vin + vout + Uf);
         D2 = 1 - D;
@@ -355,7 +356,7 @@ function calculateRealEfficiency(vin, vout, iout, f_sw_hz, L1_H, L2_H, p) {
     }
 
     // ==============================================================
-    // ORTAK KAYIP HESAPLAMALARI
+    // Mutual Power Loss Calc.
     // ==============================================================
     var Pon_L = Math.pow(I_Q1_rms, 2) * p.Ron_L;
 
@@ -412,7 +413,7 @@ function calculateRealEfficiency(vin, vout, iout, f_sw_hz, L1_H, L2_H, p) {
 }
 
 // ================================================================
-// VERÝM EÐRÝLERÝ
+// Ideal Eff Calc.
 // ================================================================
 function generateIdealEffCurve(eff_full_load, f_hz) {
     var values = [], labels = [];
@@ -450,7 +451,7 @@ function generateRealEffCurve(vin, vout, max_iout, f_hz, L1_H, L2_H, params) {
 }
 
 // ================================================================
-// DALGA FORMLARI
+// Wave Forms
 // ================================================================
 function generateAllWaveforms(Ue, vout, ilout, Iin, t1_s, L1_H, L2_H, dIL1, dIL2, mode) {
     var effMode = document.getElementById("effMode").value;
@@ -561,7 +562,7 @@ function drawCharts(wf, Iin, Iout, Vin, Vout, effData) {
         return {
             responsive: true, animation: false, elements: { point: { radius: 0 }, line: { tension: 0 } },
             scales: {
-                x: { type: 'category', ticks: { color: textColor, maxTicksLimit: 9, callback: function (val, idx) { return (idx % tickStep === 0) ? wf.labels[idx] + "us" : ''; } }, title: { display: true, text: getT('chart_time_us') || 'Time (µs)', color: textColor }, grid: { color: gridColor, borderColor: gridColor } },
+                x: { type: 'category', ticks: { color: textColor, maxTicksLimit: 9, callback: function (val, idx) { return (idx % tickStep === 0) ? wf.labels[idx] + "us" : ''; } }, title: { display: true, text: getT('chart_time_us') || 'Time (Âµs)', color: textColor }, grid: { color: gridColor, borderColor: gridColor } },
                 y: { title: { display: true, text: yTitle, color: textColor }, ticks: { color: textColor }, grid: { color: gridColor, borderColor: gridColor } }
             },
             plugins: { legend: { display: true, position: 'top', labels: { color: textColor } } }
@@ -576,8 +577,8 @@ function drawCharts(wf, Iin, Iout, Vin, Vout, effData) {
     }
 
     mk('ilChart', [
-        { label: getT("chart_il1_in") || "IL1 (Giriþ)", data: wf.il1, borderColor: 'rgba(239, 83, 80, 1)', borderWidth: 2, fill: false },
-        { label: getT("chart_il2_out") || "IL2 (Çýkýþ)", data: wf.il2, borderColor: 'rgba(102, 187, 106, 1)', borderWidth: 2, fill: false },
+        { label: getT("chart_il1_in") || "IL1 (GiriÃ¾)", data: wf.il1, borderColor: 'rgba(239, 83, 80, 1)', borderWidth: 2, fill: false },
+        { label: getT("chart_il2_out") || "IL2 (Ã‡Ã½kÃ½Ã¾)", data: wf.il2, borderColor: 'rgba(102, 187, 106, 1)', borderWidth: 2, fill: false },
         { label: getT("chart_iin_avg") || "Iin (Ort.)", data: Array(N).fill(Iin), borderColor: 'rgba(239, 83, 80, 0.5)', borderWidth: 1.5, borderDash: [6, 3], fill: false, pointRadius: 0 },
         { label: getT("chart_iout_avg") || "Iout (Ort.)", data: Array(N).fill(Iout), borderColor: 'rgba(102, 187, 106, 0.5)', borderWidth: 1.5, borderDash: [6, 3], fill: false, pointRadius: 0 }
     ], getT('chart_current_a') || 'Current (A)');
@@ -624,7 +625,7 @@ function updateResultTable(wf) {
 }
 
 // ================================================================
-// FALSTAD API & IFRAME YÖNETÝMÝ
+// FALSTAD API & IFRAME YÃ–NETÃMÃ
 // ================================================================
 var falstadSim = null;
 
@@ -687,7 +688,6 @@ function openFalstadSepicSimulation() {
         Uf = parseFloat(document.getElementById('p_vd').value) || 0.5;
     }
 
-    // --- DCM/CCM Kontrolü ve Dinamik Duty Cycle Hesaplamasý ---
     var d_nom_ccm = (vout + Uf) / (vin_nom + vout + Uf);
 
     var deltaIL_L1 = (vin_nom * d_nom_ccm) / (l1_henry * freq_hz);
@@ -783,7 +783,7 @@ function hesapla() {
 function printPage() { window.print(); }
 
 // ----------------------------------------------------------------
-// TABLO & MODAL ENTEGRASYONU (Modern Architecture)
+// Table and Modal Entegration
 // ----------------------------------------------------------------
 window.openSelectedTable = function () {
     const modeElement = document.querySelector('input[name="coreSelectionMode"]:checked');
@@ -794,7 +794,7 @@ window.openSelectedTable = function () {
 
     if (isNaN(l1) || isNaN(l2) || l1 === 0 || l2 === 0) {
         var getT = window.getT || function (key) { return key; };
-        alert(getT('adv_alert_calc_first') || "Lütfen önce hesaplama yapýn!");
+        alert(getT('adv_alert_calc_first') || "LÃ¼tfen Ã¶nce hesaplama yapÃ½n!");
         return;
     }
 
@@ -802,7 +802,7 @@ window.openSelectedTable = function () {
         if (typeof window.openAdvancedTable === "function") {
             window.openAdvancedTable();
         } else {
-            alert("Advanced modül yüklenemedi.");
+            alert("Advanced modÃ¼l yÃ¼klenemedi.");
         }
         return;
     }
@@ -837,7 +837,7 @@ window.openSelectedTable = function () {
             { type: 'inductor', title: coil2Params.title, params: coil2Params }
         ]);
     } else {
-        alert("Arayüz modülü (UIModal) yüklenemedi.");
+        alert("ArayÃ¼z modÃ¼lÃ¼ (UIModal) yÃ¼klenemedi.");
     }
 };
 
