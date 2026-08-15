@@ -1,5 +1,6 @@
 ﻿// ================================================================
-// Full-Bridge Push-Pull Converter (Controller)
+// Full-Bridge Push-Pull Converter
+// SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
 
 window.currentEfficiency = 80;
@@ -18,7 +19,7 @@ window.d_coil_req = 0;
 window.max_wire_d_mm = 0;
 
 // ================================================================
-// YARDIMCI
+// helpers
 // ================================================================
 function runde(x) {
     if (x < 0) return "Hata!";
@@ -573,10 +574,7 @@ window.openSelectedTable = function () {
     var Wmax = window.wmax1_global;
     var VeOpt = parseFloat(veOptStr);
 
-    // --- LEGACY LOGIC RESTORATION (full compatibility with All-top.js) ---
     var vin1 = parseFloat(document.getElementById('vin_min')?.value) || 360;
-    // vin_min (not vin_nom) must be sent to the core calculation.
-    // ------------------------------------------------------------
 
     var f_hz = parseFloat(document.getElementById('f')?.innerText) || 50000;
     var nOutput = parseFloat(document.getElementById('nOutput')?.innerText) || 1;
@@ -587,8 +585,8 @@ window.openSelectedTable = function () {
         topology: 'full_bridge',
         VeOpt: VeOpt,
         f_hz: f_hz,
-        vin_min: vin1, // N1 formülüne gidecek
-        vin1: parseFloat(document.getElementById('vin_nom')?.value) || 400, // Ekranda göstermek için
+        vin_min: vin1,
+        vin1: parseFloat(document.getElementById('vin_nom')?.value) || 400,
         nOutput: nOutput,
         I1_rms_sq: window.i1_rms_global * window.i1_rms_global,
         I2_rms_sq: window.i2_rms_global * window.i2_rms_global,
@@ -644,7 +642,7 @@ function embedFalstadSimulation(circuitString) {
 }
 
 // ================================================================
-// CIRCUITJS (FALSTAD) FULL-BRIDGE PUSH-PULL ENTEGRASYONU
+// CIRCUITJS (FALSTAD) FULL-BRIDGE PUSH-PULL
 // ================================================================
 
 function openFalstadFullSimulation() {
