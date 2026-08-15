@@ -1,5 +1,6 @@
 ﻿// ================================================================
-// SMPS FILTER CALCULATOR (Shared File)
+// SMPS FILTER CALCULATOR
+// SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
 
 'use strict';
