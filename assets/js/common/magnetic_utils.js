@@ -1,5 +1,6 @@
 ﻿// ================================================================
-// MAGNETIC CALCULATION HELPERS (Controller)
+// MAGNETIC CALCULATION HELPERS
+// SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
 const MagneticUtils = {
     mu0: 4 * Math.PI * 1e-7,
