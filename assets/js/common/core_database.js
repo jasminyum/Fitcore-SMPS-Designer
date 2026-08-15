@@ -1,13 +1,11 @@
 // ================================================================
-// Magnetic Core Database (4 Categories - Unified with Original Formats)
+// Magnetic Core Database
+// SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
 const CoreDB = {
-    // Otomatik Sýralama ve ID Atama Fonksiyonu
     _sortAndAssignIDs: function (arr) {
-        // Eðer dizinin ilk elemaný bir sayýysa (eski atanmýþ ID), onu kesip salt veriyi alýyoruz.
         let raw = arr.map(item => typeof item[0] === 'number' ? item.slice(1) : item);
 
-        // Core adýna göre alfabetik sýralama (isimler aynýysa 2. parametreye göre)
         raw.sort((a, b) => {
             let c1 = String(a[0]).toLowerCase();
             let c2 = String(b[0]).toLowerCase();
@@ -19,15 +17,12 @@ const CoreDB = {
             return c1.localeCompare(c2, undefined, { numeric: true });
         });
 
-        // Orijinal diziyi sýfýrla ve ID'lerle birlikte yeniden oluþtur (ID'ler 1'den baþlar)
         arr.length = 0;
         raw.forEach((item, index) => {
             arr.push([index + 1, ...item]);
         });
     },
 
-    // 1. SMPS Trafolarý (Forward, Push-Pull, Full/Half Bridge vb. Ýçin) - 5 Kolon
-    // Format: [Core, Manu, Amin(mm2), Ve(mm3)] (ID'ler otomatik atanacak)
     smpsTrafoCores: [
         ["ETD29", "TDK", 71, 5350], ["ETD34", "TDK", 92, 7630],
         ["ETD39", "TDK", 123, 11500], ["ETD44", "TDK", 172, 17800],
@@ -60,8 +55,6 @@ const CoreDB = {
         ["PQ50/50", "TDK", 328, 32900], ["E-PLT38", "Planar", 194, 9150]
     ],
 
-    // 2. Standart Bobinler ve Ýndüktörler - 8 Kolon
-    // Format: [Core, Ident, Manu, AL(nH), Ae(mm2), le(mm), Amin(mm2)] (ID'ler otomatik atanacak)
     inductorCores: [
         ["ETD29", 0.2, "TDK", 383, 76, 70, 71], ["ETD29", 0.5, "TDK", 201, 76, 70, 71],
         ["ETD29", 1.0, "TDK", 124, 76, 70, 71], ["ETD34", 0.5, "TDK", 251, 97, 79, 92],
@@ -143,7 +136,6 @@ const linearExtra = [
     ["Pot Core P18/11", 0.4, "TDK", 9200, 43, 41, 43], ["Pot Core P30/19", 0.5, "TDK", 11500, 137, 74, 137]
 ];
 
-// Orijinal verileri yükle, alfabetik sýrala ve ID ata
 CoreDB._sortAndAssignIDs(CoreDB.smpsTrafoCores);
 CoreDB._sortAndAssignIDs(CoreDB.inductorCores);
 CoreDB.flybackCores = [...CoreDB.inductorCores];
