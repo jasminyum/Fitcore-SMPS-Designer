@@ -1,5 +1,6 @@
 // ================================================================
 // Server Section
+// SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
@@ -100,14 +101,14 @@ function optimizeWires(Irms, targetCMA, maxStrandD, wiresData) {
 }
 
 const SteinmetzParams = {
-    // Birim Standardı: f -> Hz, B -> Tesla, Pv -> W/m³
+    // Standard: f -> Hz, B -> Tesla, Pv -> W/m³
     "3c92": { k: 0.115, alpha: 1.58, beta: 2.75 },
     "n41":  { k: 0.142, alpha: 1.25, beta: 2.52 },
     "3c81": { k: 0.085, alpha: 1.45, beta: 2.70 },
     "3c90": { k: 0.160, alpha: 1.46, beta: 2.75 }, 
     "3c94": { k: 0.125, alpha: 1.48, beta: 2.75 },
 
-    // === ORTA FREKANS GRUBU (100 kHz - 500 kHz) ===
+    // === mid-freq (100 kHz - 500 kHz) ===
     "3c91": { k: 0.068, alpha: 1.59, beta: 2.71 },
     "3c95": { k: 0.092, alpha: 1.51, beta: 2.80 },
     "3c96": { k: 0.071, alpha: 1.63, beta: 2.68 },
@@ -122,21 +123,21 @@ const SteinmetzParams = {
     "n92":  { k: 0.012, alpha: 1.68, beta: 2.42 },  
     "n95":  { k: 0.009, alpha: 1.72, beta: 2.45 },  
 
-    // === YÜKSEK FREKANS GRUBU (500 kHz - 1 MHz) ===
+    // === high-freq (500 kHz - 1 MHz) ===
     "3f3":  { k: 0.022, alpha: 1.95, beta: 2.55 },
     "3f35": { k: 0.015, alpha: 2.10, beta: 2.50 },
     "3f36": { k: 0.016, alpha: 2.12, beta: 2.50 },  
     "n49":  { k: 0.019, alpha: 1.70, beta: 2.50 },
     "n88":  { k: 0.014, alpha: 1.85, beta: 2.45 }, 
 
-    // === ULTRA YÜKSEK FREKANS GRUBU (> 1 MHz) ===
+    // === ultra-high-freq (> 1 MHz) ===
     "3f4":  { k: 0.008, alpha: 2.35, beta: 2.45 },
     "3f45": { k: 0.005, alpha: 2.50, beta: 2.40 },
     "3f46": { k: 0.003, alpha: 2.62, beta: 2.38 },  
     "pc200":{ k: 0.002, alpha: 2.68, beta: 2.34 },  
     "4f1":  { k: 0.0004, alpha: 3.05, beta: 2.24 }, 
           
-    // === TOZ METAL ÇEKİRDEKLER (Magnetics / Micrometals SI Dönüşümü) ===
+    // === powder metal cores (Magnetics / Micrometals SI conversion) ===
     "kool mu ultra": { k: 0.450, alpha: 1.58, beta: 2.20 },
     "kool mu":       { k: 0.680, alpha: 1.54, beta: 2.21 },
     "sendust":       { k: 0.680, alpha: 1.54, beta: 2.21 },
@@ -146,7 +147,7 @@ const SteinmetzParams = {
     "xflux":         { k: 1.120, alpha: 1.45, beta: 2.30 },
     "xflux ultra":   { k: 0.940, alpha: 1.50, beta: 2.26 },
           
-    // === DEMİR TOZU ÇEKİRDEKLER ===
+    // === iron powder cores ===
     "mix 26":  { k: 3.550, alpha: 1.25, beta: 2.11 },
     "mix 52":  { k: 2.450, alpha: 1.38, beta: 2.14 },
     "mix 2":   { k: 1.850, alpha: 1.44, beta: 2.15 },
@@ -159,7 +160,7 @@ const SteinmetzParams = {
 
 const iaCache = {};
 function calculate_Ia(alpha, beta) {
-    const cacheKey = `${alpha.toFixed(3)}_${beta.toFixed(3)}`; // Güvenli cache key zinciri
+    const cacheKey = `${alpha.toFixed(3)}_${beta.toFixed(3)}`; // security cache
     if (iaCache[cacheKey]) return iaCache[cacheKey];
 
     let sum = 0;
