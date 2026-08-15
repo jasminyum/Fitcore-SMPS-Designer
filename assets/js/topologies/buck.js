@@ -1,5 +1,6 @@
 ﻿// ================================================================
-// Buck (Step-Down) Converter (Controller)
+// Buck (Step-Down) Converter
+// SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
 
 window.currentOperatingPoint = null;
