@@ -1,5 +1,6 @@
 ﻿// ================================================================
-// DAB CONVERTER CALCULATOR & OPTIMIZER (Modern Architecture)
+// DAB CONVERTER CALCULATOR & OPTIMIZER
+// SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
 
 window.il_rms = 0;
