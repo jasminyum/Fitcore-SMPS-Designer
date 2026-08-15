@@ -1,5 +1,6 @@
 ﻿// ================================================================
 // Two-Transistor Forward Converter
+// SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
 
 var max_wire_d_mm = 0, d1_req = 0, A1_req = 0, d2_req = 0, A2_req = 0;
@@ -536,7 +537,7 @@ function embedFalstadSimulation(circuitString) {
 }
 
 // ================================================================
-// CIRCUITJS (FALSTAD) TWO TRANSISTOR FORWARD ENTEGRASYONU
+// CIRCUITJS (FALSTAD) TWO TRANSISTOR FORWARD
 // ================================================================
 function openFalstadTwoSimulation() {
     var vin_nom = parseFloat(document.getElementById('vin_nom').value) || 400;
