@@ -1,5 +1,6 @@
 ﻿// ================================================================
 // Single Transistor Forward Converter 
+// SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
 
 var d1_req = 0, A1_req = 0, d2_req = 0, A2_req = 0;
@@ -170,7 +171,7 @@ function generateRealEffCurve(vin, vout, max_iout, f_sw_hz, L_H, nOutput, p) {
 }
 
 // ================================================================
-// ANA HESAPLAMA
+// main calc.
 // ================================================================
 function updateChartsAndTable() {
     var vin_min = parseFloat(document.getElementById('vin_min').value);
@@ -486,7 +487,7 @@ function embedFalstadSimulation(circuitString) {
 }
 
 // ================================================================
-// CIRCUITJS (FALSTAD) SINGLE TRANSISTOR FORWARD ENTEGRASYONU
+// CIRCUITJS (FALSTAD) SINGLE TRANSISTOR FORWARD
 // ================================================================
 
 function openFalstadSingleSimulation() {
