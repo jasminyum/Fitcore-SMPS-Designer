@@ -1,5 +1,6 @@
 ﻿// ================================================================
-// CENTRAL MODAL & TABLE UI MANAGER (View)
+// CENTRAL MODAL & TABLE UI MANAGER
+// SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
 const UIModal = {
     paramsStore: {},
@@ -580,7 +581,7 @@ const UIModal = {
             }).catch((e) => alert("Hata: " + e.message));
 
         } else {
-            // Inductor, Flyback, Lineer Trafo - 8 Parametre
+            // Inductor, Flyback, Lineer Trafo - 8 Parameter
             if (!core || !ident || !manu || isNaN(al) || isNaN(ain) || isNaN(lin) || isNaN(amin)) {
                 alert(this.getT('alert_fill_fields'));
                 return;
