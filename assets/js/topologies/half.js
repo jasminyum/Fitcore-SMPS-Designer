@@ -1,5 +1,6 @@
 ﻿// ================================================================
-// Half-Bridge Push-Pull Converter (Controller)
+// Half-Bridge Push-Pull Converter
+// SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
 
 window.currentEfficiency = 80;
@@ -116,8 +117,6 @@ function calculateRealEfficiency(vin, vout, iout, f_sw_hz, deltaIL, nOutput, p) 
     var Ipri_pk = (iout + deltaIL / 2) / nOutput;
     var V_stress = vin;
 
-    // FIX 1: The half bridge has 2 MOSFETs, but each one carries the Ipri_rms current for only half the period.
-    // So the total loss is exactly Ipri_rms^2 * Ron. (The extra factor of 2 has been removed).
     var Pon_MOS = Math.pow(Ipri_rms, 2) * p.Ron;
 
     var Psw_MOS = 2 * (0.5 * V_stress * Ipri_pk * (p.tr + p.tf) * f_sw_hz);
@@ -202,7 +201,7 @@ function updateChartsAndTable() {
 
     var Uf = parseFloat(document.getElementById('p_vd1')?.value) || 1.4;
     var f_hz = f_khz * 1000;
-    var fScale = f_khz * 2000; // Çıkış filtresi 2xFsw görür
+    var fScale = f_khz * 2000;
     var T = 1.0 / f_hz;
 
     var rOutput = vout / ilout;
@@ -613,8 +612,8 @@ window.openSelectedTable = function () {
 
     var trafoParams = {
         title: window.getT ? window.getT('btn_transformer') : "Transformer Data",
-        topology: 'half_bridge',  // <--- EKSİK OLAN TOPOLOJİ VERİSİ
-        vin_min: vin_min,         // <--- EKSİK OLAN GERİLİM VERİSİ
+        topology: 'half_bridge', 
+        vin_min: vin_min,         
         VeOpt: VeOpt,
         f_hz: f_hz,
         vin1: vin1,
@@ -673,7 +672,7 @@ function embedFalstadSimulation(circuitString) {
 }
 
 // ================================================================
-// CIRCUITJS (FALSTAD) HALF-BRIDGE PUSH-PULL ENTEGRASYONU
+// CIRCUITJS (FALSTAD) HALF-BRIDGE PUSH-PULL
 // ================================================================
 function openFalstadHalfSimulation() {
     var vin_nom = parseFloat(document.getElementById('vin_nom').value) || 400;
