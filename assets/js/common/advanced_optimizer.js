@@ -1917,6 +1917,87 @@ function renderAdvancedResults(res, skinDepthD, states) {
             </div>
 
         </div>`;
+
+        const getPhysicalVol = (core) => {
+            if (!core) return 0;
+            let A = core.dim_A || 42;
+            let B = core.dim_B || 21;
+            let C = core.dim_C || 15;
+            let D = core.dim_D || 11;
+            let E = core.dim_E || 29;
+
+            if (A < 1 && A > 0) { A *= 1000; B *= 1000; C *= 1000; D *= 1000; E *= 1000; }
+
+            const family = core.family || "E";
+
+            const innerRadius = (D / 2) + 0.5;
+            const maxCoilRadius = (E / 2) - 0.5;
+            const availableRadialSpace = Math.max(0.3, maxCoilRadius - innerRadius);
+            const flangeOuter = innerRadius + availableRadialSpace + 0.5;
+            const coilDiameter = flangeOuter * 2;
+
+            let sizeX = A;
+            let sizeY = B * 2;
+            let sizeZ = (family === "RM" || family === "PQ" || family === "PM") ? A : C;
+
+            if (coilDiameter > sizeX) sizeX = coilDiameter;
+            if (coilDiameter > sizeZ) sizeZ = coilDiameter;
+
+            return (sizeX * sizeY * sizeZ) / 1000;
+        };
+
+        let totalPhysicalVol_cm3 = 0;
+
+        if (states.isDualCoil) {
+            if (res.coil1Cores && res.coil1Cores.length > 0) totalPhysicalVol_cm3 += getPhysicalVol(res.coil1Cores[0]);
+            if (res.coil2Cores && res.coil2Cores.length > 0) totalPhysicalVol_cm3 += getPhysicalVol(res.coil2Cores[0]);
+        } else {
+            if (states.hasVeOpt && res.trafoCores && res.trafoCores.length > 0) {
+                totalPhysicalVol_cm3 += getPhysicalVol(res.trafoCores[0]);
+            }
+
+            if (states.hasWmax && res.coilCores && res.coilCores.length > 0) {
+                const pageTitle = (document.title || "").toLowerCase();
+                const isLLCorDAB = pageTitle.includes('llc') || pageTitle.includes('dab');
+
+                // In LLC/DAB systems, the external resonant coil is optional (can be integrated into the transformer),
+                // so it does not contribute to the mandatory volume.
+                if (!isLLCorDAB || states.isCoilOnly) {
+                    totalPhysicalVol_cm3 += getPhysicalVol(res.coilCores[0]);
+                }
+            }
+        }
+
+        if (totalPhysicalVol_cm3 > 0 && states.P_out > 0) {
+            const corePowerDensity = states.P_out / totalPhysicalVol_cm3; // W/cm³
+
+            // When heatsinks, PCBs, capacitors, etc. are included in SMPS designs,
+            // the total system volume is typically between ~3.5 and 5 times the external volume of the magnetic components.
+            const estSystemVol_cm3 = totalPhysicalVol_cm3 * 3.5;
+            const sysPowerDensity = states.P_out / estSystemVol_cm3; // W/cm³
+
+            html += `
+        <div class="adv-box" style="border: 1px solid #00AEEF; margin-top: 15px; background: rgba(0, 174, 239, 0.05);">
+            <h4 style="color:#00AEEF; margin-bottom: 10px;">${sanitizeHTML(safeGetT('adv_pd_title') || 'Güç Yoğunluğu (Power Density) Analizi')}</h4>
+            <div style="display:flex; flex-wrap:wrap; gap:15px;">
+                <div style="flex:1; min-width:150px; padding:12px; background:#272727; border-radius:6px; border:1px solid var(--border-color); text-align:center;">
+                    <span style="font-size:11px; color:var(--text-muted);">${sanitizeHTML(safeGetT('adv_pd_total_vol') || 'Toplam Fiziksel Hacim (V_box)')}</span><br>
+                    <b style="color:var(--text-main); font-size:18px;">${totalPhysicalVol_cm3.toFixed(2)} cm³</b>
+                </div>
+                <div style="flex:1; min-width:150px; padding:12px; background:#272727; border-radius:6px; border:1px solid var(--border-color); text-align:center;">
+                    <span style="font-size:11px; color:var(--text-muted);">${sanitizeHTML(safeGetT('adv_pd_core_density') || 'Manyetik Bileşen Güç Yoğunluğu')}</span><br>
+                    <b style="color:#81c784; font-size:18px;">${corePowerDensity.toFixed(1)} W/cm³</b>
+                </div>
+                <div style="flex:1; min-width:150px; padding:12px; background:#272727; border-radius:6px; border:1px solid var(--border-color); text-align:center;">
+                    <span style="font-size:11px; color:var(--text-muted);">${sanitizeHTML(safeGetT('adv_pd_sys_density') || 'Tahmini Sistem Güç Yoğunluğu')}</span><br>
+                    <b style="color:#ffb74d; font-size:18px;">${sysPowerDensity.toFixed(1)} W/cm³</b>
+                </div>
+            </div>
+            <p style="font-size:11px; color:var(--text-muted); margin-top:10px; margin-bottom:0;">
+                ${safeGetT('adv_pd_note') || '* Tahmini sistem güç yoğunluğu, genel SMPS karakteristikleri baz alınarak manyetik bileşenlerin dış hacminin ~3.5 katı (PCB, soğutucu, vb. dahil) varsayılarak hesaplanmıştır.'}
+            </p>
+        </div>`;
+        }
     }
 
     document.getElementById("advancedResults").insertAdjacentHTML("beforeend", html);
