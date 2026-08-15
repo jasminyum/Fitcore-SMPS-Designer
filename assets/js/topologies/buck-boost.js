@@ -1,5 +1,6 @@
 ﻿// ================================================================
-// Inverting Buck-Boost Converter (Controller / Refactored)
+// Inverting Buck-Boost Converter
+// SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
 
 window.il_rms = 0;
@@ -125,7 +126,7 @@ window.setDefaultValues = function () {
 };
 
 // ================================================================
-// ANA HESAPLAMA
+// main
 // ================================================================
 window.updateChartsAndTable = function () {
     var vin_min = parseFloat(document.getElementById('vin_min').value);
@@ -270,7 +271,6 @@ window.updateChartsAndTable = function () {
         iinContainer.style.display = "inline";
     }
 
-    // Store values in global memory for modal (UI) usage
     window.lOutput_global = lOutput;
     window.wmax1_global = wmax1;
     window.Imax_global = Imax;
@@ -281,7 +281,6 @@ window.updateChartsAndTable = function () {
     document.getElementById('deltaILMax').innerText = deltaILMax.toFixed(2);
     document.getElementById('wmax1').innerText = wmax1.toFixed(2);
 
-    // Pass the IL_nom data needed by the original chart
     var wf = window.generateAllWaveforms(Ue_nom, vout, ilout, IL_nom, t1, lOutput_H, deltaILMax, Imax, actualMode);
     window.drawCharts(wf, IL_nom, ilout, Ue_nom, effData);
     window.updateResultTable(wf);
