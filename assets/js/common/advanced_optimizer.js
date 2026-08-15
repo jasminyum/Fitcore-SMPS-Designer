@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // Common Advanced Mode
 // SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
@@ -2029,9 +2029,21 @@ window.openCustomThermalModal = function () {
 
     let coreHtml = '';
 
-    const createSelect = (id, label, cores) => {
+	const createSelect = (id, label, cores) => {
         if (!cores || cores.length === 0) return '';
-        let opts = cores.map((c, i) => `<option value="${i}">${c.name} (${c.material}) - Pv: ${c.pv.toFixed(0)} mW/cm³ - Pcore: ${c.coreLossW.toFixed(2)}W</option>`).join('');
+        
+        const seen = new Set();
+        let opts = '';
+        
+        cores.forEach((c, i) => {
+            const coreName = (c.name || '').trim().toLowerCase();
+            // Eğer bu nüve ismini daha önce görmediysek listeye ekle
+            if (!seen.has(coreName)) {
+                seen.add(coreName);
+                opts += `<option value="${i}">${c.name} (${c.material}) - Pv: ${c.pv.toFixed(0)} mW/cm³ - Pcore: ${c.coreLossW.toFixed(2)}W</option>`;
+            }
+        });
+
         return `
             <div class="mb-2">
                 <label class="form-label fw-bold" style="font-size:12px; color:var(--color-yellow);">${label}</label>
