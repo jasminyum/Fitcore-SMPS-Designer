@@ -1,5 +1,6 @@
 // ================================================================
 // API Service Layer
+// SPDX-License-Identifier: AGPL-3.0-only
 // All Firebase Cloud Functions calls are centralized here.
 // Page/optimizer code never calls firebase.app().functions(...)
 // directly — it goes through the functions in this file instead.
