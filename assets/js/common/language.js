@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+
 const translations = {
     tr: {
         adv_thermal_sw_loss: "Anahtarlama Kaybı",
