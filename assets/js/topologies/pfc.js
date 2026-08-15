@@ -1,5 +1,6 @@
 // ================================================================
-// Power Factor Pre-regulator (PFC) - Modern Architecture
+// Power Factor Pre-regulator (PFC)
+// SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
 
 var il_rms = 0;
@@ -44,7 +45,7 @@ function checkUserInput() {
     var getT = window.getT || function (key) { return key; };
 
     if (f_khz < 0.1 || f_khz > 1000) {
-        alert(getT('alert_freq_warning') || "Uyarý: Anahtarlama frekansý 100 Hz ile 1 MHz arasýnda olmalýdýr!");
+        alert(getT('alert_freq_warning') || "UyarÃ½: Anahtarlama frekansÃ½ 100 Hz ile 1 MHz arasÃ½nda olmalÃ½dÃ½r!");
         f_khz = 50.0;
     }
 
@@ -70,7 +71,7 @@ function setDefaultValues() {
 }
 
 // ================================================================
-// GERÇEK KAYIP HESAPLAMALARI (Power Loss)
+// GERÃ‡EK KAYIP HESAPLAMALARI (Power Loss)
 // ================================================================
 function getRealParams() {
     return {
@@ -171,7 +172,7 @@ function generateRealEffCurve(vin_rms, vout, max_iout, f_hz, params, topoMode) {
 }
 
 // ================================================================
-// ANA HESAPLAMA & DOM GÜNCELLEMESÝ
+// Main calc. & DOM Update
 // ================================================================
 function updateChartsAndTable() {
     var vin_min = parseFloat(document.getElementById('vin_min').value);
@@ -219,7 +220,6 @@ function updateChartsAndTable() {
         il_peak_absolute = deltaILMax;
     }
 
-    // UI Modal'a gerçek Peak akýmýný göndermek için globale atama yapýyoruz.
     il_peak_absolute_global = il_peak_absolute;
 
     var wmax1 = 0.5 * L_H * Math.pow(il_peak_absolute, 2) * 1e6;
@@ -279,9 +279,6 @@ function updateChartsAndTable() {
     updateResultTable(wf);
 }
 
-// ================================================================
-// PFC DALGA FORMU (50Hz Þebeke ve Yüksek Frekanslý Ripple ile)
-// ================================================================
 function generatePFCWaveforms(vin_peak, il_peak, pOut, vout_dc, deltaVout, deltaILMax, f_hz, topoMode) {
     var labels = [], vin_abs = [], il_avg = [], il_ripple_max = [], il_ripple_min = [], p_in = [], p_out = [], v_out = [];
     var PTS = 200;
@@ -334,7 +331,7 @@ function generatePFCWaveforms(vin_peak, il_peak, pOut, vout_dc, deltaVout, delta
 }
 
 // ================================================================
-// GRAFÝK ÇÝZÝMÝ
+// Charts
 // ================================================================
 function drawCharts(wf, effData) {
     var N = wf.labels.length;
@@ -430,7 +427,7 @@ function updateResultTable(wf) {
 function printPage() { window.print(); }
 
 // ================================================================
-// FALSTAD API & IFRAME YÖNETÝMÝ
+// FALSTAD API & IFRAME
 // ================================================================
 var falstadSim = null;
 
@@ -554,7 +551,7 @@ function hesapla() {
 }
 
 // ================================================================
-// TABLO & MODAL ENTEGRASYONU
+// TABLE and MODAL
 // ================================================================
 window.openSelectedTable = function () {
     const modeEl = document.querySelector('input[name="coreSelectionMode"]:checked');
@@ -565,7 +562,7 @@ window.openSelectedTable = function () {
 
     if (isNaN(lOutput) || lOutput <= 0) {
         var getT = window.getT || function (key) { return key; };
-        alert(getT('alert_fill_fields') || "Lütfen önce hesaplama yapýn!");
+        alert(getT('alert_fill_fields') || "LÃ¼tfen Ã¶nce hesaplama yapÃ½n!");
         return;
     }
 
@@ -574,25 +571,25 @@ window.openSelectedTable = function () {
             window.openAdvancedTable(1);
         } else {
             var getT = window.getT || function (key) { return key; };
-            alert(getT('alert_advanced_module_error') || 'Advanced mod modülü yüklenemedi.');
+            alert(getT('alert_advanced_module_error') || 'Advanced mod modÃ¼lÃ¼ yÃ¼klenemedi.');
         }
     } else {
         if (typeof UIModal !== 'undefined') {
             var f_khz = parseFloat(document.getElementById('f_khz').value) || 50;
             var getT = window.getT || function (key) { return key; };
             UIModal.openStandardModal({
-                title: getT('title_coil_data') || "PFC Bobin Seçimi",
+                title: getT('title_coil_data') || "PFC Bobin SeÃ§imi",
                 L_H: lOutput * 1e-6,
                 L_uH: lOutput,
                 Wmax: wmax1,
-                Imax: il_peak_absolute_global, // Gerçek peak akým
+                Imax: il_peak_absolute_global, // real peak
                 Irms_sq: Math.pow(il_rms, 2),
                 d_wire_default: d_coil_req,
                 min_area: A_coil_req,
                 max_litz: 2 * 65.6 / Math.sqrt(f_khz * 1000)
             });
         } else {
-            alert("UIModal arayüz modülü yüklenemedi!");
+            alert("UIModal arayÃ¼z modÃ¼lÃ¼ yÃ¼klenemedi!");
         }
     }
 };
