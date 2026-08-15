@@ -1,5 +1,6 @@
 // ================================================================
-// LLC Half-Bridge Resonant Converter (Modern Architecture)
+// LLC Half-Bridge Resonant Converter
+// SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
 
 window.currentEfficiency = 80;
@@ -19,7 +20,7 @@ window.max_wire_d_mm = 0;
 window.VeOpt_global = 0;
 
 // ----------------------------------------------------------------
-// ARAY‹Z VE G›R›ﬁ KONTROLLER›
+// ARAY√úZ VE G√ùR√ù√û KONTROLLER√ù
 // ----------------------------------------------------------------
 function toggleEffMode() {
     var mode = document.getElementById("effMode").value;
@@ -42,11 +43,11 @@ function toggleRectifierType(isUserAction = false) {
         document.getElementById("sr-inputs").style.display = "none";
 
         document.getElementById("lbl_vrev").innerText = getT("lbl_vrev_diode") || "Diyot Ters Gerilim (Vrev)";
-        document.getElementById("lbl_irms").innerText = getT("lbl_irms_diode") || "Diyot RMS Ak˝m˝ (Irms)";
-        document.getElementById("lbl_ipk").innerText = getT("lbl_ipk_diode") || "Diyot Peak Ak˝m˝ (Ipk)";
-        document.getElementById("lbl_iavg").innerText = getT("lbl_iavg_diode") || "Diyot Ort. Ak˝m (Iavg)";
+        document.getElementById("lbl_irms").innerText = getT("lbl_irms_diode") || "Diyot RMS Ak√Ωm√Ω (Irms)";
+        document.getElementById("lbl_ipk").innerText = getT("lbl_ipk_diode") || "Diyot Peak Ak√Ωm√Ω (Ipk)";
+        document.getElementById("lbl_iavg").innerText = getT("lbl_iavg_diode") || "Diyot Ort. Ak√Ωm (Iavg)";
 
-        document.getElementById("ploss_sec_cond").innerText = getT("ploss_sec_cond_diode") || "Diyot ›letim (P_D1 + P_D2)";
+        document.getElementById("ploss_sec_cond").innerText = getT("ploss_sec_cond_diode") || "Diyot √ùletim (P_D1 + P_D2)";
         document.getElementById("ploss_sec_sw").innerText = getT("ploss_sec_sw_diode") || "Diyot Rev. Rec. (Pdiode_rr)";
 
         if (isUserAction) {
@@ -64,12 +65,12 @@ function toggleRectifierType(isUserAction = false) {
         document.getElementById("sr-inputs").style.display = "block";
 
         document.getElementById("lbl_vrev").innerText = getT("lbl_vrev_sr") || "SR Ters Gerilim (Vrev)";
-        document.getElementById("lbl_irms").innerText = getT("lbl_irms_sr") || "SR RMS Ak˝m˝ (Irms)";
-        document.getElementById("lbl_ipk").innerText = getT("lbl_ipk_sr") || "SR Peak Ak˝m˝ (Ipk)";
-        document.getElementById("lbl_iavg").innerText = getT("lbl_iavg_sr") || "SR Ort. Ak˝m (Iavg)";
+        document.getElementById("lbl_irms").innerText = getT("lbl_irms_sr") || "SR RMS Ak√Ωm√Ω (Irms)";
+        document.getElementById("lbl_ipk").innerText = getT("lbl_ipk_sr") || "SR Peak Ak√Ωm√Ω (Ipk)";
+        document.getElementById("lbl_iavg").innerText = getT("lbl_iavg_sr") || "SR Ort. Ak√Ωm (Iavg)";
 
-        document.getElementById("ploss_sec_cond").innerText = getT("ploss_sec_cond_sr") || "SR ›letim (2x Pon_sr)";
-        document.getElementById("ploss_sec_sw").innerText = getT("ploss_sec_sw_sr") || "SR Anahtarlama Kayb˝";
+        document.getElementById("ploss_sec_cond").innerText = getT("ploss_sec_cond_sr") || "SR √ùletim (2x Pon_sr)";
+        document.getElementById("ploss_sec_sw").innerText = getT("ploss_sec_sw_sr") || "SR Anahtarlama Kayb√Ω";
 
         if (isUserAction) {
             document.getElementById('vin_min').value = 375;
@@ -139,7 +140,7 @@ function checkUserInput() {
 }
 
 // ----------------------------------------------------------------
-// G‹« KAYBI HESAPLAMALARI (HALF BRIDGE ÷ZEL)
+// G√ú√á KAYBI HESAPLAMALARI (HALF BRIDGE √ñZEL)
 // ----------------------------------------------------------------
 function getRealParams() {
     return {
@@ -286,7 +287,7 @@ function generateRealEffCurve_HalfBridge(vin_test, vout, max_iout, fs_hz_nominal
 }
 
 // ----------------------------------------------------------------
-// LLC HALF BRIDGE KAZAN« VE DALGA FORMU
+// LLC HALF BRIDGE KAZAN√á VE DALGA FORMU
 // ----------------------------------------------------------------
 function findFxmin(Q, m) {
     var bestFx = 0.5;
@@ -358,7 +359,7 @@ function generateAllWaveforms_LLC_HalfBridge(Vin_test, Vout, NpNs, fs_hz, fr_hz,
 }
 
 // ----------------------------------------------------------------
-// GER«EK «ALIﬁMA FREKANSI (ROOT-FINDING / BISECTION ALGORITHM)
+// GER√áEK √áALI√ûMA FREKANSI (ROOT-FINDING / BISECTION ALGORITHM)
 // ----------------------------------------------------------------
 function getGainFHA(Fx, m, Q) {
     var num = Fx * Fx * (m - 1.0);
@@ -417,7 +418,7 @@ function findFxForGain(targetGain, m, Q) {
 }
 
 // ----------------------------------------------------------------
-// ANA HESAPLAMA MANTI–I (HALF BRIDGE)
+// ANA HESAPLAMA MANTI√êI (HALF BRIDGE)
 // ----------------------------------------------------------------
 function updateChartsAndTable() {
     var vin_min = parseFloat(document.getElementById('vin_min').value);
@@ -448,13 +449,13 @@ function updateChartsAndTable() {
             "above": getT("mode_above") || "Above Resonance (Buck)"
         };
         modeWarning.style.display = "block";
-        modeWarning.innerHTML = (getT("warn_llc_1") || "<strong>Uyar˝:</strong> SeÁtiiniz mod (") + modeNames[userMode] +
-            (getT("warn_llc_2") || "), girdiiniz Test Gerilimi (") + vin_test +
+        modeWarning.innerHTML = (getT("warn_llc_1") || "<strong>Uyar√Ω:</strong> Se√ßti√∞iniz mod (") + modeNames[userMode] +
+            (getT("warn_llc_2") || "), girdi√∞iniz Test Gerilimi (") + vin_test +
             (getT("warn_llc_3") || "V) ile uyumsuz. Nominal gerilim (") + vin_nom +
-            (getT("warn_llc_4") || "V) baz al˝nd˝˝nda, ") + vin_test +
-            (getT("warn_llc_5") || "V iÁin doru mod <strong>") + modeNames[actualMode] +
-            (getT("warn_llc_6") || "</strong> olmal˝d˝r. Hesaplamalar ve grafikler fiziksel olarak doru olan <strong>") + modeNames[actualMode] +
-            (getT("warn_llc_7") || "</strong> moduna gˆre g¸ncellendi.");
+            (getT("warn_llc_4") || "V) baz al√Ωnd√Ω√∞√Ωnda, ") + vin_test +
+            (getT("warn_llc_5") || "V i√ßin do√∞ru mod <strong>") + modeNames[actualMode] +
+            (getT("warn_llc_6") || "</strong> olmal√Ωd√Ωr. Hesaplamalar ve grafikler fiziksel olarak do√∞ru olan <strong>") + modeNames[actualMode] +
+            (getT("warn_llc_7") || "</strong> moduna g√∂re g√ºncellendi.");
     } else {
         modeWarning.style.display = "none";
     }
@@ -598,7 +599,7 @@ function updateChartsAndTable() {
 }
 
 // ----------------------------------------------------------------
-// GRAF›K VE TABLO YARDIMCILARI
+// GRAF√ùK VE TABLO YARDIMCILARI
 // ----------------------------------------------------------------
 function drawCharts(wf, ilout, Vin_test, effData, Ts) {
     var N = wf.labels.length;
@@ -633,7 +634,7 @@ function drawCharts(wf, ilout, Vin_test, effData, Ts) {
         };
     }
 
-    function mkChart(id, datasets, yLabel, xLabelTitle = getT('chart_time_us') || "Zaman (µs)") {
+    function mkChart(id, datasets, yLabel, xLabelTitle = getT('chart_time_us') || "Zaman (¬µs)") {
         var canvas = document.getElementById(id);
         if (!canvas) return;
         if (canvas.chart) { canvas.chart.destroy(); canvas.chart = null; }
@@ -643,13 +644,13 @@ function drawCharts(wf, ilout, Vin_test, effData, Ts) {
     }
 
     mkChart('ilChart', [
-        { label: getT('chart_ilr_res') || "ILr (Rezonant Ak˝m˝)", data: wf.ilr, borderColor: 'rgba(239, 83, 80, 1)', borderWidth: 2, fill: false },
-        { label: getT('chart_ilm_mag') || "ILm (M˝knat˝slama Ak˝m˝)", data: wf.ilm, borderColor: 'rgba(100, 181, 246, 1)', borderWidth: 2, borderDash: [5, 3], fill: false },
-        { label: getT('chart_iout_dc') || "I_out (DC Y¸k Ak˝m˝)", data: Array(N).fill(ilout), borderColor: refLineColor, borderWidth: 1.5, borderDash: [6, 4], fill: false, pointRadius: 0 }
-    ], getT('chart_current_a') || "Ak˝m (A)");
+        { label: getT('chart_ilr_res') || "ILr (Rezonant Ak√Ωm√Ω)", data: wf.ilr, borderColor: 'rgba(239, 83, 80, 1)', borderWidth: 2, fill: false },
+        { label: getT('chart_ilm_mag') || "ILm (M√Ωknat√Ωslama Ak√Ωm√Ω)", data: wf.ilm, borderColor: 'rgba(100, 181, 246, 1)', borderWidth: 2, borderDash: [5, 3], fill: false },
+        { label: getT('chart_iout_dc') || "I_out (DC Y√ºk Ak√Ωm√Ω)", data: Array(N).fill(ilout), borderColor: refLineColor, borderWidth: 1.5, borderDash: [6, 4], fill: false, pointRadius: 0 }
+    ], getT('chart_current_a') || "Ak√Ωm (A)");
 
     mkChart('vinChart', [
-        { label: getT('chart_vsw_bridge') || "Vsw (Kˆpr¸ «˝k˝˛˝)", data: wf.vsw, borderColor: 'rgba(105, 240, 174, 1)', borderWidth: 2, fill: false, stepped: 'before' },
+        { label: getT('chart_vsw_bridge') || "Vsw (K√∂pr√º √á√Ωk√Ω√æ√Ω)", data: wf.vsw, borderColor: 'rgba(105, 240, 174, 1)', borderWidth: 2, fill: false, stepped: 'before' },
         { label: getT('chart_vin_nom') || "Vin/2 (Efektif Swing)", data: Array(N).fill(Vin_test / 2.0), borderColor: refLineColor, borderWidth: 1.5, borderDash: [6, 3], fill: false, pointRadius: 0 }
     ], getT('chart_voltage_v') || "Gerilim (V)");
 
@@ -657,12 +658,12 @@ function drawCharts(wf, ilout, Vin_test, effData, Ts) {
     mkChart('idChart', [
         { label: secLabel, data: wf.id_sec, borderColor: 'rgba(255, 167, 38, 1)', borderWidth: 2, fill: true, backgroundColor: 'rgba(255, 167, 38, 0.15)' },
         { label: getT('chart_iout') || "I_out", data: Array(N).fill(ilout), borderColor: refLineColor, borderWidth: 1.5, borderDash: [6, 4], fill: false, pointRadius: 0 }
-    ], getT('chart_current_a') || "Ak˝m (A)");
+    ], getT('chart_current_a') || "Ak√Ωm (A)");
 
     var effCanvas = document.getElementById('effChart');
     if (effCanvas) {
         if (effCanvas.chart) { effCanvas.chart.destroy(); effCanvas.chart = null; }
-        var effLabel = rectType === 'diode' ? (getT('chart_eff_diode') || "Verim Erisi (Diyot)") : (getT('chart_eff_sr') || "Verim Erisi (SR MOSFET)");
+        var effLabel = rectType === 'diode' ? (getT('chart_eff_diode') || "Verim E√∞risi (Diyot)") : (getT('chart_eff_sr') || "Verim E√∞risi (SR MOSFET)");
         effCanvas.chart = new Chart(effCanvas.getContext('2d'), {
             type: 'line',
             data: {
@@ -674,7 +675,7 @@ function drawCharts(wf, ilout, Vin_test, effData, Ts) {
             options: {
                 responsive: true, animation: false,
                 scales: {
-                    x: { title: { display: true, text: getT('chart_load_pct') || "Y¸k Y¸zdesi (%)", color: textColor }, ticks: { color: textColor }, grid: { color: gridColor, borderColor: gridColor } },
+                    x: { title: { display: true, text: getT('chart_load_pct') || "Y√ºk Y√ºzdesi (%)", color: textColor }, ticks: { color: textColor }, grid: { color: gridColor, borderColor: gridColor } },
                     y: { min: 0, max: 100, title: { display: true, text: getT('chart_eff_pct') || "Verim (%)", color: textColor }, ticks: { color: textColor }, grid: { color: gridColor, borderColor: gridColor } }
                 },
                 plugins: { legend: { display: true, position: 'top', labels: { color: textColor } } }
@@ -691,7 +692,7 @@ function drawCharts(wf, ilout, Vin_test, effData, Ts) {
                 data: {
                     labels: effData.labels,
                     datasets: [{
-                        label: getT('chart_freq_load') || "«al˝˛ma Frekans˝ (fs)",
+                        label: getT('chart_freq_load') || "√áal√Ω√æma Frekans√Ω (fs)",
                         data: effData.frequencies.map(f => f / 1000),
                         borderColor: 'rgba(171, 71, 188, 1)',
                         backgroundColor: 'rgba(171, 71, 188, 0.15)',
@@ -701,7 +702,7 @@ function drawCharts(wf, ilout, Vin_test, effData, Ts) {
                 options: {
                     responsive: true, animation: false,
                     scales: {
-                        x: { title: { display: true, text: getT('chart_load_pct') || "Y¸k Y¸zdesi (%)", color: textColor }, ticks: { color: textColor }, grid: { color: gridColor, borderColor: gridColor } },
+                        x: { title: { display: true, text: getT('chart_load_pct') || "Y√ºk Y√ºzdesi (%)", color: textColor }, ticks: { color: textColor }, grid: { color: gridColor, borderColor: gridColor } },
                         y: { title: { display: true, text: getT('chart_freq_khz') || "Frekans (kHz)", color: textColor }, ticks: { color: textColor }, grid: { color: gridColor, borderColor: gridColor } }
                     },
                     plugins: { legend: { display: true, position: 'top', labels: { color: textColor } } }
@@ -729,7 +730,7 @@ function updateResultTable(wf) {
 }
 
 // ----------------------------------------------------------------
-// FALSTAD API & IFRAME LLC SIM‹LASYONU
+// FALSTAD API & IFRAME LLC SIM√úLASYONU
 // ----------------------------------------------------------------
 var falstadSim = null;
 
@@ -995,7 +996,7 @@ window.openSelectedTable = function () {
 
     if (!lOutputStr || isNaN(parseFloat(lOutputStr)) || !veOptStr || isNaN(parseFloat(veOptStr))) {
         var getT = window.getT || function (key) { return key; };
-        alert(getT('adv_alert_calc_first') || "L¸tfen ˆnce hesaplama yap˝n!");
+        alert(getT('adv_alert_calc_first') || "L√ºtfen √∂nce hesaplama yap√Ωn!");
         return;
     }
 
@@ -1003,7 +1004,7 @@ window.openSelectedTable = function () {
         if (typeof window.openAdvancedTable === "function") {
             window.openAdvancedTable();
         } else {
-            alert("Advanced mod¸l y¸klenemedi.");
+            alert("Advanced mod√ºl y√ºklenemedi.");
         }
         return;
     }
@@ -1049,7 +1050,7 @@ window.openSelectedTable = function () {
             { type: 'inductor', title: coilParams.title, params: coilParams }
         ]);
     } else {
-        alert("Aray¸z mod¸l¸ (UIModal) y¸klenemedi.");
+        alert("Aray√ºz mod√ºl√º (UIModal) y√ºklenemedi.");
     }
 };
 
