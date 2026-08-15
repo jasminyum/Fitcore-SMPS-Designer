@@ -1,5 +1,6 @@
 ﻿// ================================================================
 // LINEAR TRANSFORMER CALCULATOR & TEST MODULE
+// SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
 
 function cAdd(a, b) { return { r: a.r + b.r, i: a.i + b.i }; }
