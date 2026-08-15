@@ -24,7 +24,7 @@ addressed.
 
 Instead:
 
-1. Report the finding directly to **[add your email address here]**.
+1. Report the finding directly to **ytaalgin@gmail.com**.
    Where possible, include:
    - A brief description of the vulnerability and the affected component
      (backend function, Firestore rules, client-side logic, etc.)
