@@ -1,4 +1,4 @@
-![License]([https://www.gnu.org/licenses/](https://choosealicense.com/licenses/agpl-3.0/))
+[![License: AGPL v3](https://shields.io)](https://choosealicense.com/licenses/agpl-3.0/)
 
 # SMPS Calculation & Design Tool
 
