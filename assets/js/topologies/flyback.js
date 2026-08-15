@@ -1,5 +1,6 @@
 ﻿// ================================================================
-// Flyback Converter (Controller)
+// Flyback Converter
+// SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
 
 window.il_rms = 0;
@@ -79,7 +80,7 @@ function setDefaultValues() {
 }
 
 // ================================================================
-// ANA HESAPLAMA
+// main
 // ================================================================
 function updateChartsAndTable() {
     var vin_min = parseFloat(document.getElementById('vin_min').value);
