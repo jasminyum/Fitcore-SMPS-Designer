@@ -5,10 +5,10 @@
 This notice applies only to the contents of the `functions/` directory
 (magnetic core, core shape, bobbin, wire, and semiconductor data used by
 FitCore). It does **not** apply to the FitCore source code, which is
-licensed separately under Apache License 2.0 (see the `LICENSE` file at
-the repository root).
+licensed separately under the GNU Affero General Public License v3.0
+(AGPL-3.0) (see the `LICENSE` file at the repository root).
 
-## Why this data is not covered by the Apache 2.0 license
+## Why this data is not covered by the AGPL-3.0 license
 
 The data in this directory is not original work authored by the FitCore
 project. It has been compiled and derived from:
@@ -25,7 +25,7 @@ project. It has been compiled and derived from:
 Because the underlying data originates from these third-party sources —
 each with their own terms, and in the case of manufacturer datasheets,
 copyright held by the respective manufacturers — it cannot be relicensed
-under Apache 2.0 by the FitCore project. Anyone wishing to reuse or
+under AGPL-3.0 by the FitCore project. Anyone wishing to reuse or
 redistribute this dataset should consult the original sources listed
 below for their applicable terms.
 
@@ -214,6 +214,6 @@ https://doi.org/10.3390/en15186801
 
 Calculations, component recommendations, and magnetic core suggestions
 are provided as engineering estimates based on published design
-methods, manufacturer data and open-source databases. Final
+methods, manufacturer data, and open-source databases. Final
 verification and validation remain the responsibility of the design
 engineer.
