@@ -1,5 +1,6 @@
 // ================================================================
 // Firebase Settings
+// SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
 const firebaseConfig = {
     apiKey: "AIzaSyCWJNUYEAxDJGjI32lyT63MHtd2TOgNI4U",
