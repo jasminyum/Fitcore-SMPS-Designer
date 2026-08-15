@@ -1,5 +1,6 @@
 // ================================================================
 // Zeta Converter Calc (Modern Architecture)
+// SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
 
 window.l1_rms = 0;
@@ -19,7 +20,7 @@ window.d_wire_L2 = 0;
 window.max_wire_d_mm = 0;
 
 // ================================================================
-// UI MOD DEÐÝÞÝMÝ VE DOÐRULTUCU YÖNETÝMÝ
+// UI MODE Change
 // ================================================================
 function toggleEffMode() {
     var effMode = document.getElementById("effMode").value;
@@ -44,7 +45,7 @@ function toggleEffMode() {
 
             if (lblVd) lblVd.innerText = (typeof getT === "function") ? getT("lbl_diode_vd") : "Diode Vd [V]";
             if (lblTrr) lblTrr.innerText = (typeof getT === "function") ? getT("lbl_trr_irr") : "trr [ns] / Irr [A]";
-            if (thPonH) thPonH.innerText = (typeof getT === "function") ? getT("th_diode_cond") : "Diyot Ýletim (Pdiode_cond)";
+            if (thPonH) thPonH.innerText = (typeof getT === "function") ? getT("th_diode_cond") : "Diyot Ãletim (Pdiode_cond)";
             if (thPdiode) thPdiode.innerText = (typeof getT === "function") ? getT("th_diode_rr") : "Diyot Rev. Rec. (Prr)";
         } else {
             if (document.getElementById("wrap_ron_h")) document.getElementById("wrap_ron_h").style.display = "flex";
@@ -52,8 +53,8 @@ function toggleEffMode() {
 
             if (lblVd) lblVd.innerText = (typeof getT === "function") ? getT("lbl_body_diode_vsd") : "Body Diode Vsd [V]";
             if (lblTrr) lblTrr.innerText = (typeof getT === "function") ? getT("lbl_body_diode_trr") : "Body Diode trr [ns] / Irr [A]";
-            if (thPonH) thPonH.innerText = (typeof getT === "function") ? getT("th_high_side_cond") : "Senkron Ýletim (Pon_H)";
-            if (thPdiode) thPdiode.innerText = (typeof getT === "function") ? getT("th_ext_diode_sync") : "Gövde Diyot (Prr)";
+            if (thPonH) thPonH.innerText = (typeof getT === "function") ? getT("th_high_side_cond") : "Senkron Ãletim (Pon_H)";
+            if (thPdiode) thPdiode.innerText = (typeof getT === "function") ? getT("th_ext_diode_sync") : "GÃ¶vde Diyot (Prr)";
         }
     }
 }
@@ -63,7 +64,7 @@ window.addEventListener('DOMContentLoaded', (event) => {
 });
 
 // ================================================================
-// GÝRÝÞ DOÐRULAMA (Zeta Pozitif Çýkýþ Zorlamasý)
+// Input Validation
 // ================================================================
 function checkUserInput() {
     var vin_min = parseFloat(document.getElementById('vin_min').value);
@@ -97,7 +98,7 @@ function checkUserInput() {
     }
 
     if (f_khz < 0.1 || f_khz > 2000) {
-        alert((typeof getT === "function") ? getT("alert_freq_invalid") : "Frekans geçerli aralýkta olmalýdýr.");
+        alert((typeof getT === "function") ? getT("alert_freq_invalid") : "Frekans geÃ§erli aralÃ½kta olmalÃ½dÃ½r.");
         f_khz = 100.0;
     }
 
@@ -123,7 +124,7 @@ function setDefaultValues() {
 }
 
 // ================================================================
-// ANA HESAPLAMA (Zeta Converter)
+// main calc. (Zeta Converter)
 // ================================================================
 function updateChartsAndTable() {
     var vin_min = parseFloat(document.getElementById('vin_min').value);
@@ -183,8 +184,8 @@ function updateChartsAndTable() {
 
         var modeNameTranslated = (typeof getT === "function") ? getT("mode_" + actualMode) : actualMode;
         var prefix = (typeof getT === "function") ? getT("warn_mode_prefix") : "Sistem ";
-        var mid = (typeof getT === "function") ? getT("warn_mode_mid") : "V giriþinde ";
-        var suffix = (typeof getT === "function") ? getT("warn_mode_suffix") : " modunda çalýþýyor.";
+        var mid = (typeof getT === "function") ? getT("warn_mode_mid") : "V giriÃ¾inde ";
+        var suffix = (typeof getT === "function") ? getT("warn_mode_suffix") : " modunda Ã§alÃ½Ã¾Ã½yor.";
         modeWarnEl.innerHTML = prefix + vin_nom + mid + modeNameTranslated + suffix;
     } else {
         modeWarnEl.style.display = 'none';
@@ -266,7 +267,7 @@ function updateChartsAndTable() {
 }
 
 // ================================================================
-// GERÇEK KAYIP HESAPLAMALARI (Zeta Converter)
+// power loss (Zeta Converter)
 // ================================================================
 function getRealParams() {
     return {
@@ -405,7 +406,7 @@ function calculateRealEfficiency(vin, vout, iout, f_sw_hz, L1_H, L2_H, p, eff_gu
 }
 
 // ================================================================
-// VERÝM EÐRÝLERÝ
+// ideal eff calc.
 // ================================================================
 function generateIdealEffCurve(eff_full_load, f_hz) {
     var values = [], labels = [];
@@ -443,7 +444,7 @@ function generateRealEffCurve(vin, vout, max_iout, f_hz, L1_H, L2_H, params, ver
 }
 
 // ================================================================
-// DALGA FORMLARI
+// wave forms
 // ================================================================
 function generateAllWaveforms(Ue, vout, ilout, Iin, t1_s, L1_H, L2_H, dIL1, dIL2, mode) {
     var effMode = document.getElementById("effMode").value;
@@ -555,7 +556,7 @@ function drawCharts(wf, Iin, Iout, Vin, Vout_mag, effData) {
         return {
             responsive: true, animation: false, elements: { point: { radius: 0 }, line: { tension: 0 } },
             scales: {
-                x: { type: 'category', ticks: { color: textColor, maxTicksLimit: 9, callback: function (val, idx) { return (idx % tickStep === 0) ? wf.labels[idx] + "µs" : ''; } }, title: { display: true, text: getT('chart_time_us') || 'Time (µs)', color: textColor }, grid: { color: gridColor, borderColor: gridColor } },
+                x: { type: 'category', ticks: { color: textColor, maxTicksLimit: 9, callback: function (val, idx) { return (idx % tickStep === 0) ? wf.labels[idx] + "Âµs" : ''; } }, title: { display: true, text: getT('chart_time_us') || 'Time (Âµs)', color: textColor }, grid: { color: gridColor, borderColor: gridColor } },
                 y: { title: { display: true, text: yTitle, color: textColor }, ticks: { color: textColor }, grid: { color: gridColor, borderColor: gridColor } }
             },
             plugins: { legend: { display: true, position: 'top', labels: { color: textColor } } }
@@ -570,8 +571,8 @@ function drawCharts(wf, Iin, Iout, Vin, Vout_mag, effData) {
     }
 
     mk('ilChart', [
-        { label: getT("chart_il1_in") || "IL1 (Giriþ)", data: wf.il1, borderColor: 'rgba(239, 83, 80, 1)', borderWidth: 2, fill: false },
-        { label: getT("chart_il2_out") || "IL2 (Çýkýþ)", data: wf.il2, borderColor: 'rgba(102, 187, 106, 1)', borderWidth: 2, fill: false },
+        { label: getT("chart_il1_in") || "IL1 (GiriÃ¾)", data: wf.il1, borderColor: 'rgba(239, 83, 80, 1)', borderWidth: 2, fill: false },
+        { label: getT("chart_il2_out") || "IL2 (Ã‡Ã½kÃ½Ã¾)", data: wf.il2, borderColor: 'rgba(102, 187, 106, 1)', borderWidth: 2, fill: false },
         { label: getT("chart_iin_avg") || "Iin (Ort.)", data: Array(N).fill(Iin), borderColor: 'rgba(239, 83, 80, 0.5)', borderWidth: 1.5, borderDash: [6, 3], fill: false, pointRadius: 0 },
         { label: getT("chart_iout_avg") || "Iout (Ort.)", data: Array(N).fill(Iout), borderColor: 'rgba(102, 187, 106, 0.5)', borderWidth: 1.5, borderDash: [6, 3], fill: false, pointRadius: 0 }
     ], getT('chart_current_a') || 'Current (A)');
@@ -609,7 +610,7 @@ function updateResultTable(wf) {
     for (var i = 0; i <= 20; i++) {
         var idx = Math.min(i * step, N - 1);
         var row = tbody.insertRow(-1);
-        row.insertCell(0).innerHTML = wf.labels[idx] + " µs";
+        row.insertCell(0).innerHTML = wf.labels[idx] + " Âµs";
         row.insertCell(1).innerHTML = (wf.vds[idx] || 0).toFixed(2) + " V";
         row.insertCell(2).innerHTML = (wf.il1[idx] || 0).toFixed(2) + " A";
         row.insertCell(3).innerHTML = (wf.il2[idx] || 0).toFixed(2) + " A";
@@ -618,7 +619,7 @@ function updateResultTable(wf) {
 }
 
 // ================================================================
-// FALSTAD API & IFRAME YÖNETÝMÝ
+// FALSTAD API & IFRAME
 // ================================================================
 var falstadSim = null;
 
@@ -643,7 +644,7 @@ function embedFalstadSimulation(circuitString) {
 }
 
 // ================================================================
-// CIRCUITJS (FALSTAD) ZETA CONVERTER ENTEGRASYONU
+// CIRCUITJS (FALSTAD) ZETA CONVERTER
 // ================================================================
 function openFalstadZetaSimulation() {
     var vin_nom = parseFloat(document.getElementById('vin_nom').value) || 12;
@@ -780,7 +781,7 @@ window.openSelectedTable = function () {
 
     if (isNaN(l1) || isNaN(l2) || l1 === 0 || l2 === 0) {
         var getT = window.getT || function (key) { return key; };
-        alert(getT('adv_alert_calc_first') || "Lütfen önce hesaplama yapýn!");
+        alert(getT('adv_alert_calc_first') || "LÃ¼tfen Ã¶nce hesaplama yapÃ½n!");
         return;
     }
 
@@ -788,7 +789,7 @@ window.openSelectedTable = function () {
         if (typeof window.openAdvancedTable === "function") {
             window.openAdvancedTable();
         } else {
-            alert("Advanced modül yüklenemedi.");
+            alert("Advanced modÃ¼l yÃ¼klenemedi.");
         }
         return;
     }
@@ -823,7 +824,7 @@ window.openSelectedTable = function () {
             { type: 'inductor', title: coil2Params.title, params: coil2Params }
         ]);
     } else {
-        alert("Arayüz modülü (UIModal) yüklenemedi.");
+        alert("ArayÃ¼z modÃ¼lÃ¼ (UIModal) yÃ¼klenemedi.");
     }
 };
 
