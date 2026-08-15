@@ -2,6 +2,11 @@
 
 const translations = {
     tr: {
+        adv_pd_title: "Güç Yoğunluğu (Power Density) Analizi",
+        adv_pd_total_vol: "Toplam Nüve Hacmi (V_core)",
+        adv_pd_core_density: "Salt Nüve Güç Yoğunluğu",
+        adv_pd_sys_density: "Tahmini Sistem Güç Yoğunluğu",
+        adv_pd_note: "* Tahmini sistem güç yoğunluğu, genel SMPS karakteristikleri baz alınarak nüve hacminin ~3.5 katı (PCB, soğutucu, giriş/çıkış kapasitörleri vb. dahil) varsayılarak hesaplanmıştır. Daha kesin bir değer için nüve tablosundaki <b>3D Görünümü Göster</b> butonuna tıklayıp <b>Kutu Ölçüm</b> aracıyla dış boyutları inceleyebilirsiniz.",
         adv_thermal_sw_loss: "Anahtarlama Kaybı",
         adv_thermal_core_loss: "Nüve Kaybı",
         adv_thermal_cu_loss: "Bakır (İletim) Kaybı",
@@ -809,6 +814,11 @@ const translations = {
         chart_4_exp: "İlk iki grafiğin üst üste bindirilmiş halidir. Mavi kare dalga ile kırmızı kesik çizgili kare dalga arasındaki kayma miktarı, sistemin ne kadar güç aktaracağını belirlemektedir."
     },
     en: {
+        adv_pd_title: "Power Density Analysis",
+        adv_pd_total_vol: "Total Core Volume (V_core)",
+        adv_pd_core_density: "Bare Core Power Density",
+        adv_pd_sys_density: "Estimated System Power Density",
+        adv_pd_note: "* The estimated system power density is calculated by assuming the total volume is ~3.5 times the core volume (including PCB, heatsink, input/output capacitors, etc.) based on general SMPS characteristics. For a more precise value, you can click the <b>Show 3D View</b> button in the core table and inspect the outer dimensions using the <b>Box Measurement</b> tool.",
         adv_thermal_sw_loss: "Switching Loss",
         adv_thermal_core_loss: "Core Loss",
         adv_thermal_cu_loss: "Copper (Conduction) Loss",
@@ -1614,6 +1624,11 @@ const translations = {
         chart_4_exp: "A superimposed version of the first two charts. The shift between the blue square wave and the red dashed square wave determines the amount of power to be transferred."
     },
     de: {
+        adv_pd_title: "Leistungsdichte-Analyse (Power Density)",
+        adv_pd_total_vol: "Gesamtkernvolumen (V_core)",
+        adv_pd_core_density: "Reine Kern-Leistungsdichte",
+        adv_pd_sys_density: "Geschätzte System-Leistungsdichte",
+        adv_pd_note: "* Die geschätzte Systemleistungsdichte wird berechnet, indem basierend auf allgemeinen SMPS-Eigenschaften ein Gesamtvolumen vom ca. 3,5-fachen des Kernvolumens angenommen wird (einschließlich Leiterplatte, Kühlkörper, Ein-/Ausgangskondensatoren usw.). Für einen genaueren Wert können Sie in der Kerntabelle auf die Schaltfläche <b>3D-Ansicht anzeigen</b> klicken und die Außenmaße mit dem <b>Box-Messwerkzeug</b> überprüfen.",
         adv_thermal_sw_loss: "Schaltverlust",
         adv_thermal_core_loss: "Kernverlust",
         adv_thermal_cu_loss: "Kupfer- (Leitungs-) Verlust",
