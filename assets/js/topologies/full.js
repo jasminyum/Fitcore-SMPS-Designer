@@ -218,7 +218,6 @@ function updateChartsAndTable() {
     var T = 1.0 / f_hz;
 
     var rOutput = vout / ilout;
-    var cOutput = (ilout * 0.5 * 0.5) / (f_hz * 0.1) * 1e6;
 
     var nOutput = vin_min * 0.95 / (vout + Uf);
 
@@ -271,6 +270,9 @@ function updateChartsAndTable() {
         dIL_actual = (nUe_nom - vout) * t1 / L_H;
         Imax = dIL_actual;
     }
+
+    var Vripple = vout * 0.01;
+    var cOutput = dIL_actual / (8 * f_hz * Vripple) * 1e6;
 
     var lOutput = L_H * 1e6;
     var wmax1 = 0.5 * L_H * Imax * Imax * 1e6;
@@ -354,11 +356,11 @@ function updateChartsAndTable() {
     window.max_wire_d_mm = max_wire_d_mm;
 
     document.getElementById('f').innerText = f_hz.toFixed(2);
-    document.getElementById('lOutput').innerText = lOutput.toFixed(5);
-    document.getElementById('cOutput').innerText = cOutput.toFixed(5);
-    document.getElementById('rOutput').innerText = rOutput.toFixed(5);
-    document.getElementById('deltaILMax').innerText = deltaILMax.toFixed(5);
-    document.getElementById('nOutput').innerText = nOutput.toFixed(5);
+    document.getElementById('lOutput').innerText = lOutput.toFixed(2);
+    document.getElementById('cOutput').innerText = cOutput.toFixed(2);
+    document.getElementById('rOutput').innerText = rOutput.toFixed(2);
+    document.getElementById('deltaILMax').innerText = deltaILMax.toFixed(2);
+    document.getElementById('nOutput').innerText = nOutput.toFixed(2);
     document.getElementById('wmax1').innerText = wmax1.toFixed(2);
 
     var vin1El = document.getElementById('vin1');

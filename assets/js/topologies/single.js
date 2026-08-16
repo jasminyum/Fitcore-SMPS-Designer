@@ -243,7 +243,8 @@ function updateChartsAndTable() {
 
     var lOutput = L_H * 1e6;
     var wmax1 = 0.5 * L_H * Imax * Imax * 1e6;
-    var cOutput = (ilout * (1 - (t1 / T))) / (f_hz * 0.1) * 1e6;
+    var Vripple = vout * 0.01;
+    var cOutput = dIL_actual / (8 * f_hz * Vripple) * 1e6;
 
     var iPa = ilout * (vout + Uf);
     var Pa = iPa / 0.95;
