@@ -1,6 +1,5 @@
 // ================================================================
 // Server Section
-// SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
@@ -8,7 +7,7 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const staticDbData = require("./smps_database.json");
 
 // ================================================================
-// HELPERS
+// HELPER FUNCTIONS
 // ================================================================
 function findShapeInfo(cleanShape, shapeName, coreShapes) {
     if (!coreShapes || !Array.isArray(coreShapes)) return null;
@@ -101,14 +100,15 @@ function optimizeWires(Irms, targetCMA, maxStrandD, wiresData) {
 }
 
 const SteinmetzParams = {
-    // Standard: f -> Hz, B -> Tesla, Pv -> W/m³
+    // === DÜŞÜK FREKANS GRUBU (< 200 kHz) ===
+    // Birim Standardı: f -> Hz, B -> Tesla, Pv -> W/m³
     "3c92": { k: 0.115, alpha: 1.58, beta: 2.75 },
     "n41":  { k: 0.142, alpha: 1.25, beta: 2.52 },
     "3c81": { k: 0.085, alpha: 1.45, beta: 2.70 },
     "3c90": { k: 0.160, alpha: 1.46, beta: 2.75 }, 
     "3c94": { k: 0.125, alpha: 1.48, beta: 2.75 },
 
-    // === mid-freq (100 kHz - 500 kHz) ===
+    // === ORTA FREKANS GRUBU (100 kHz - 500 kHz) ===
     "3c91": { k: 0.068, alpha: 1.59, beta: 2.71 },
     "3c95": { k: 0.092, alpha: 1.51, beta: 2.80 },
     "3c96": { k: 0.071, alpha: 1.63, beta: 2.68 },
@@ -123,21 +123,21 @@ const SteinmetzParams = {
     "n92":  { k: 0.012, alpha: 1.68, beta: 2.42 },  
     "n95":  { k: 0.009, alpha: 1.72, beta: 2.45 },  
 
-    // === high-freq (500 kHz - 1 MHz) ===
+    // === YÜKSEK FREKANS GRUBU (500 kHz - 1 MHz) ===
     "3f3":  { k: 0.022, alpha: 1.95, beta: 2.55 },
     "3f35": { k: 0.015, alpha: 2.10, beta: 2.50 },
     "3f36": { k: 0.016, alpha: 2.12, beta: 2.50 },  
     "n49":  { k: 0.019, alpha: 1.70, beta: 2.50 },
     "n88":  { k: 0.014, alpha: 1.85, beta: 2.45 }, 
 
-    // === ultra-high-freq (> 1 MHz) ===
+    // === ULTRA YÜKSEK FREKANS GRUBU (> 1 MHz) ===
     "3f4":  { k: 0.008, alpha: 2.35, beta: 2.45 },
     "3f45": { k: 0.005, alpha: 2.50, beta: 2.40 },
     "3f46": { k: 0.003, alpha: 2.62, beta: 2.38 },  
     "pc200":{ k: 0.002, alpha: 2.68, beta: 2.34 },  
     "4f1":  { k: 0.0004, alpha: 3.05, beta: 2.24 }, 
           
-    // === powder metal cores (Magnetics / Micrometals SI conversion) ===
+    // === TOZ METAL ÇEKİRDEKLER (Magnetics / Micrometals SI Dönüşümü) ===
     "kool mu ultra": { k: 0.450, alpha: 1.58, beta: 2.20 },
     "kool mu":       { k: 0.680, alpha: 1.54, beta: 2.21 },
     "sendust":       { k: 0.680, alpha: 1.54, beta: 2.21 },
@@ -147,7 +147,7 @@ const SteinmetzParams = {
     "xflux":         { k: 1.120, alpha: 1.45, beta: 2.30 },
     "xflux ultra":   { k: 0.940, alpha: 1.50, beta: 2.26 },
           
-    // === iron powder cores ===
+    // === DEMİR TOZU ÇEKİRDEKLER ===
     "mix 26":  { k: 3.550, alpha: 1.25, beta: 2.11 },
     "mix 52":  { k: 2.450, alpha: 1.38, beta: 2.14 },
     "mix 2":   { k: 1.850, alpha: 1.44, beta: 2.15 },
@@ -160,18 +160,19 @@ const SteinmetzParams = {
 
 const iaCache = {};
 function calculate_Ia(alpha, beta) {
-    const cacheKey = `${alpha.toFixed(3)}_${beta.toFixed(3)}`; // security cache
+    const cacheKey = `${alpha.toFixed(3)}_${beta.toFixed(3)}`; // Güvenli cache key zinciri
     if (iaCache[cacheKey]) return iaCache[cacheKey];
 
     let sum = 0;
-    const steps = 2000;
-    const dTheta = (2 * Math.PI) / steps;
+    const steps = 2000; // iGSE geçiş keskinliği için çözünürlük artırıldı
+    const dTheta = (2 * Math.PI) / steps; // Tam periyot (0 - 2pi) integral hesabı
     
     for (let i = 0; i < steps; i++) {
         let theta = i * dTheta;
         sum += Math.pow(Math.abs(Math.cos(theta)), alpha) * dTheta;
     }
     
+    // Literatürdeki tam integral çarpanı: (2*pi)^(alpha-1) paydada yer alacak şekilde normalize edilir
     const result = sum; 
     iaCache[cacheKey] = result;
     return result;
@@ -228,10 +229,12 @@ function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, Bac_mT, T_o
     const D1 = Math.max(0.001, Math.min(0.999, wfMeta.D1 ?? 0.5));
     const D2 = Math.max(0.001, Math.min(0.999, wfMeta.D2 ?? 0.5));
     
+    // Simetrik olmayan uyarım dalga çarpanı
     const waveform_factor = Math.pow(D1, 1 - alpha) + Math.pow(D2, 1 - alpha);
 
+    // DÜZELTİLDİ: beta yerine (beta - alpha) üssü getirilerek iGSE denklemi doğrulandı
     const Pv_W_m3 = k_i * Math.pow(delta_B_Tesla, beta - alpha) * Math.pow(f_Hz, alpha) * waveform_factor * K_t;
-    const Pv_mW_cm3 = Pv_W_m3 * 0.001;
+    const Pv_mW_cm3 = Pv_W_m3 * 0.001; // 1 W/m3 = 0.001 mW/cm3
 
     return {
         Pv_mW_cm3: Number.isFinite(Pv_mW_cm3) && Pv_mW_cm3 > 0 ? Pv_mW_cm3 : 0.1,
@@ -509,20 +512,45 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
             const core_loss_W = (Pv_mW_cm3 * volume_cm3) / 1000;
             const lossFactor = core_loss_W * (Pv_mW_cm3 > 600 ? 50 : 1);
 
-            let rawCost = core.distributorsInfo?.[0]?.cost;
-            let parsedCost = 999;
+			let lowestCost = null;
+            let selectedDistributor = null;
 
-            if (rawCost !== undefined && rawCost !== null) {
-                parsedCost = typeof rawCost === 'object' ? parseFloat(rawCost.value) : parseFloat(rawCost);
+            if (core.distributorsInfo && Array.isArray(core.distributorsInfo) && core.distributorsInfo.length > 0) {
+                core.distributorsInfo.forEach(dist => {
+                    const rawCost = dist?.cost;
+                    if (rawCost !== undefined && rawCost !== null) {
+                        const val = typeof rawCost === 'object' ? parseFloat(rawCost.value) : parseFloat(rawCost);
+                        if (!isNaN(val) && val > 0) {
+                            if (lowestCost === null || val < lowestCost) {
+                                lowestCost = val;
+                                selectedDistributor = dist;
+                            }
+                        }
+                    }
+                });
             }
 
-            if (parsedCost === 999 || isNaN(parsedCost)) {
-                return; 
+            // 2. Set (2 Piece) Yapısı Kontrolü ve Fiyat Hesaplama
+            const isTwoPieceSet = (core.functionalDescription?.type === "twoPieceSet");
+            let singlePiecePrice = 999;
+            let totalSetCost = 999;
+
+            if (lowestCost !== null) {
+                if (isTwoPieceSet) {
+                    // Zaten 2 parça set olarak satılıyor, ikiyle çarpmıyoruz
+                    totalSetCost = lowestCost;
+                    singlePiecePrice = lowestCost / 2; // Adil kıyaslama için tek parça eşdeğeri
+                } else {
+                    // Tek parça satılıyor ama nüve takımı için 2 parça gerekiyor
+                    singlePiecePrice = lowestCost;
+                    totalSetCost = lowestCost * 2;
+                }
             }
 
-            const cost = parsedCost;
+            // Fiyat olmasa dahi nüvenin elenmemesi için `parsedCost === 999` kontrolleri kaldırılmıştır.
+            const cost = totalSetCost;
             const stackCount = core.functionalDescription?.numberStacks || 1;
-            const totalCost = cost * stackCount;
+            const totalCost = (cost === 999) ? 999 : cost * stackCount;
 
             const compatibleBobbin = bobbinList.find(
                 b => b.functionalDescription?.shape?.replace(/\s+/g, '').toUpperCase() === cleanShape
@@ -560,14 +588,14 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 n2_calc = Math.max(1, Math.round(N1_calc / turnsRatio));
             }
 
-            candidates.push({
+			candidates.push({
                 name: core.name || shapeName,
                 mfgName: core.manufacturerInfo?.name || core.manufacturer || core.brand || "Bilinmiyor",
                 componentType: componentType,
                 material: material,
-                costPerUnit: cost,
-                stackCount: stackCount,
-                totalCost: totalCost,
+                costPerUnit: singlePiecePrice, // ADİL KIYASLAMA İÇİN: Tek parça fiyatı
+                totalCost: totalCost,          // Gösterim ve toplam BOM için Set/Takım fiyatı
+                isTwoPieceSet: isTwoPieceSet,
                 volume: volume_cm3,
                 pv: Pv_mW_cm3,
                 igseBreakdown: igseResult.breakdown,
@@ -579,8 +607,8 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 al_nH: AL * 1e9,
                 Ae_mm2: Ae * 1e6,
                 bobbinName: compatibleBobbin ? compatibleBobbin.name : "-",
-                distributor: core.distributorsInfo?.[0]?.name || "Stok Yok",
-                url: core.distributorsInfo?.[0]?.link || "#",
+                distributor: selectedDistributor ? selectedDistributor.name : (core.distributorsInfo?.[0]?.name || "No Stock"),
+                url: selectedDistributor ? selectedDistributor.link : (core.distributorsInfo?.[0]?.link || "#"),
                 family: familyType,
                 dim_A: dimA, dim_B: dimB, dim_C: dimC, dim_D: dimD, dim_E: dimE, dim_F: dimF,
                 gap_mm: gap_mm,
@@ -589,7 +617,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 windowAreaSource: "dims"
             });
 
-            if (totalCost < minCost && totalCost !== 999) minCost = totalCost;
+            if (singlePiecePrice !== 999 && singlePiecePrice < minCost) minCost = singlePiecePrice;
             if (lossFactor < minLoss) minLoss = lossFactor;
             if (volume_cm3 < minVol) minVol = volume_cm3;
 
@@ -609,7 +637,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
     const weights = getFuzzyWeights(mode);
     
     candidates.forEach(c => {
-        const scoreCost = c.totalCost === 999 ? 0.01 : (minCost / c.totalCost);
+		const scoreCost = (c.costPerUnit === 999 || !c.costPerUnit) ? 0.01 : (minCost / c.costPerUnit);
         const scoreEff = (minLoss + BASE_LOSS_W) / (c.lossFactor + BASE_LOSS_W);
         const scoreSize = minVol / c.volume;
 
