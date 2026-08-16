@@ -1620,7 +1620,7 @@ function renderAdvancedResults(res, skinDepthD, states) {
             if (!item.totalCost || item.totalCost === 999 || item.costPerUnit === 999) {
                 costDisplay = `<span style='color:#9e9e9e; font-weight:bold;'>no-cost</span>`;
             } else {
-                const setLabel = item.isTwoPieceSet ? "(2-piece set)" : "(2-core set)";
+				const setLabel = item.isTwoPieceSet ? "(2-piece set)" : "(Single core)";
                 costDisplay = `<b>${sanitizeHTML(item.totalCost.toFixed(2))} $</b> <br>` +
                     `<span style="font-size:10px;color:#aaa;">${setLabel} | One: ${sanitizeHTML(item.costPerUnit.toFixed(2))} $</span>`;
             }
