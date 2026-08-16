@@ -3,6 +3,12 @@
 
 const translations = {
     tr: {
+        adv_pd_sel_l1: "L1 Nüvesi",
+        adv_pd_sel_l2: "L2 Nüvesi",
+        adv_pd_sel_trafo: "Trafo Nüvesi",
+        adv_pd_sel_flyback: "Flyback Nüvesi",
+        adv_pd_sel_coil: "Bobin Nüvesi",
+        adv_pd_total: "Toplam:",
         label_fline: "Şebeke Frekansı",
         adv_pd_title: "Güç Yoğunluğu (Power Density) Analizi",
         adv_pd_total_vol: "Toplam Nüve Hacmi (V_core)",
@@ -816,6 +822,12 @@ const translations = {
         chart_4_exp: "İlk iki grafiğin üst üste bindirilmiş halidir. Mavi kare dalga ile kırmızı kesik çizgili kare dalga arasındaki kayma miktarı, sistemin ne kadar güç aktaracağını belirlemektedir."
     },
     en: {
+        adv_pd_sel_l1: "L1 Core",
+        adv_pd_sel_l2: "L2 Core",
+        adv_pd_sel_trafo: "Transformer Core",
+        adv_pd_sel_flyback: "Flyback Core",
+        adv_pd_sel_coil: "Inductor Core",
+        adv_pd_total: "Total:",
         label_fline: "Network Frequency",
         adv_pd_title: "Power Density Analysis",
         adv_pd_total_vol: "Total Core Volume (V_core)",
@@ -1627,6 +1639,12 @@ const translations = {
         chart_4_exp: "A superimposed version of the first two charts. The shift between the blue square wave and the red dashed square wave determines the amount of power to be transferred."
     },
     de: {
+        adv_pd_sel_l1: "L1 Kern",
+        adv_pd_sel_l2: "L2 Kern",
+        adv_pd_sel_trafo: "Transformatorkern",
+        adv_pd_sel_flyback: "Flyback-Kern",
+        adv_pd_sel_coil: "Induktivitätskern",
+        adv_pd_total: "Gesamt:",
         label_fline: "Netzwerkfrequenz",
         adv_pd_title: "Leistungsdichte-Analyse (Power Density)",
         adv_pd_total_vol: "Gesamtkernvolumen (V_core)",
