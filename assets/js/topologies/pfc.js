@@ -187,6 +187,9 @@ function updateChartsAndTable() {
     var f_hz = f_khz * 1000;
     var w2 = Math.sqrt(2);
 
+    var f_line_el = document.getElementById('f_line_hz');
+    var f_line = f_line_el ? (parseFloat(f_line_el.value) || 50.0) : 50.0;
+
     var rOutput = vout / ilout;
     var pOutput = vout * ilout;
 
@@ -210,7 +213,7 @@ function updateChartsAndTable() {
     var deltaILMax = deltaIL;
 
     var deltaVout = 0.05 * vout;
-    var C_F = ilout / (Math.PI * 100 * deltaVout);
+    var C_F = ilout / (Math.PI * (2 * f_line) * deltaVout);
     var cOutput = C_F * 1e6;
 
     var il_peak_absolute;
@@ -274,15 +277,16 @@ function updateChartsAndTable() {
     if (document.getElementById('wmax1')) document.getElementById('wmax1').innerText = wmax1.toFixed(2);
     if (document.getElementById('iin')) document.getElementById('iin').innerText = iin_rms.toFixed(2);
 
-    var wf = generatePFCWaveforms(vin_nom_peak, iin_max_peak, pOutput, vout, deltaVout, deltaILMax, f_hz, topoMode);
+    var wf = generatePFCWaveforms(vin_nom_peak, iin_max_peak, pOutput, vout, deltaVout, deltaILMax, f_hz, topoMode, f_line);
     drawCharts(wf, effData);
     updateResultTable(wf);
 }
 
-function generatePFCWaveforms(vin_peak, il_peak, pOut, vout_dc, deltaVout, deltaILMax, f_hz, topoMode) {
+function generatePFCWaveforms(vin_peak, il_peak, pOut, vout_dc, deltaVout, deltaILMax, f_hz, topoMode, f_line) {
     var labels = [], vin_abs = [], il_avg = [], il_ripple_max = [], il_ripple_min = [], p_in = [], p_out = [], v_out = [];
     var PTS = 200;
-    var T_mains_half = 10.0;
+    var f_line_hz = f_line || 50.0;
+    var T_mains_half = 500.0 / f_line_hz; // ms, half period of the rectified mains cycle (10ms @ 50Hz, 8.33ms @ 60Hz)
     var omega = Math.PI / T_mains_half;
 
     for (var k = 0; k <= PTS; k++) {
@@ -341,13 +345,15 @@ function drawCharts(wf, effData) {
     var gridColor = 'rgba(255, 255, 255, 0.1)';
 
     var getT = window.getT || function (key) { return key; };
+    var f_line_el = document.getElementById('f_line_hz');
+    var f_line_label = f_line_el ? (parseFloat(f_line_el.value) || 50) : 50;
 
     function baseOpts(yTitle) {
         return {
             responsive: true, animation: false,
             elements: { point: { radius: 0 }, line: { tension: 0.4 } },
             scales: {
-                x: { type: 'category', ticks: { color: textColor, maxTicksLimit: 11, callback: function (val, idx) { return (idx % tickStep === 0) ? wf.labels[idx] + "ms" : ''; } }, title: { display: true, text: 'Time (ms) - 50Hz Mains', color: textColor }, grid: { color: gridColor, borderColor: gridColor } },
+                x: { type: 'category', ticks: { color: textColor, maxTicksLimit: 11, callback: function (val, idx) { return (idx % tickStep === 0) ? wf.labels[idx] + "ms" : ''; } }, title: { display: true, text: 'Time (ms) - ' + f_line_label + 'Hz Mains', color: textColor }, grid: { color: gridColor, borderColor: gridColor } },
                 y: { title: { display: true, text: yTitle, color: textColor }, ticks: { color: textColor }, grid: { color: gridColor, borderColor: gridColor } }
             },
             plugins: { legend: { display: true, position: 'top', labels: { color: textColor } } }
