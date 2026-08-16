@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // Flyback Converter
 // SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
@@ -103,7 +103,7 @@ function updateChartsAndTable() {
     var lOutput = lOutput_H * 1e6;
 
     var Ue = vin_nom;
-    var ILs_nom = ilout * (1.0 / nOutput) * (Ue + (vout + Uf) * nOutput) / Ue;
+    var ILs_nom = ilout * (vout + Uf) / Ue;
     var actual_deltaIL = (1 / f_hz) * (1 / lOutput_H) * (vout + Uf) * nOutput * Ue / ((vout + Uf) * nOutput + Ue);
 
     var actualMode;
