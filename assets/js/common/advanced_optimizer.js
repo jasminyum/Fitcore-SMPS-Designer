@@ -223,7 +223,6 @@ window.openAdvancedTable = function () {
     document.getElementById('coreModalTitle').innerText = titleStr;
     document.getElementById('modalDynamicBody').innerHTML = htmlContent;
 
-    // Three.js Dynamic Load
     if (typeof THREE === 'undefined') {
         const s1 = document.createElement('script');
         s1.src = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
@@ -242,7 +241,7 @@ window.openAdvancedTable = function () {
 
 
 // ================================================================
-// Global Methods (Triggered from within the modal)
+// Global Methods
 // ================================================================
 
 let currentAnimationId = null;
@@ -385,7 +384,6 @@ window.render3DCore = async function (coreDataString) {
     const advMeasModeOff = sanitizeHTML(_tr("adv_meas_mode_off", "Ölçüm Modu Kapalı"));
     const advEstWeightLabel = sanitizeHTML(_tr("adv_est_weight", "Tahmini Ağırlık:"));
 
-    // MOBİL İÇİN DÜZENLENMİŞ CSS VE HTML YAPISI
     viewerDiv.innerHTML =
         '<style>' +
         '.v3d-title { position:absolute; top:10px; left:10px; color:#ffb74d; margin:0; z-index:10; text-shadow: 1px 1px 2px #000; pointer-events:none; border:none; max-width: calc(100% - 270px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }' +
@@ -1314,10 +1312,10 @@ window.filterResultsByManufacturer = function () {
         return arr.filter(item => {
             const val = typeof keyExtractor === 'function' ? keyExtractor(item) : item[keyExtractor];
             const normalizedVal = String(val).trim().toLowerCase();
-            
-            if (seen.has(normalizedVal)) return false; 
+
+            if (seen.has(normalizedVal)) return false;
             seen.add(normalizedVal);
-            return true; 
+            return true;
         });
     };
 
@@ -1328,12 +1326,12 @@ window.filterResultsByManufacturer = function () {
     if (filteredResults.coil1Cores) filteredResults.coil1Cores = getUniqueItems(filteredResults.coil1Cores, coreSwKey).slice(0, 10);
     if (filteredResults.coil2Cores) filteredResults.coil2Cores = getUniqueItems(filteredResults.coil2Cores, coreSwKey).slice(0, 10);
     if (filteredResults.switches) filteredResults.switches = getUniqueItems(filteredResults.switches, coreSwKey).slice(0, 10);
-    
+
     const wireKey = (w) => {
         const std = w.standard || '';
         const strands = w.strands || w.parallel || w.parallelStrands || w.parallel_strands || 1;
         const coating = w.coating || '';
-        return `${std}_${strands}_${coating}`; 
+        return `${std}_${strands}_${coating}`;
     };
 
     if (filteredResults.priWires) filteredResults.priWires = getUniqueItems(filteredResults.priWires, wireKey);
@@ -1811,7 +1809,13 @@ function renderAdvancedResults(res, skinDepthD, states) {
             let V_clamp = V_in_val * 2.5;
             if (V_clamp < 40) V_clamp = 40;
 
-            const R_snub_est = E_leak > 0 ? Math.round(Math.pow(V_clamp, 2) / (E_leak * (currentFreqKhz * 1000) * 2)) : 0;
+            const snubNOutputEl = document.getElementById('nOutput');
+            const snubNOutput = (snubNOutputEl && !isNaN(parseFloat(snubNOutputEl.innerText))) ? parseFloat(snubNOutputEl.innerText) : 0;
+            const snubVout = parseFloat((document.getElementById('vout') || document.getElementById('vout_nom'))?.value) || 0;
+            const V_ref = snubNOutput * snubVout;
+
+            const V_margin = Math.max(V_clamp - V_ref, V_clamp * 0.1);
+            const R_snub_est = E_leak > 0 ? Math.round((V_clamp * V_margin) / (E_leak * (currentFreqKhz * 1000))) : 0;
 
             html += `
             <div class="adv-box" style="border: 1px solid var(--color-orange); margin-top: 10px; background: rgba(255, 165, 0, 0.05);">
@@ -2110,12 +2114,12 @@ window.openCustomThermalModal = function () {
 
     let coreHtml = '';
 
-	const createSelect = (id, label, cores) => {
+    const createSelect = (id, label, cores) => {
         if (!cores || cores.length === 0) return '';
-        
+
         const seen = new Set();
         let opts = '';
-        
+
         cores.forEach((c, i) => {
             const coreName = (c.name || '').trim().toLowerCase();
             // Eğer bu nüve ismini daha önce görmediysek listeye ekle
