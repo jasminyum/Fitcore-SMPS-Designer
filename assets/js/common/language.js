@@ -1,7 +1,9 @@
+// language translation code for EN, TR, and DE
 // SPDX-License-Identifier: AGPL-3.0-only
 
 const translations = {
     tr: {
+        label_fline: "Şebeke Frekansı",
         adv_pd_title: "Güç Yoğunluğu (Power Density) Analizi",
         adv_pd_total_vol: "Toplam Nüve Hacmi (V_core)",
         adv_pd_core_density: "Salt Nüve Güç Yoğunluğu",
@@ -814,6 +816,7 @@ const translations = {
         chart_4_exp: "İlk iki grafiğin üst üste bindirilmiş halidir. Mavi kare dalga ile kırmızı kesik çizgili kare dalga arasındaki kayma miktarı, sistemin ne kadar güç aktaracağını belirlemektedir."
     },
     en: {
+        label_fline: "Network Frequency",
         adv_pd_title: "Power Density Analysis",
         adv_pd_total_vol: "Total Core Volume (V_core)",
         adv_pd_core_density: "Bare Core Power Density",
@@ -1624,6 +1627,7 @@ const translations = {
         chart_4_exp: "A superimposed version of the first two charts. The shift between the blue square wave and the red dashed square wave determines the amount of power to be transferred."
     },
     de: {
+        label_fline: "Netzwerkfrequenz",
         adv_pd_title: "Leistungsdichte-Analyse (Power Density)",
         adv_pd_total_vol: "Gesamtkernvolumen (V_core)",
         adv_pd_core_density: "Reine Kern-Leistungsdichte",
