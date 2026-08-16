@@ -1,6 +1,6 @@
 ![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)
 
-# SMPS Calculation & Design Tool
+# FitCore SMPS Calculation & Design Suite
 
 www.ataqileriteknoloji.com
 
