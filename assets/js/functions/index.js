@@ -249,7 +249,8 @@ function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, Bac_mT, T_o
 
 async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, volt_sec, gapRequirement, componentType, dbData, staticDbsPayload, pri_Irms = 0, turnsRatio = 0, topology = "unknown", smpsMode = "CCM", D_switch = 0.5, extraModeParams = {}) {
     let candidates = [];
-    let minCost = Infinity, minLoss = Infinity, minVol = Infinity;
+    
+    let minCost = Infinity, maxCost = 0, minLoss = Infinity, minVol = Infinity;
     const mu0 = 4 * Math.PI * 1e-7;
     const f_kHz = f_sw_hz / 1000;
 
@@ -530,24 +531,20 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 });
             }
 
-            // 2. Set (2 Piece) Yapısı Kontrolü ve Fiyat Hesaplama
             const isTwoPieceSet = (core.functionalDescription?.type === "twoPieceSet");
             let singlePiecePrice = 999;
             let totalSetCost = 999;
 
             if (lowestCost !== null) {
                 if (isTwoPieceSet) {
-                    // Zaten 2 parça set olarak satılıyor, ikiyle çarpmıyoruz
                     totalSetCost = lowestCost;
-                    singlePiecePrice = lowestCost / 2; // Adil kıyaslama için tek parça eşdeğeri
+                    singlePiecePrice = lowestCost / 2;
                 } else {
-                    // Tek parça satılıyor ama nüve takımı için 2 parça gerekiyor
                     singlePiecePrice = lowestCost;
                     totalSetCost = lowestCost * 2;
                 }
             }
 
-            // Fiyat olmasa dahi nüvenin elenmemesi için `parsedCost === 999` kontrolleri kaldırılmıştır.
             const cost = totalSetCost;
             const stackCount = core.functionalDescription?.numberStacks || 1;
             const totalCost = (cost === 999) ? 999 : cost * stackCount;
@@ -593,10 +590,11 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 mfgName: core.manufacturerInfo?.name || core.manufacturer || core.brand || "Bilinmiyor",
                 componentType: componentType,
                 material: material,
-                costPerUnit: singlePiecePrice, // ADİL KIYASLAMA İÇİN: Tek parça fiyatı
-                totalCost: totalCost,          // Gösterim ve toplam BOM için Set/Takım fiyatı
-                isTwoPieceSet: isTwoPieceSet,
+				costPerUnit: singlePiecePrice,
+                totalCost: totalCost,
                 volume: volume_cm3,
+                lossFactor: lossFactor,
+                fuzzyScore: 0,
                 pv: Pv_mW_cm3,
                 igseBreakdown: igseResult.breakdown,
                 coreLossW: core_loss_W,
@@ -607,7 +605,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 al_nH: AL * 1e9,
                 Ae_mm2: Ae * 1e6,
                 bobbinName: compatibleBobbin ? compatibleBobbin.name : "-",
-                distributor: selectedDistributor ? selectedDistributor.name : (core.distributorsInfo?.[0]?.name || "No Stock"),
+                distributor: selectedDistributor ? selectedDistributor.name : (core.distributorsInfo?.[0]?.name || "Unknown Stock"),
                 url: selectedDistributor ? selectedDistributor.link : (core.distributorsInfo?.[0]?.link || "#"),
                 family: familyType,
                 dim_A: dimA, dim_B: dimB, dim_C: dimC, dim_D: dimD, dim_E: dimE, dim_F: dimF,
@@ -617,7 +615,11 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 windowAreaSource: "dims"
             });
 
-            if (singlePiecePrice !== 999 && singlePiecePrice < minCost) minCost = singlePiecePrice;
+            if (singlePiecePrice !== 999 && singlePiecePrice > 0) {
+                if (singlePiecePrice < minCost) minCost = singlePiecePrice;
+                if (singlePiecePrice > maxCost) maxCost = singlePiecePrice;
+            }
+            
             if (lossFactor < minLoss) minLoss = lossFactor;
             if (volume_cm3 < minVol) minVol = volume_cm3;
 
@@ -626,7 +628,6 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
             if (errorCount > 20) {
                 throw new Error(`Nüve veritabanı işlenirken kritik hata: ${e.message}`);
             }
-            console.warn(`[optimizeCores] Çekirdek atlandı (${core?.name || 'Bilinmiyor'}): ${e.message}`);
           }
         });
 
@@ -636,8 +637,18 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
     const BASE_LOSS_W = 0.1;
     const weights = getFuzzyWeights(mode);
     
+    const logMin = (minCost !== Infinity && minCost > 0) ? Math.log(minCost) : 0;
+    const logMax = (maxCost > 0) ? Math.log(maxCost) : 0;
+    const logDiff = logMax - logMin;
+
     candidates.forEach(c => {
-		const scoreCost = (c.costPerUnit === 999 || !c.costPerUnit) ? 0.01 : (minCost / c.costPerUnit);
+        let scoreCost = 0.01;
+
+        if (c.costPerUnit !== 999 && c.costPerUnit > 0 && logDiff > 0) {
+            const logPrice = Math.log(c.costPerUnit);
+            scoreCost = Math.max(0.01, (logMax - logPrice) / logDiff);
+        }
+
         const scoreEff = (minLoss + BASE_LOSS_W) / (c.lossFactor + BASE_LOSS_W);
         const scoreSize = minVol / c.volume;
 
@@ -676,7 +687,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
             }
         }
 
-        let rawFuzzyScore = ((weights.cost * scoreCost) + (weights.size * scoreSize) + (weights.eff * scoreEff)) * 100;
+		let rawFuzzyScore = ((weights.cost * scoreCost) + (weights.size * scoreSize) + (weights.eff * scoreEff)) * 100;
         c.fuzzyScore = Math.min(100, rawFuzzyScore * matSuitability * overSizePenalty);
     });
 
