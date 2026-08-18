@@ -1360,7 +1360,7 @@ window.filterResultsByManufacturer = function () {
 
     const onlyKnownStock = document.getElementById("advOnlyKnownStock")?.checked || false;
     if (onlyKnownStock) {
-        const knownStockFn = (core) => core.costPerUnit !== 999 && core.totalCost !== 999;
+        const knownStockFn = (core) => !!core.distributor && core.distributor !== "Unknown Stock";
         if (filteredResults.trafoCores) filteredResults.trafoCores = filteredResults.trafoCores.filter(knownStockFn);
         if (filteredResults.coilCores) filteredResults.coilCores = filteredResults.coilCores.filter(knownStockFn);
         if (filteredResults.coil1Cores) filteredResults.coil1Cores = filteredResults.coil1Cores.filter(knownStockFn);
