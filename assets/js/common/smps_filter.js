@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // SMPS FILTER CALCULATOR
 // SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
@@ -10,9 +10,10 @@ class SMPSFilterCalculator {
         this.mu0 = 4 * Math.PI * 1e-7;
     }
 
-    getStandardValue(value) {
+	getStandardValue(value) {
         if (!value || isNaN(value) || value <= 0) return 0;
-        const e12 = [1.0, 1.2, 1.5, 1.8, 2.2, 2.7, 3.3, 3.9, 4.7, 5.6, 6.8, 8.2];
+        
+        const e12 = [1.0, 1.2, 1.5, 1.8, 2.2, 2.7, 3.3, 3.9, 4.7, 5.6, 6.8, 8.2, 10.0];
         const exponent = Math.floor(Math.log10(value));
         const normalized = value / Math.pow(10, exponent);
 
@@ -163,7 +164,9 @@ class SMPSFilterCalculator {
 
         const I_ripple_percent = i_ripple_ui > 0 ? (i_ripple_ui > 1 ? i_ripple_ui / 100 : i_ripple_ui) : 0.30;
 
-        let L_raw = (Math.pow(Vin_ac_min, 2) * (1 - ((Math.sqrt(2) * Vin_ac_min) / (Vout || 1)))) /
+        const Vin_pk = Math.sqrt(2) * (Vin_ac_min > 0 ? Vin_ac_min : 1);
+
+        let L_raw = (Math.pow(Vin_pk, 2) * (1 - (Vin_pk / (Vout || 1)))) /
             (2 * I_ripple_percent * f_sw_hz * Pout * efficiency || 1);
 
         if (isNaN(L_raw) || L_raw < 0) L_raw = 100e-6;
