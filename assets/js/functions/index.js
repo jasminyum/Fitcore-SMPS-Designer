@@ -114,7 +114,7 @@ function optimizeWires(Irms, targetCMA, maxStrandD, wiresData) {
 }
 
 const SteinmetzParams = {
-    // === DÜŞÜK FREKANS GRUBU (< 200 kHz) ===
+    // === low freq (< 200 kHz) ===
     // Birim Standardı: f -> Hz, B -> Tesla, Pv -> W/m³
     "3c92": { k: 0.115, alpha: 1.58, beta: 2.75 },
     "n41":  { k: 0.142, alpha: 1.25, beta: 2.52 },
@@ -122,7 +122,7 @@ const SteinmetzParams = {
     "3c90": { k: 0.160, alpha: 1.46, beta: 2.75 }, 
     "3c94": { k: 0.125, alpha: 1.48, beta: 2.75 },
 
-    // === ORTA FREKANS GRUBU (100 kHz - 500 kHz) ===
+    // === mid freq (100 kHz - 500 kHz) ===
     "3c91": { k: 0.068, alpha: 1.59, beta: 2.71 },
     "3c95": { k: 0.092, alpha: 1.51, beta: 2.80 },
     "3c96": { k: 0.071, alpha: 1.63, beta: 2.68 },
@@ -137,21 +137,21 @@ const SteinmetzParams = {
     "n92":  { k: 0.012, alpha: 1.68, beta: 2.42 },  
     "n95":  { k: 0.009, alpha: 1.72, beta: 2.45 },  
 
-    // === YÜKSEK FREKANS GRUBU (500 kHz - 1 MHz) ===
+    // === high freq (500 kHz - 1 MHz) ===
     "3f3":  { k: 0.022, alpha: 1.95, beta: 2.55 },
     "3f35": { k: 0.015, alpha: 2.10, beta: 2.50 },
     "3f36": { k: 0.016, alpha: 2.12, beta: 2.50 },  
     "n49":  { k: 0.019, alpha: 1.70, beta: 2.50 },
     "n88":  { k: 0.014, alpha: 1.85, beta: 2.45 }, 
 
-    // === ULTRA YÜKSEK FREKANS GRUBU (> 1 MHz) ===
+    // === ultra high freq (> 1 MHz) ===
     "3f4":  { k: 0.008, alpha: 2.35, beta: 2.45 },
     "3f45": { k: 0.005, alpha: 2.50, beta: 2.40 },
     "3f46": { k: 0.003, alpha: 2.62, beta: 2.38 },  
     "pc200":{ k: 0.002, alpha: 2.68, beta: 2.34 },  
     "4f1":  { k: 0.0004, alpha: 3.05, beta: 2.24 }, 
           
-    // === TOZ METAL ÇEKİRDEKLER (Magnetics / Micrometals SI Dönüşümü) ===
+    // === metal dust cores (Magnetics / Micrometals SI Dönüşümü) ===
     "kool mu ultra": { k: 0.450, alpha: 1.58, beta: 2.20 },
     "kool mu":       { k: 0.680, alpha: 1.54, beta: 2.21 },
     "sendust":       { k: 0.680, alpha: 1.54, beta: 2.21 },
@@ -161,7 +161,7 @@ const SteinmetzParams = {
     "xflux":         { k: 1.120, alpha: 1.45, beta: 2.30 },
     "xflux ultra":   { k: 0.940, alpha: 1.50, beta: 2.26 },
           
-    // === DEMİR TOZU ÇEKİRDEKLER ===
+    // === iron dust cores ===
     "mix 26":  { k: 3.550, alpha: 1.25, beta: 2.11 },
     "mix 52":  { k: 2.450, alpha: 1.38, beta: 2.14 },
     "mix 2":   { k: 1.850, alpha: 1.44, beta: 2.15 },
@@ -170,23 +170,32 @@ const SteinmetzParams = {
     "default": { k: 0.250, alpha: 1.30, beta: 2.50 }
 };
 
-
+const MATERIAL_FREQ_TIERS = {
+    // (ideal ≤50kHz) ===
+    "n27": "low", "n30": "low", "3c81": "low", "3c92": "low", "n41": "low",
+    // (ideal ~50-300kHz bonus 1.2 and these are classical suggestions) ===
+    "n87": "mid", "n97": "mid", "3c90": "mid", "3c94": "mid",
+    "3c91": "mid", "3c95": "mid", "3c96": "mid", "3c97": "mid",
+    "n72": "mid", "pc47": "mid", "pc95": "mid", "n92": "mid", "n95": "mid",
+    // (ideal ≥300kHz, bonus 1.3) ===
+    "3f3": "high", "3f35": "high", "3f36": "high", "3f4": "high", "3f45": "high", "3f46": "high",
+    "n49": "high", "n88": "high", "pc200": "high", "4f1": "high"
+};
 
 const iaCache = {};
 function calculate_Ia(alpha, beta) {
-    const cacheKey = `${alpha.toFixed(3)}_${beta.toFixed(3)}`; // Güvenli cache key zinciri
+    const cacheKey = `${alpha.toFixed(3)}_${beta.toFixed(3)}`;
     if (iaCache[cacheKey]) return iaCache[cacheKey];
 
     let sum = 0;
-    const steps = 2000; // iGSE geçiş keskinliği için çözünürlük artırıldı
-    const dTheta = (2 * Math.PI) / steps; // Tam periyot (0 - 2pi) integral hesabı
+    const steps = 2000;
+    const dTheta = (2 * Math.PI) / steps;
     
     for (let i = 0; i < steps; i++) {
         let theta = i * dTheta;
         sum += Math.pow(Math.abs(Math.cos(theta)), alpha) * dTheta;
     }
-    
-    // Literatürdeki tam integral çarpanı: (2*pi)^(alpha-1) paydada yer alacak şekilde normalize edilir
+
     const result = sum; 
     iaCache[cacheKey] = result;
     return result;
@@ -243,10 +252,8 @@ function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, Bac_mT, T_o
     const D1 = Math.max(0.001, Math.min(0.999, wfMeta.D1 ?? 0.5));
     const D2 = Math.max(0.001, Math.min(0.999, wfMeta.D2 ?? 0.5));
     
-    // Simetrik olmayan uyarım dalga çarpanı
     const waveform_factor = Math.pow(D1, 1 - alpha) + Math.pow(D2, 1 - alpha);
 
-    // DÜZELTİLDİ: beta yerine (beta - alpha) üssü getirilerek iGSE denklemi doğrulandı
     const Pv_W_m3 = k_i * Math.pow(delta_B_Tesla, beta - alpha) * Math.pow(f_Hz, alpha) * waveform_factor * K_t;
     const Pv_mW_cm3 = Pv_W_m3 * 0.001; // 1 W/m3 = 0.001 mW/cm3
 
@@ -497,35 +504,19 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 const Ku = 0.40; 
                 if (total_Cu_mm2 > (Aw_mm2 * Ku)) isValid = false; 
 
-                // --- Gerçek (DC direnç bazlı) bakır kaybı hesabı ---
-                // MLT (Mean Length per Turn) tahmini: orta bacak/bobin kesitini Ae'ye eşdeğer
-                // kare kabul edip çevresini alıyoruz, sonra sarım yığınının ortalama yarıçap
-                // kadar (w_width/2) dışa taştığını varsayıyoruz. Sabit bir mesafeyle (r) dışa
-                // ofsetlenen herhangi bir dışbükey kesitin çevresi tam olarak 2*pi*r kadar
-                // artar (şekilden bağımsız geometrik özellik); r = w_width/2 için bu pi*w_width'e
-                // eşitlenir.
                 const Ae_mm2_est = Ae * 1e6;
                 const legPerimeter_mm = 4 * Math.sqrt(Ae_mm2_est);
                 const MLT_mm = legPerimeter_mm + Math.PI * w_width;
                 const MLT_m = MLT_mm / 1000;
 
-                const RHO_CU_20C = 1.68e-8; // ohm*m, 20°C bakır özdirenci
-                const ALPHA_CU = 0.00393;   // 1/°C, bakır direnç sıcaklık katsayısı
+                const RHO_CU_20C = 1.68e-8; // ohm*m, 20°C cu d
+                const ALPHA_CU = 0.00393;   // 1/°C
                 const rho_cu_T = RHO_CU_20C * (1 + ALPHA_CU * (T_op - 20));
 
-                // Sargı teli, akım yoğunluğu J_target'a göre boyutlandırıldığından
-                // (a_tel = I / J_target), tek bir sarımın direnci R = rho * MLT / a_tel
-                // = rho * MLT * J_target / I olur. Kayıp P = I^2 * R = I * J_target * rho * MLT
-                // şeklinde sadeleşir (J_target birimi A/mm^2 olduğundan A/m^2'ye çevirmek için
-                // *1e6 uygulanır). N1_calc sarım için toplamda bu değerin N1_calc katı alınır.
                 const safe_pri_Irms = Math.max(pri_Irms, 0.05);
                 copper_loss_W = N1_calc * safe_pri_Irms * rho_cu_T * MLT_m * J_target * 1e6;
 
                 if ((componentType.includes("trafo") || componentType.includes("flyback")) && turnsRatio > 0) {
-                    // İzole (trafo/flyback) tasarımlarda ikincil sargı kaybı da eklenir.
-                    // n2 sarım sayısı tahmini, ilerideki n2_calc ile aynı formülü kullanır.
-                    // İkincil akım, amper-sarım dengesiyle kabaca I2 ≈ I1 * (N1/N2) = I1 * turnsRatio
-                    // olarak tahmin edilir (mıknatıslanma akımı ihmal edilir).
                     const n2_est = Math.max(1, Math.round(N1_calc / turnsRatio));
                     const sec_Irms_est = safe_pri_Irms * turnsRatio;
                     copper_loss_W += n2_est * sec_Irms_est * rho_cu_T * MLT_m * J_target * 1e6;
@@ -560,8 +551,6 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
 
             const core_loss_W = (Pv_mW_cm3 * volume_cm3) / 1000;
             const lossFactor = core_loss_W * (Pv_mW_cm3 > 600 ? 50 : 1);
-            // Gerçek toplam kayıp: nüve (lossFactor, aşırı akı yoğunluğu cezası dahil) + gerçek
-            // bakır kaybı. Verimlilik skorlaması (scoreEff) artık bunu kullanır.
             const totalLossW = lossFactor + copper_loss_W;
 
 			let lowestCost = null;
@@ -694,13 +683,6 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
     const logMax = (maxCost > 0) ? Math.log(maxCost) : 0;
     const logDiff = logMax - logMin;
 
-    // --- FIX (normalizasyon / outlier hatası) ---
-    // minLoss ve minVol, TÜM adaylar (aşırı büyük ve kullanım oranı çok düşük nüveler dahil)
-    // üzerinden hesaplanıyordu. Kullanım oranı ~%10-11 olan devasa bir nüve, sırf toplam kaybı
-    // düşük diye "minLoss" referansı haline geliyor ve normal/uygun boyuttaki nüvelerin
-    // scoreEff değerini neredeyse sıfıra çekiyordu. Bu yüzden baseline'ı, makul bir kullanım
-    // oranına (>= %15) sahip adaylardan hesaplıyoruz. Hiçbir aday bu şartı sağlamıyorsa
-    // (çok dar bir arama uzayı varsa) tüm adaylara geri dönülür.
     let robustMinLoss = Infinity, robustMinVol = Infinity;
     candidates.forEach(c => {
         if (c.utilizationRatio >= 0.15) {
@@ -711,28 +693,21 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
     if (robustMinLoss === Infinity) robustMinLoss = minLoss;
     if (robustMinVol === Infinity) robustMinVol = minVol;
 
-    // --- FIX (bakır kaybının ihmal edilmesi) ---
-    // scoreEff artık yalnızca nüve (iron) kaybına değil, her adayın gerçek DC direnç bazlı
-    // bakır kaybı (MLT, akım yoğunluğu ve sıcaklığa bağlı özdirenç üzerinden hesaplanan
-    // copper_loss_W) ile birleştirilmiş c.totalLossW değerine bakıyor. Böylece "high_eff" modu
-    // artık sadece nüve kaybını sıfırlayan devasa nüveleri değil, gerçekte en düşük toplam
-    // (nüve + bakır) kayba sahip nüveyi öne çıkarır.
     candidates.forEach(c => {
         let scoreCost = 0.01;
 
-        if (c.costPerUnit !== 999 && c.costPerUnit > 0 && logDiff > 0) {
-            const logPrice = Math.log(c.costPerUnit);
-            scoreCost = Math.max(0.01, (logMax - logPrice) / logDiff);
+        if (c.costPerUnit !== 999 && c.costPerUnit > 0) {
+            if (logDiff > 0) {
+                const logPrice = Math.log(c.costPerUnit);
+                scoreCost = Math.max(0.01, (logMax - logPrice) / logDiff);
+            } else {
+                scoreCost = 1.0;
+            }
         }
 
-        const scoreEff = (robustMinLoss + BASE_LOSS_W) / (c.totalLossW + BASE_LOSS_W);
-        const scoreSize = robustMinVol / c.volume;
+        const scoreEff = Math.min(1.0, (robustMinLoss + BASE_LOSS_W) / (c.totalLossW + BASE_LOSS_W));
+        const scoreSize = Math.min(1.0, robustMinVol / c.volume);
 
-        // --- FIX (cezanın çok geç devreye girmesi) ---
-        // Eskiden ceza yalnızca kullanım oranı %10'un ALTINA düşünce başlıyordu; yani
-        // ihtiyacın 9 katı büyüklüğündeki bir nüve (%11 kullanım) hiç ceza almıyordu. Artık
-        // ceza %40 kullanım oranından itibaren kademeli olarak devreye giriyor ve %10'a kadar
-        // sertleşiyor (aynı alt sınır olan 0.1 çarpanı korunuyor).
         let overSizePenalty = 1.0;
         if (c.utilizationRatio < 0.4) {
             overSizePenalty = Math.max(0.1, c.utilizationRatio * 2.5);
@@ -741,21 +716,30 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
         let matSuitability = 1.0;
         let matNote = "";
         const matKey = c.material.toLowerCase();
-        
-        if (matKey.includes("n27") || matKey.includes("n30") || matKey.includes("3c81")) {
+
+        let matTier = null;
+        let bestMatKeyLen = -1;
+        for (const code in MATERIAL_FREQ_TIERS) {
+            if (matKey.includes(code) && code.length > bestMatKeyLen) {
+                matTier = MATERIAL_FREQ_TIERS[code];
+                bestMatKeyLen = code.length;
+            }
+        }
+
+        if (matTier === "low") {
             if (f_kHz <= 50) { matSuitability = 1.0; }
             else if (f_kHz >= 150) { matSuitability = 0.4; }
             else { matSuitability = 1.0 - ((f_kHz - 50) / 100) * 0.6; }
-            
+
             if (matSuitability < 0.9) matNote = ` Material is not ideal for high frequencies (>50kHz), approaching manufacturer limits (Safety multiplier: ${matSuitability.toFixed(2)}).`;
-        } 
-        else if (matKey.includes("n87") || matKey.includes("n97") || matKey.includes("3c90") || matKey.includes("3c94")) {
+        }
+        else if (matTier === "mid") {
             if (f_kHz >= 50 && f_kHz <= 300) { matSuitability = 1.2; matNote = " Most ideal material range for this operating frequency (Suitability bonus: 1.20)."; }
-            else if (f_kHz < 50) { matSuitability = 1.0 + (f_kHz / 50) * 0.2; } 
+            else if (f_kHz < 50) { matSuitability = 1.0 + (f_kHz / 50) * 0.2; }
             else if (f_kHz > 300 && f_kHz <= 500) { matSuitability = 1.2 - ((f_kHz - 300) / 200) * 0.2; }
             else { matSuitability = 1.0; }
-        } 
-        else if (matKey.includes("3f") || matKey.includes("n49") || matKey.includes("n88")) {
+        }
+        else if (matTier === "high") {
             if (f_kHz >= 300) { matSuitability = 1.3; matNote = " Special and ideal material for high frequency (Suitability bonus: 1.30)."; }
             else if (f_kHz <= 50) { matSuitability = 0.6; matNote = " Unnecessarily expensive/unsuitable material for low frequencies, performance cannot be fully utilized (Multiplier: 0.60)."; }
             else { matSuitability = 0.6 + ((f_kHz - 50) / 250) * 0.7; }
@@ -769,12 +753,34 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
             c.igseBreakdown.note += ` Loss breakdown: core ${c.coreLossW.toFixed(3)}W + copper ${c.copperLossW.toFixed(3)}W = ${c.totalLossW.toFixed(3)}W total.`;
         }
 
-		let rawFuzzyScore = ((weights.cost * scoreCost) + (weights.size * scoreSize) + (weights.eff * scoreEff)) * 100;
-        c.fuzzyScore = Math.min(100, rawFuzzyScore * matSuitability * overSizePenalty);
+        const effectiveScoreEff = Math.min(1.0, scoreEff * matSuitability);
+
+        let rawFuzzyScore = ((weights.cost * scoreCost) + (weights.size * scoreSize) + (weights.eff * effectiveScoreEff)) * 100;
+        c.fuzzyScore = Math.min(100, rawFuzzyScore * overSizePenalty);
     });
 
     candidates.sort((a, b) => b.fuzzyScore - a.fuzzyScore);
-    return candidates.slice(0, 30);
+
+    const KNOWN_STOCK_GUARANTEE = 30;
+    const OVERALL_LIMIT = 30;
+
+    const topOverall = candidates.slice(0, OVERALL_LIMIT);
+    const topKnownStock = candidates
+        .filter(c => !!c.distributor && c.distributor !== "Unknown Stock")
+        .slice(0, KNOWN_STOCK_GUARANTEE);
+
+    const merged = [...topOverall];
+    const seen = new Set(merged.map(c => `${c.name}|${c.mfgName}`));
+    topKnownStock.forEach(c => {
+        const key = `${c.name}|${c.mfgName}`;
+        if (!seen.has(key)) {
+            seen.add(key);
+            merged.push(c);
+        }
+    });
+
+    merged.sort((a, b) => b.fuzzyScore - a.fuzzyScore);
+    return merged;
 }
 
 function interp1(xs, ys, xq, scaleToZero = false) {
