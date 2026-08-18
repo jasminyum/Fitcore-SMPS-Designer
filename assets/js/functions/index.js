@@ -1,5 +1,6 @@
 // ================================================================
 // Server Section
+// SPDX-License-Identifier: AGPL-3.0-only
 // ================================================================
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
