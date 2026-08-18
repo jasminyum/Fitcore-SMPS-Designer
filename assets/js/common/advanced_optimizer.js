@@ -204,6 +204,13 @@ window.openAdvancedTable = function () {
                         </select>
                     </div>
 
+                    <div class="input-group input-group-sm" style="width:auto;">
+                        <div class="input-group-text bg-dark border-secondary">
+                            <input class="form-check-input mt-0" type="checkbox" id="advOnlyKnownStock" onchange="window.filterResultsByManufacturer()">
+                        </div>
+                        <span class="input-group-text bg-dark text-light border-secondary">${sanitizeHTML(safeGetT('adv_only_known_stock') || 'Sadece Stok Bilinenler')}</span>
+                    </div>
+
                     <div class="ms-auto d-flex gap-2 mt-2 mt-lg-0">
                         <button class="btn btn-primary btn-sm px-3 fw-bold" onclick="window.executeAdvancedOptimization()">${sanitizeHTML(safeGetT('adv_btn_run_ai') || 'Yapay Zekayı Çalıştır')}</button>
                         <button class="btn btn-success btn-sm px-3 fw-bold" id="exportBtn" style="display:none;" onclick="window.exportAdvancedResultsToCSV()">CSV</button>
@@ -1349,6 +1356,15 @@ window.filterResultsByManufacturer = function () {
 
         const filterSwFn = (sw) => (sw.manufacturer || "").toLowerCase().includes(selectedMfg);
         if (filteredResults.switches) filteredResults.switches = filteredResults.switches.filter(filterSwFn);
+    }
+
+    const onlyKnownStock = document.getElementById("advOnlyKnownStock")?.checked || false;
+    if (onlyKnownStock) {
+        const knownStockFn = (core) => core.costPerUnit !== 999 && core.totalCost !== 999;
+        if (filteredResults.trafoCores) filteredResults.trafoCores = filteredResults.trafoCores.filter(knownStockFn);
+        if (filteredResults.coilCores) filteredResults.coilCores = filteredResults.coilCores.filter(knownStockFn);
+        if (filteredResults.coil1Cores) filteredResults.coil1Cores = filteredResults.coil1Cores.filter(knownStockFn);
+        if (filteredResults.coil2Cores) filteredResults.coil2Cores = filteredResults.coil2Cores.filter(knownStockFn);
     }
 
     const getUniqueItems = (arr, keyExtractor) => {
