@@ -37,6 +37,20 @@ function getFuzzyWeights(mode) {
     }
 }
 
+function getCurrentDensity(fsw_khz) {
+    const F_MIN = 10;
+    const F_MAX = 1500;
+    const J_MAX = 5.0;
+    const J_MIN = 3.0;
+    if (fsw_khz <= F_MIN) return J_MAX;
+    if (fsw_khz >= F_MAX) return J_MIN;
+    const logF = Math.log10(fsw_khz);
+    const logMin = Math.log10(F_MIN);
+    const logMax = Math.log10(F_MAX);
+    const result = J_MAX - (J_MAX - J_MIN) * ((logF - logMin) / (logMax - logMin));
+    return Math.round(result * 1000) / 1000;
+}
+
 function sanitizeForJSON(value) {
     if (typeof value === 'number') {
         return Number.isFinite(value) ? value : null;
@@ -450,6 +464,8 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 }
             }
 
+            let copper_loss_W = 0;
+
             if (isValid) {
                 let Aw_mm2 = 0, w_width = 0, w_height = 0;
                 if (familyType === "RM" || familyType === "PQ" || familyType === "PM") {
@@ -467,11 +483,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 if (w_width > 0 && w_height > 0) Aw_mm2 = w_width * w_height;
                 else return;
 
-                let J_target = 5.0;
-                if (f_kHz < 50) J_target = 5.0;
-                else if (f_kHz <= 100) J_target = 4.5;
-                else if (f_kHz <= 500) J_target = 4.0;
-                else J_target = 3.5;
+                let J_target = getCurrentDensity(f_kHz);
                 
                 if (volume_cm3 < 3.0) J_target *= 1.25; 
                 else if (volume_cm3 > 15.0) J_target *= 0.85; 
@@ -484,6 +496,42 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
 
                 const Ku = 0.40; 
                 if (total_Cu_mm2 > (Aw_mm2 * Ku)) isValid = false; 
+
+                // --- Gerçek (DC direnç bazlı) bakır kaybı hesabı ---
+                // MLT (Mean Length per Turn) tahmini: orta bacak/bobin kesitini Ae'ye eşdeğer
+                // kare kabul edip çevresini alıyoruz, sonra sarım yığınının ortalama yarıçap
+                // kadar (w_width/2) dışa taştığını varsayıyoruz. Sabit bir mesafeyle (r) dışa
+                // ofsetlenen herhangi bir dışbükey kesitin çevresi tam olarak 2*pi*r kadar
+                // artar (şekilden bağımsız geometrik özellik); r = w_width/2 için bu pi*w_width'e
+                // eşitlenir.
+                const Ae_mm2_est = Ae * 1e6;
+                const legPerimeter_mm = 4 * Math.sqrt(Ae_mm2_est);
+                const MLT_mm = legPerimeter_mm + Math.PI * w_width;
+                const MLT_m = MLT_mm / 1000;
+
+                const RHO_CU_20C = 1.68e-8; // ohm*m, 20°C bakır özdirenci
+                const ALPHA_CU = 0.00393;   // 1/°C, bakır direnç sıcaklık katsayısı
+                const rho_cu_T = RHO_CU_20C * (1 + ALPHA_CU * (T_op - 20));
+
+                // Sargı teli, akım yoğunluğu J_target'a göre boyutlandırıldığından
+                // (a_tel = I / J_target), tek bir sarımın direnci R = rho * MLT / a_tel
+                // = rho * MLT * J_target / I olur. Kayıp P = I^2 * R = I * J_target * rho * MLT
+                // şeklinde sadeleşir (J_target birimi A/mm^2 olduğundan A/m^2'ye çevirmek için
+                // *1e6 uygulanır). N1_calc sarım için toplamda bu değerin N1_calc katı alınır.
+                const safe_pri_Irms = Math.max(pri_Irms, 0.05);
+                copper_loss_W = N1_calc * safe_pri_Irms * rho_cu_T * MLT_m * J_target * 1e6;
+
+                if ((componentType.includes("trafo") || componentType.includes("flyback")) && turnsRatio > 0) {
+                    // İzole (trafo/flyback) tasarımlarda ikincil sargı kaybı da eklenir.
+                    // n2 sarım sayısı tahmini, ilerideki n2_calc ile aynı formülü kullanır.
+                    // İkincil akım, amper-sarım dengesiyle kabaca I2 ≈ I1 * (N1/N2) = I1 * turnsRatio
+                    // olarak tahmin edilir (mıknatıslanma akımı ihmal edilir).
+                    const n2_est = Math.max(1, Math.round(N1_calc / turnsRatio));
+                    const sec_Irms_est = safe_pri_Irms * turnsRatio;
+                    copper_loss_W += n2_est * sec_Irms_est * rho_cu_T * MLT_m * J_target * 1e6;
+                }
+
+                if (!Number.isFinite(copper_loss_W) || copper_loss_W < 0) copper_loss_W = 0;
             }
 
             if (!isValid) return;
@@ -495,7 +543,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                  utilizationRatio = actualReqVal / (Aele * 1e9);
             }
 
-            const material = core.functionalDescription?.material || 'Bilinmiyor';
+            const material = core.functionalDescription?.material || 'Unknown';
             const matKey = material.toLowerCase();
             let matParams = SteinmetzParams["default"];
             let bestKeyLen = -1;
@@ -512,6 +560,9 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
 
             const core_loss_W = (Pv_mW_cm3 * volume_cm3) / 1000;
             const lossFactor = core_loss_W * (Pv_mW_cm3 > 600 ? 50 : 1);
+            // Gerçek toplam kayıp: nüve (lossFactor, aşırı akı yoğunluğu cezası dahil) + gerçek
+            // bakır kaybı. Verimlilik skorlaması (scoreEff) artık bunu kullanır.
+            const totalLossW = lossFactor + copper_loss_W;
 
 			let lowestCost = null;
             let selectedDistributor = null;
@@ -536,12 +587,12 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
             let totalSetCost = 999;
 
             if (lowestCost !== null) {
+                singlePiecePrice = lowestCost; 
+                
                 if (isTwoPieceSet) {
-                    totalSetCost = lowestCost;
-                    singlePiecePrice = lowestCost / 2;
-                } else {
-                    singlePiecePrice = lowestCost;
                     totalSetCost = lowestCost * 2;
+                } else {
+                    totalSetCost = lowestCost;
                 }
             }
 
@@ -587,7 +638,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
 
 			candidates.push({
                 name: core.name || shapeName,
-                mfgName: core.manufacturerInfo?.name || core.manufacturer || core.brand || "Bilinmiyor",
+                mfgName: core.manufacturerInfo?.name || core.manufacturer || core.brand || "Unknown",
                 componentType: componentType,
                 material: material,
 				costPerUnit: singlePiecePrice,
@@ -598,6 +649,8 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 pv: Pv_mW_cm3,
                 igseBreakdown: igseResult.breakdown,
                 coreLossW: core_loss_W,
+                copperLossW: copper_loss_W,
+                totalLossW: totalLossW,
                 lossFactor: lossFactor,
                 bmax: Bmax_calc_mT,
                 n1_calc: N1_calc,
@@ -620,13 +673,13 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 if (singlePiecePrice > maxCost) maxCost = singlePiecePrice;
             }
             
-            if (lossFactor < minLoss) minLoss = lossFactor;
+            if (totalLossW < minLoss) minLoss = totalLossW;
             if (volume_cm3 < minVol) minVol = volume_cm3;
 
           } catch (e) {
             errorCount++;
             if (errorCount > 20) {
-                throw new Error(`Nüve veritabanı işlenirken kritik hata: ${e.message}`);
+                throw new Error(`Critical error while processing the core database: ${e.message}`);
             }
           }
         });
@@ -641,6 +694,29 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
     const logMax = (maxCost > 0) ? Math.log(maxCost) : 0;
     const logDiff = logMax - logMin;
 
+    // --- FIX (normalizasyon / outlier hatası) ---
+    // minLoss ve minVol, TÜM adaylar (aşırı büyük ve kullanım oranı çok düşük nüveler dahil)
+    // üzerinden hesaplanıyordu. Kullanım oranı ~%10-11 olan devasa bir nüve, sırf toplam kaybı
+    // düşük diye "minLoss" referansı haline geliyor ve normal/uygun boyuttaki nüvelerin
+    // scoreEff değerini neredeyse sıfıra çekiyordu. Bu yüzden baseline'ı, makul bir kullanım
+    // oranına (>= %15) sahip adaylardan hesaplıyoruz. Hiçbir aday bu şartı sağlamıyorsa
+    // (çok dar bir arama uzayı varsa) tüm adaylara geri dönülür.
+    let robustMinLoss = Infinity, robustMinVol = Infinity;
+    candidates.forEach(c => {
+        if (c.utilizationRatio >= 0.15) {
+            if (c.totalLossW < robustMinLoss) robustMinLoss = c.totalLossW;
+            if (c.volume < robustMinVol) robustMinVol = c.volume;
+        }
+    });
+    if (robustMinLoss === Infinity) robustMinLoss = minLoss;
+    if (robustMinVol === Infinity) robustMinVol = minVol;
+
+    // --- FIX (bakır kaybının ihmal edilmesi) ---
+    // scoreEff artık yalnızca nüve (iron) kaybına değil, her adayın gerçek DC direnç bazlı
+    // bakır kaybı (MLT, akım yoğunluğu ve sıcaklığa bağlı özdirenç üzerinden hesaplanan
+    // copper_loss_W) ile birleştirilmiş c.totalLossW değerine bakıyor. Böylece "high_eff" modu
+    // artık sadece nüve kaybını sıfırlayan devasa nüveleri değil, gerçekte en düşük toplam
+    // (nüve + bakır) kayba sahip nüveyi öne çıkarır.
     candidates.forEach(c => {
         let scoreCost = 0.01;
 
@@ -649,12 +725,17 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
             scoreCost = Math.max(0.01, (logMax - logPrice) / logDiff);
         }
 
-        const scoreEff = (minLoss + BASE_LOSS_W) / (c.lossFactor + BASE_LOSS_W);
-        const scoreSize = minVol / c.volume;
+        const scoreEff = (robustMinLoss + BASE_LOSS_W) / (c.totalLossW + BASE_LOSS_W);
+        const scoreSize = robustMinVol / c.volume;
 
+        // --- FIX (cezanın çok geç devreye girmesi) ---
+        // Eskiden ceza yalnızca kullanım oranı %10'un ALTINA düşünce başlıyordu; yani
+        // ihtiyacın 9 katı büyüklüğündeki bir nüve (%11 kullanım) hiç ceza almıyordu. Artık
+        // ceza %40 kullanım oranından itibaren kademeli olarak devreye giriyor ve %10'a kadar
+        // sertleşiyor (aynı alt sınır olan 0.1 çarpanı korunuyor).
         let overSizePenalty = 1.0;
-        if (c.utilizationRatio < 0.1) {
-            overSizePenalty = Math.max(0.1, c.utilizationRatio * 10);
+        if (c.utilizationRatio < 0.4) {
+            overSizePenalty = Math.max(0.1, c.utilizationRatio * 2.5);
         }
 
         let matSuitability = 1.0;
@@ -685,6 +766,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
             if (overSizePenalty < 1.0) {
                 c.igseBreakdown.note += ` Core capacity is well above the design target, unnecessary volume penalty applied (Multiplier: ${overSizePenalty.toFixed(2)}).`;
             }
+            c.igseBreakdown.note += ` Loss breakdown: core ${c.coreLossW.toFixed(3)}W + copper ${c.copperLossW.toFixed(3)}W = ${c.totalLossW.toFixed(3)}W total.`;
         }
 
 		let rawFuzzyScore = ((weights.cost * scoreCost) + (weights.size * scoreSize) + (weights.eff * scoreEff)) * 100;
@@ -1129,9 +1211,9 @@ async function optimizeSwitches(topology, V_op, I_peak, Irms, f_sw_hz, switchesD
                 
                 errorCount++;
                 if (errorCount > 20) {
-                    throw new Error(`Kritik hesaplama hatası tespit edildi. Devre parametrelerinizi kontrol ediniz. Detay: ${e.message}`);
+                    throw new Error(`Critical calculation error detected. Please check your circuit parameters. Detail: ${e.message}`);
                 }
-                console.warn(`[optimizeSwitches] Hesaplama atlandı (Switch: ${sw.name || sw.type || 'Bilinmiyor'}): ${e.message}`);
+                console.warn(`[optimizeSwitches] Calculation skipped (Switch: ${sw.name || sw.type || 'Unknown'}): ${e.message}`);
                 return; 
             }
 
@@ -1162,7 +1244,7 @@ async function optimizeSwitches(topology, V_op, I_peak, Irms, f_sw_hz, switchesD
             if (isNaN(p_cond_W) || isNaN(p_sw_W) || isNaN(p_tot_W) || isNaN(finalRankScore)) return;
 
             candidates.push({
-                name: sw.name || "-", manufacturer: sw.manufacturer || "Bilinmiyor", type: sw.type || "Bilinmiyor",
+                name: sw.name || "-", manufacturer: sw.manufacturer || "Unknown", type: sw.type || "Unknown",
                 housing: sw.housing_type || "-", v_max: sw.v_abs_max, i_max: safe_i_max, p_cond_W: p_cond_W,
                 p_sw_W: p_sw_W, p_tot_W: p_tot_W, rankScore: finalRankScore, link: sw.datasheet_hyperlink || "#"
             });
