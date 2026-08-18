@@ -20,8 +20,9 @@ function findShapeInfo(cleanShape, shapeName, coreShapes) {
     if (!match && shapeName) {
         const firstPart = shapeName.split(/[\s/]+/)[0].toUpperCase(); 
         if (firstPart.length > 2) { 
+            const regex = new RegExp(`^${firstPart}(?![0-9])`, 'i');
             match = coreShapes.find(s => 
-                s.name && s.name.replace(/[\s\-_]+/g, '').toUpperCase().startsWith(firstPart)
+                s.name && regex.test(s.name.replace(/[\s\-_]+/g, '').toUpperCase())
             );
         }
     }
@@ -69,13 +70,21 @@ function sanitizeForJSON(value) {
     return value;
 }
 
-function optimizeWires(Irms, targetCMA, maxStrandD, wiresData) {
+function optimizeWires(Irms, targetCMA, maxStrandD, wiresData, f_sw_hz = 0) {
     const candidates = [];
-    if (Irms <= 0) return candidates;
-    if (!Array.isArray(wiresData)) return candidates;
+    if (Irms <= 0 || !Array.isArray(wiresData)) return candidates;
 
     const safeCMA = (Number.isFinite(targetCMA) && targetCMA > 0) ? targetCMA : 400;
-    const safeMaxStrandD = (Number.isFinite(maxStrandD) && maxStrandD > 0) ? maxStrandD : 5.0;
+    let safeMaxStrandD = (Number.isFinite(maxStrandD) && maxStrandD > 0) ? maxStrandD : 5.0;
+
+    // Skin Effect Limiti Entegrasyonu
+    if (f_sw_hz > 0) {
+        const skinDepth_mm = 66 / Math.sqrt(f_sw_hz);
+        const maxSkinD_mm = skinDepth_mm * 2;
+        if (safeMaxStrandD > maxSkinD_mm) {
+            safeMaxStrandD = maxSkinD_mm; // Çap sınırını deri kalınlığına zorla
+        }
+    }
 
     const reqArea_mm2 = (Irms * safeCMA) / 1973.525;
 
@@ -183,23 +192,25 @@ const MATERIAL_FREQ_TIERS = {
     "n49": "high", "n88": "high", "pc200": "high", "4f1": "high"
 };
 
-const iaCache = {};
+function gamma(z) {
+    const g = 7;
+    const p = [
+        0.99999999999980993, 676.5203681218851, -1259.1392167224028,
+        771.32342877765313, -176.61502916214059, 12.507343278686905,
+        -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7
+    ];
+    if (z < 0.5) return Math.PI / (Math.sin(Math.PI * z) * gamma(1 - z));
+    z -= 1;
+    let x = p[0];
+    for (let i = 1; i < g + 2; i++) x += p[i] / (z + i);
+    let t = z + g + 0.5;
+    return Math.sqrt(2 * Math.PI) * Math.pow(t, z + 0.5) * Math.exp(-t) * x;
+}
+
 function calculate_Ia(alpha, beta) {
-    const cacheKey = `${alpha.toFixed(3)}_${beta.toFixed(3)}`;
-    if (iaCache[cacheKey]) return iaCache[cacheKey];
-
-    let sum = 0;
-    const steps = 2000;
-    const dTheta = (2 * Math.PI) / steps;
-    
-    for (let i = 0; i < steps; i++) {
-        let theta = i * dTheta;
-        sum += Math.pow(Math.abs(Math.cos(theta)), alpha) * dTheta;
-    }
-
-    const result = sum; 
-    iaCache[cacheKey] = result;
-    return result;
+    const num = Math.pow(2, alpha + 1) * Math.pow(gamma((alpha + 1) / 2), 2);
+    const den = gamma(alpha + 1);
+    return num / den;
 }
 
 function getEffectiveWaveformParams(topology, mode, D_switch, extra = {}) {
@@ -216,14 +227,13 @@ function getEffectiveWaveformParams(topology, mode, D_switch, extra = {}) {
             }
             return { D1: safeD, D2: 1 - safeD, confidence: "low", note: "Mode could not be detected, CCM assumed." };
         case "bridge": return { D1: 0.5, D2: 0.5, confidence: "high", note: "Bridge topology: symmetrical square wave." };
-        case "llc": {
+		case "llc": {
             const fr_ratio = extra.f_sw_over_fr || 1.0;
             const llcMode = extra.llcMode || (Math.abs(fr_ratio - 1) < 0.01 ? "at" : (fr_ratio < 1 ? "below" : "above"));
             if (llcMode === "at") {
                 return { D1: 0.5, D2: 0.5, confidence: "medium", note: "LLC at resonance point: flux waveform is close to sinusoidal, iGSE may give slightly conservative results." };
             } else if (llcMode === "below") {
-                const estD = Math.min(0.95, 0.5 + Math.abs(1 - fr_ratio) * 0.3);
-                return { D1: estD, D2: 1 - estD, confidence: "medium", note: "Below resonance LLC: continuous flux with varying slopes." };
+                return { D1: 0.5, D2: 0.5, confidence: "medium", note: "Below resonance LLC: continuous symmetric flux with frequency modulation." };
             } else {
                 return { D1: 0.5, D2: 0.5, confidence: "medium", note: "Above resonance LLC: sinusoidal segments." };
             }
@@ -242,21 +252,30 @@ function getEffectiveWaveformParams(topology, mode, D_switch, extra = {}) {
     }
 }
 
-function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, Bac_mT, T_op, wfMeta = {}) {
+function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT, T_op, wfMeta = {}) {
     const K_t = 1 + Math.pow((T_op - 90) / 40, 2);
+    
     const I_a = calculate_Ia(alpha, beta);
-    const k_i = k_steinmetz / (Math.pow(2, beta - alpha) * Math.pow(2 * Math.PI, alpha - 1) * I_a);
     
-    const delta_B_Tesla = (Bac_mT * 2) / 1000;
+    const k_i = k_steinmetz / (Math.pow(2 * Math.PI, alpha - 1) * I_a);
+    
     const f_Hz = f_kHz * 1000; 
+    const delta_B_Tesla = delta_B_mT / 1000; // delta_B tepe-tepe (peak-to-peak) değerdir
     
-    const D1 = Math.max(0.001, Math.min(0.999, wfMeta.D1 ?? 0.5));
-    const D2 = Math.max(0.001, Math.min(0.999, wfMeta.D2 ?? 0.5));
+    let D1 = Math.max(0.001, Math.min(0.999, wfMeta.D1 ?? 0.5));
+    let D2 = Math.max(0.001, Math.min(0.999, wfMeta.D2 ?? 0.5));
+    
+    if (D1 + D2 > 1.0) {
+        const sum = D1 + D2;
+        D1 /= sum;
+        D2 /= sum;
+    }
     
     const waveform_factor = Math.pow(D1, 1 - alpha) + Math.pow(D2, 1 - alpha);
 
-    const Pv_W_m3 = k_i * Math.pow(delta_B_Tesla, beta) * Math.pow(f_Hz, alpha) * waveform_factor * K_t;
-    const Pv_mW_cm3 = Pv_W_m3 * 0.001; // 1 W/m3 = 0.001 mW/cm3
+    const Pv_W_m3 = k_i * Math.pow(delta_B_Tesla, beta - alpha) * Math.pow(f_Hz, alpha) * waveform_factor * K_t;
+    
+    const Pv_mW_cm3 = Pv_W_m3 * 0.001; // 1 W/m³ = 0.001 mW/cm³
 
     return {
         Pv_mW_cm3: Number.isFinite(Pv_mW_cm3) && Pv_mW_cm3 > 0 ? Pv_mW_cm3 : 0.1,
@@ -280,9 +299,10 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
     const bobbinList = Array.isArray(dbData?.bobbins) ? dbData.bobbins : [];
     let errorCount = 0;
 
-    const CHUNK_SIZE = 250;
-    for (let i = 0; i < coreList.length; i += CHUNK_SIZE) {
-        const chunk = coreList.slice(i, i + CHUNK_SIZE);
+	const CHUNK_SIZE = 1000; 
+
+	for (let i = 0; i < coreList.length; i += CHUNK_SIZE) {
+		const chunk = coreList.slice(i, i + CHUNK_SIZE);
 
         chunk.forEach(core => {
           try {
@@ -423,15 +443,19 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 dimD = getVal(d.D); dimE = getVal(d.E); dimF = getVal(d.F);
             }
 
-            const Wmax_core_J = 0.5 * Math.pow(dynamic_B_sat_T, 2) * Aele / mu0e;
+            const Wmax_core_J = (0.5 * Math.pow(dynamic_B_sat_T, 2) * Math.pow(Amin, 2)) / AL;
+			let delta_B_mT = 0;
 
-            if (componentType === "linear_trafo") {
+			if (componentType === "linear_trafo") {
                 const Ve_mm3 = Aele * 1e9;
                 actualReqVal = reqVal; 
                 if (Ve_mm3 >= reqVal) {
                     N1_calc = Math.max(1, Math.ceil(Math.sqrt(L_H / AL)));
                     const I1_peak = pri_Irms * Math.SQRT2;
                     Bmax_calc_mT = ((AL * N1_calc * I1_peak) / Ae) * 1000;
+                    
+                    delta_B_mT = Bmax_calc_mT * 2; 
+                    
                     if (Bmax_calc_mT <= (dynamic_B_sat_T * 1000)) isValid = true;
                 }
             } else if (type === "energy") {
@@ -456,11 +480,13 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     if (AL > 0) l_actual_H = AL * Math.pow(N1_calc, 2);
 
                     const B_peak_T = (L_H * I_peak_est) / (N1_calc * Amin);
-                    if (deltaIL > 0) {
-                        Bmax_calc_mT = ((L_H * deltaIL) / (N1_calc * Ae) / 2) * 1000;
-                    } else {
-                        Bmax_calc_mT = (B_peak_T / 2) * 1000;
-                    }
+					if (deltaIL > 0) {
+						delta_B_mT = ((L_H * deltaIL) / (N1_calc * Ae)) * 1000; // 2'ye bölme kaldırıldı
+						Bmax_calc_mT = delta_B_mT / 2;
+					} else {
+						delta_B_mT = B_peak_T * 1000; 
+						Bmax_calc_mT = B_peak_T * 500;
+					}
                     if (B_peak_T <= dynamic_B_sat_T) isValid = true;
                 }
             } else if (type === "volume") {
@@ -468,12 +494,14 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 actualReqVal = reqVal;
                 if (Ve_mm3 >= reqVal) {
                     const deltaB_limit_T = Math.min(dynamic_B_sat_T, 0.2 * Math.pow(50000 / f_sw_hz, 0.6));
-                    if (volt_sec > 0) {
-                        N1_calc = Math.ceil(volt_sec / (deltaB_limit_T * Ae));
-                        Bmax_calc_mT = Math.round(((volt_sec / (N1_calc * Ae)) / 2) * 1000);
-                    } else {
-                        Bmax_calc_mT = Math.round((deltaB_limit_T / 2) * 1000);
-                    }
+					if (volt_sec > 0) {
+						N1_calc = Math.ceil(volt_sec / (deltaB_limit_T * Ae));
+						delta_B_mT = Math.round((volt_sec / (N1_calc * Ae)) * 1000); // 2'ye bölme kaldırıldı
+						Bmax_calc_mT = delta_B_mT / 2;
+					} else {
+						delta_B_mT = Math.round(deltaB_limit_T * 1000);
+						Bmax_calc_mT = delta_B_mT / 2;
+					}
                     if ((Bmax_calc_mT / 1000) <= dynamic_B_sat_T) isValid = true;
                 }
             }
@@ -497,19 +525,31 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 if (w_width > 0 && w_height > 0) Aw_mm2 = w_width * w_height;
                 else return;
 
-                let J_target = getCurrentDensity(f_kHz);
+				let J_target = getCurrentDensity(f_kHz);
                 
                 if (volume_cm3 < 3.0) J_target *= 1.25; 
                 else if (volume_cm3 > 15.0) J_target *= 0.85; 
 
-                let primary_Cu_mm2 = N1_calc * (Math.max(pri_Irms, 0.1) / J_target);
-                let total_Cu_mm2 = primary_Cu_mm2;
-                if (componentType.includes("trafo") || componentType.includes("flyback")) {
-                    total_Cu_mm2 = primary_Cu_mm2 * 2;
+				const N2_calc = turnsRatio > 0 ? Math.max(1, Math.round(N1_calc / turnsRatio)) : 0;
+                const safe_pri_Irms = Math.max(pri_Irms, 0.05);
+                const safe_sec_Irms = turnsRatio > 0 ? (safe_pri_Irms * turnsRatio) : 0;
+
+                let primary_Cu_mm2 = N1_calc * (safe_pri_Irms / J_target);
+                let secondary_Cu_mm2 = (N2_calc > 0) ? (N2_calc * (safe_sec_Irms / J_target)) : 0;
+
+                const packing_and_insulation_factor = 1.25; 
+                let total_Cu_mm2 = (primary_Cu_mm2 + secondary_Cu_mm2) * packing_and_insulation_factor;
+
+                if (!componentType.includes("trafo") && !componentType.includes("flyback")) {
+                    total_Cu_mm2 = N1_calc * (safe_pri_Irms / J_target) * packing_and_insulation_factor;
                 }
 
-                const Ku = 0.40; 
-                if (total_Cu_mm2 > (Aw_mm2 * Ku)) isValid = false; 
+                let Ku_limit = 0.40;
+                if (familyType === "RM" || familyType === "PQ" || familyType === "PM" || familyType === "EP") {
+                    Ku_limit = 0.30;
+                }
+
+                if (total_Cu_mm2 > (Aw_mm2 * Ku_limit)) isValid = false; 
 
                 const Ae_mm2_est = Ae * 1e6;
                 const legPerimeter_mm = 4 * Math.sqrt(Ae_mm2_est);
@@ -520,8 +560,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 const ALPHA_CU = 0.00393;   // 1/°C
                 const rho_cu_T = RHO_CU_20C * (1 + ALPHA_CU * (T_op - 20));
 
-                const safe_pri_Irms = Math.max(pri_Irms, 0.05);
-                copper_loss_W = N1_calc * safe_pri_Irms * rho_cu_T * MLT_m * J_target * 1e6;
+                copper_loss_W = (N1_calc * safe_pri_Irms * rho_cu_T * MLT_m) * (J_target * 1e6);
 
                 if ((componentType.includes("trafo") || componentType.includes("flyback")) && turnsRatio > 0) {
                     const n2_est = Math.max(1, Math.round(N1_calc / turnsRatio));
@@ -553,12 +592,17 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
             }
 
             const wf = getEffectiveWaveformParams(topology, smpsMode, D_switch, extraModeParams);
-            const igseResult = calculateLoss_iGSE_Dynamic(matParams.k, matParams.alpha, matParams.beta, f_kHz, Bmax_calc_mT, T_op, wf);
+            const igseResult = calculateLoss_iGSE_Dynamic(matParams.k, matParams.alpha, matParams.beta, f_kHz, delta_B_mT, T_op, wf);
             const Pv_mW_cm3 = igseResult.Pv_mW_cm3;
 
-            const core_loss_W = (Pv_mW_cm3 * volume_cm3) / 1000;
-            const lossFactor = core_loss_W * (Pv_mW_cm3 > 600 ? 50 : 1);
-            const totalLossW = lossFactor + copper_loss_W;
+			const core_loss_W = (Pv_mW_cm3 * volume_cm3) / 1000;
+			const lossFactor = core_loss_W;
+			const totalLossW = core_loss_W + copper_loss_W;
+
+			let overLossPenalty = 1.0;
+			if (Pv_mW_cm3 > 600) {
+				overLossPenalty = 0.02;
+			}
 
 			let lowestCost = null;
             let selectedDistributor = null;
@@ -658,7 +702,6 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 coreLossW: core_loss_W,
                 copperLossW: copper_loss_W,
                 totalLossW: totalLossW,
-                lossFactor: lossFactor,
                 bmax: Bmax_calc_mT,
                 n1_calc: N1_calc,
                 n2_calc: n2_calc,
@@ -1210,42 +1253,38 @@ async function optimizeSwitches(topology, V_op, I_peak, Irms, f_sw_hz, switchesD
                 // topology name. Above LLC resonance, or with non-SPS DAB modulation, ZVS can be
                 // reduced or lost (especially at light load / small phase shift), so those cases
                 // fall back to more conservative multipliers instead of the full ZVS discount.
-                if (currentTopo === "llc") {
-                    const llcModeUsed = extraModeParams?.llcMode || "at";
-                    if (llcModeUsed === "above") {
-                        e_on_multiplier = 0.6;  // ZVS not guaranteed above resonance
-                        e_off_multiplier = 0.9;
-                    } else {
-                        e_on_multiplier = 0.1;  // ZVS reliable at/below resonance
-                        e_off_multiplier = 0.8;
-                    }
-                } else if (currentTopo === "dab") {
-                    const dabModulation = extraModeParams?.dabMode || "sps";
-                    if (dabModulation === "sps") {
-                        e_on_multiplier = 0.1;  // SPS: ZVS across full range for both bridges
-                        e_off_multiplier = 0.8;
-                    } else {
-                        e_on_multiplier = 0.35; // extended/other modulations: ZVS range narrower
-                        e_off_multiplier = 0.85;
-                    }
-                }
+				if (currentTopo === "llc") {
+					const llcModeUsed = extraModeParams?.llcMode || "at";
+					if (llcModeUsed === "above") {
+						e_on_multiplier = 0.6;  
+						e_off_multiplier = 1.0; // 0.8'den 1.0'a düzeltildi
+					} else {
+						e_on_multiplier = 0.1;  
+						e_off_multiplier = 1.0; // 0.8'den 1.0'a düzeltildi
+					}
+				} else if (currentTopo === "dab") {
+					const dabModulation = extraModeParams?.dabMode || "sps";
+					if (dabModulation === "sps") {
+						e_on_multiplier = 0.1;  
+						e_off_multiplier = 1.0; // 0.8'den 1.0'a düzeltildi
+					} else {
+						e_on_multiplier = 0.35; 
+						e_off_multiplier = 1.0; // 0.85'ten 1.0'a düzeltildi
+					}
+				}
 
                 let qrr_loss_W = 0;
                 const hardSwitchedTopologies = ["buck", "boost", "buckboost", "forward"];
 
-                if (smpsMode === "CCM" && hardSwitchedTopologies.includes(currentTopo)) {
+				if (smpsMode === "CCM" && hardSwitchedTopologies.includes(currentTopo)) {
                     let qrr_nC = 0;
-                    if (sw.diode && sw.diode.qrr) {
-                        qrr_nC = parseFloat(sw.diode.qrr);
-                    } else if (sw.reverse_recovery && sw.reverse_recovery.qrr_nc) {
-                        qrr_nC = parseFloat(sw.reverse_recovery.qrr_nc);
-                    } else if (typeUp.includes("SIC") || typeUp.includes("GAN")) {
-                        qrr_nC = 0;
-                    } else {
-                        qrr_nC = Math.max(I_peak * 50, 150); 
-                    }
+                    if (sw.diode && sw.diode.qrr) qrr_nC = parseFloat(sw.diode.qrr);
+                    else if (sw.reverse_recovery && sw.reverse_recovery.qrr_nc) qrr_nC = parseFloat(sw.reverse_recovery.qrr_nc);
+                    else if (typeUp.includes("SIC") || typeUp.includes("GAN")) qrr_nC = 0;
+                    else qrr_nC = Math.max(I_peak * 50, 150); 
+                    
                     const qrr_C = qrr_nC * 1e-9;
-                    qrr_loss_W = qrr_C * V_op * f_sw_hz;
+                    qrr_loss_W = qrr_C * V_op * f_sw_hz; 
                 }
 
                 p_sw_W = ((sw_e.e_on_J * onFactor * e_on_multiplier) + (sw_e.e_off_J * offFactor * e_off_multiplier)) * f_sw_hz + qrr_loss_W;
@@ -1263,8 +1302,9 @@ async function optimizeSwitches(topology, V_op, I_peak, Irms, f_sw_hz, switchesD
                 return; 
             }
 
-            const p_tot_W = p_cond_W + p_sw_W;
-            if (p_tot_W > (P_est * 2)) return;
+			const p_tot_W = p_cond_W + p_sw_W;
+			// Dönüştürücü gücüne bağlı limit yerine 75W (Soğutuculu ayrık kılıf limiti) eklendi
+			if (p_tot_W > 75.0) return;
 
             let techPenalty = 1.0;
             if (typeUp.includes("SIC") || typeUp.includes("GAN")) {
@@ -1296,7 +1336,7 @@ async function optimizeSwitches(topology, V_op, I_peak, Irms, f_sw_hz, switchesD
             });
         });
 
-        await new Promise(resolve => setImmediate(resolve));
+        await new Promise(resolve => setTimeout(resolve, 0));
     }
 
     candidates.sort((a, b) => a.rankScore - b.rankScore);
@@ -1359,11 +1399,13 @@ exports.runSmpsOptimization = onCall({
             result.switches = [];
         }
 
-        if (hasVeOpt) {
+		if (hasVeOpt) {
             const trafoType = isLinearTrafo ? "linear_trafo" : "trafo";
             result.trafoCores = await optimizeCores(veOpt, optMode, "volume", L_H, f_sw, T_op, 0, volt_sec, trafoGapReq, trafoType, dbData, staticDbsPayload, pri_Irms, turnsRatio, topology, smpsMode, D_switch, extraModeParams);
-            result.priWires = optimizeWires(pri_Irms, CMA_target, maxStrandD, dbData.wires);
-            result.secWires = optimizeWires(sec_Irms, CMA_target, maxStrandD, dbData.wires);
+            
+            // f_sw eklendi
+            result.priWires = optimizeWires(pri_Irms, CMA_target, maxStrandD, dbData.wires, f_sw);
+            result.secWires = optimizeWires(sec_Irms, CMA_target, maxStrandD, dbData.wires, f_sw);
         }
 
         if (hasWmax) {
@@ -1377,11 +1419,13 @@ exports.runSmpsOptimization = onCall({
             );
 
             if (isFlyback) {
-                result.priWires = optimizeWires(pri_Irms, CMA_target, maxStrandD, dbData.wires);
-                result.secWires = optimizeWires(sec_Irms, CMA_target, maxStrandD, dbData.wires);
-                if (hasBias && biasWire_Irms > 0) result.biasWires = optimizeWires(biasWire_Irms, CMA_target, maxStrandD, dbData.wires);
+                // f_sw eklendi
+                result.priWires = optimizeWires(pri_Irms, CMA_target, maxStrandD, dbData.wires, f_sw);
+                result.secWires = optimizeWires(sec_Irms, CMA_target, maxStrandD, dbData.wires, f_sw);
+                if (hasBias && biasWire_Irms > 0) result.biasWires = optimizeWires(biasWire_Irms, CMA_target, maxStrandD, dbData.wires, f_sw);
             } else {
-                result.coilWires = optimizeWires(coilWire_Irms, CMA_target, maxStrandD, dbData.wires);
+                // f_sw eklendi
+                result.coilWires = optimizeWires(coilWire_Irms, CMA_target, maxStrandD, dbData.wires, f_sw);
             }
         }
         return sanitizeForJSON(result);
