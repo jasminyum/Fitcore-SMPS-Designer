@@ -254,26 +254,20 @@ function getEffectiveWaveformParams(topology, mode, D_switch, extra = {}) {
 
 function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT, T_op, wfMeta = {}) {
     const K_t = 1 + Math.pow((T_op - 90) / 40, 2);
-    
     const I_a = calculate_Ia(alpha, beta);
-    
-    const k_i = k_steinmetz / (Math.pow(2 * Math.PI, alpha - 1) * I_a);
-    
-    const f_Hz = f_kHz * 1000; 
-    const delta_B_Tesla = delta_B_mT / 1000; // delta_B tepe-tepe (peak-to-peak) değerdir
-    
+
+    const k_i = k_steinmetz / (Math.pow(2, beta - alpha) * Math.pow(2 * Math.PI, alpha - 1) * I_a);
+
+    const f_Hz = f_kHz * 1000;
+    const delta_B_Tesla = delta_B_mT / 1000;
+
     let D1 = Math.max(0.001, Math.min(0.999, wfMeta.D1 ?? 0.5));
     let D2 = Math.max(0.001, Math.min(0.999, wfMeta.D2 ?? 0.5));
-    
-    if (D1 + D2 > 1.0) {
-        const sum = D1 + D2;
-        D1 /= sum;
-        D2 /= sum;
-    }
-    
+    if (D1 + D2 > 1.0) { const s = D1 + D2; D1 /= s; D2 /= s; }
+
     const waveform_factor = Math.pow(D1, 1 - alpha) + Math.pow(D2, 1 - alpha);
 
-    const Pv_W_m3 = k_i * Math.pow(delta_B_Tesla, beta - alpha) * Math.pow(f_Hz, alpha) * waveform_factor * K_t;
+    const Pv_W_m3 = k_i * Math.pow(delta_B_Tesla, beta) * Math.pow(f_Hz, alpha) * waveform_factor * K_t;
     
     const Pv_mW_cm3 = Pv_W_m3 * 0.001; // 1 W/m³ = 0.001 mW/cm³
 
