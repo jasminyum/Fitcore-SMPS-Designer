@@ -982,7 +982,10 @@ window.executeAdvancedOptimization = async function () {
             smpsMode = "DCM";
         }
 
-        let CMA_target = optMode === "high_eff" ? 500 : (optMode === "compact" ? 250 : 400);
+        const J_freq_based = MagneticUtils.getCurrentDensity(f_sw_khz);
+        const CMA_base = 1973.525 / Math.max(J_freq_based, 0.1);
+        const CMA_scale = optMode === "high_eff" ? 1.25 : (optMode === "compact" ? 0.6 : 1.0);
+        let CMA_target = CMA_base * CMA_scale;
 
         const T_op_actual = T_op || 80;
         const rho_20 = 1.68e-8;
@@ -1173,10 +1176,14 @@ window.executeAdvancedOptimization = async function () {
                 volt_sec = vinNom * (0.5 / f_sw);
                 trafoGapReq = "ungapped_only";
             } else if (pageTitle.includes('forward')) {
-                volt_sec = vinNom * (0.4 / f_sw);
+                const nOutFwd = parseFloat(nOutputEl?.innerText) || 1;
+                const D_forward = Math.min(0.49, Math.max(0.05, (voutVal * nOutFwd) / vinNom));
+                volt_sec = vinNom * (D_forward / f_sw);
                 trafoGapReq = "ungapped_only";
             } else if (pageTitle.includes('flyback')) {
-                volt_sec = vinNom * (0.45 / f_sw);
+                const nOutFly = parseFloat(nOutputEl?.innerText) || 1;
+                const D_flyback = Math.min(0.95, Math.max(0.05, (voutVal * nOutFly) / (vinNom + voutVal * nOutFly)));
+                volt_sec = vinNom * (D_flyback / f_sw);
                 trafoGapReq = "gapped_only";
             } else if (isLinear) {
                 volt_sec = vinNom * (0.45 / f_sw);
