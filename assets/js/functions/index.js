@@ -255,7 +255,7 @@ function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, Bac_mT, T_o
     
     const waveform_factor = Math.pow(D1, 1 - alpha) + Math.pow(D2, 1 - alpha);
 
-    const Pv_W_m3 = k_i * Math.pow(delta_B_Tesla, beta - alpha) * Math.pow(f_Hz, alpha) * waveform_factor * K_t;
+    const Pv_W_m3 = k_i * Math.pow(delta_B_Tesla, beta) * Math.pow(f_Hz, alpha) * waveform_factor * K_t;
     const Pv_mW_cm3 = Pv_W_m3 * 0.001; // 1 W/m3 = 0.001 mW/cm3
 
     return {
@@ -380,7 +380,8 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
             let isValid = false;
             let Bmax_calc_mT = 0;
             let N1_calc = 1;
-            let actualReqVal = 0; 
+            let actualReqVal = 0;
+            let l_actual_H = 0; // achieved inductance with N1_calc, filled in for "energy" (coil) type
 
             let dynamic_B_sat_T = 0.35; 
             if (isPowderCore) {
@@ -448,6 +449,11 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     } else {
                         N1_calc = Math.max(1, N1_sat);
                     }
+
+                    // When N1_sat (saturation-limited turns) exceeds N1_al (turns needed for the
+                    // target L via AL), N1_calc silently produces more inductance than requested.
+                    // Track the achieved L so this is visible in the result instead of hidden.
+                    if (AL > 0) l_actual_H = AL * Math.pow(N1_calc, 2);
 
                     const B_peak_T = (L_H * I_peak_est) / (N1_calc * Amin);
                     if (deltaIL > 0) {
@@ -626,6 +632,17 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 n2_calc = Math.max(1, Math.round(N1_calc / turnsRatio));
             }
 
+            let l_deviation_pct = 0;
+            if (l_actual_H > 0 && L_H > 0) {
+                l_deviation_pct = ((l_actual_H - L_H) / L_H) * 100;
+                if (Math.abs(l_deviation_pct) > 3 && igseResult.breakdown) {
+                    igseResult.breakdown.note = (igseResult.breakdown.note || "") +
+                        ` Achieved inductance ${(l_actual_H * 1e6).toFixed(2)}uH vs target ${(L_H * 1e6).toFixed(2)}uH ` +
+                        `(${l_deviation_pct > 0 ? '+' : ''}${l_deviation_pct.toFixed(1)}%) — N1 was raised above the AL-based turn ` +
+                        `count to respect the saturation limit.`;
+                }
+            }
+
 			candidates.push({
                 name: core.name || shapeName,
                 mfgName: core.manufacturerInfo?.name || core.manufacturer || core.brand || "Unknown",
@@ -655,7 +672,10 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 gap_mm: gap_mm,
                 gap_is_builtin: gap_is_builtin,
                 utilizationRatio: utilizationRatio,
-                windowAreaSource: "dims"
+                windowAreaSource: "dims",
+                l_target_H: (type === "energy" && L_H > 0) ? L_H : null,
+                l_actual_H: l_actual_H > 0 ? l_actual_H : null,
+                l_deviation_pct: l_actual_H > 0 ? l_deviation_pct : null
             });
 
             if (singlePiecePrice !== 999 && singlePiecePrice > 0) {
@@ -1110,7 +1130,7 @@ function estimateSwitchingEnergy(sw, V_op, I_op, T_op) {
     return { e_on_J: onRes.e_J, e_off_J: offRes.e_J, v_supply_on: onRes.v_supply, v_supply_off: offRes.v_supply };
 }
 
-async function optimizeSwitches(topology, V_op, I_peak, Irms, f_sw_hz, switchesData, T_op = 100, P_est = 100, smpsMode = "CCM") {
+async function optimizeSwitches(topology, V_op, I_peak, Irms, f_sw_hz, switchesData, T_op = 100, P_est = 100, smpsMode = "CCM", extraModeParams = {}) {
     let candidates = [];
     const V_MARGIN_MIN = 1.1;
     const f_sw_khz = f_sw_hz / 1000;
@@ -1186,9 +1206,28 @@ async function optimizeSwitches(topology, V_op, I_peak, Irms, f_sw_hz, switchesD
                 let e_on_multiplier = 1.0;
                 let e_off_multiplier = 1.0;
 
-                if (currentTopo === "dab" || currentTopo === "llc") {
-                    e_on_multiplier = 0.1;  // ZVS
-                    e_off_multiplier = 0.8; 
+                // ZVS benefit depends on where the converter actually operates, not just on the
+                // topology name. Above LLC resonance, or with non-SPS DAB modulation, ZVS can be
+                // reduced or lost (especially at light load / small phase shift), so those cases
+                // fall back to more conservative multipliers instead of the full ZVS discount.
+                if (currentTopo === "llc") {
+                    const llcModeUsed = extraModeParams?.llcMode || "at";
+                    if (llcModeUsed === "above") {
+                        e_on_multiplier = 0.6;  // ZVS not guaranteed above resonance
+                        e_off_multiplier = 0.9;
+                    } else {
+                        e_on_multiplier = 0.1;  // ZVS reliable at/below resonance
+                        e_off_multiplier = 0.8;
+                    }
+                } else if (currentTopo === "dab") {
+                    const dabModulation = extraModeParams?.dabMode || "sps";
+                    if (dabModulation === "sps") {
+                        e_on_multiplier = 0.1;  // SPS: ZVS across full range for both bridges
+                        e_off_multiplier = 0.8;
+                    } else {
+                        e_on_multiplier = 0.35; // extended/other modulations: ZVS range narrower
+                        e_off_multiplier = 0.85;
+                    }
                 }
 
                 let qrr_loss_W = 0;
@@ -1315,7 +1354,7 @@ exports.runSmpsOptimization = onCall({
             let P_est = v_in * actual_sw_Irms;
             if (isNaN(P_est) || P_est <= 0) P_est = 150;
 
-            result.switches = await optimizeSwitches(topology, v_switch_max, i_peak, actual_sw_Irms, f_sw, availableSwitches, T_op, P_est, smpsMode);
+            result.switches = await optimizeSwitches(topology, v_switch_max, i_peak, actual_sw_Irms, f_sw, availableSwitches, T_op, P_est, smpsMode, extraModeParams);
         } else {
             result.switches = [];
         }
