@@ -77,12 +77,11 @@ function optimizeWires(Irms, targetCMA, maxStrandD, wiresData, f_sw_hz = 0) {
     const safeCMA = (Number.isFinite(targetCMA) && targetCMA > 0) ? targetCMA : 400;
     let safeMaxStrandD = (Number.isFinite(maxStrandD) && maxStrandD > 0) ? maxStrandD : 5.0;
 
-    // Skin Effect Limiti Entegrasyonu
     if (f_sw_hz > 0) {
         const skinDepth_mm = 66 / Math.sqrt(f_sw_hz);
         const maxSkinD_mm = skinDepth_mm * 2;
         if (safeMaxStrandD > maxSkinD_mm) {
-            safeMaxStrandD = maxSkinD_mm; // Çap sınırını deri kalınlığına zorla
+            safeMaxStrandD = maxSkinD_mm;
         }
     }
 
@@ -99,7 +98,8 @@ function optimizeWires(Irms, targetCMA, maxStrandD, wiresData, f_sw_hz = 0) {
         if (d_mm > safeMaxStrandD) return;
 
         const parallelStrands = Math.ceil(reqArea_mm2 / area_mm2);
-        if (parallelStrands > 300) return;
+        
+        if (parallelStrands > 3000) return; 
 
         const actualCMA = (parallelStrands * area_cmil) / Irms;
 
@@ -125,7 +125,8 @@ function optimizeWires(Irms, targetCMA, maxStrandD, wiresData, f_sw_hz = 0) {
 
 const SteinmetzParams = {
     // === low freq (< 200 kHz) ===
-    // Birim Standardı: f -> Hz, B -> Tesla, Pv -> W/m³
+    // standard: f -> Hz, B -> Tesla, Pv -> W/m³
+	// Ferroxcube datasheets
     "3c92": { k: 0.115, alpha: 1.58, beta: 2.75 },
     "n41":  { k: 0.142, alpha: 1.25, beta: 2.52 },
     "3c81": { k: 0.085, alpha: 1.45, beta: 2.70 },
@@ -133,6 +134,7 @@ const SteinmetzParams = {
     "3c94": { k: 0.125, alpha: 1.48, beta: 2.75 },
 
     // === mid freq (100 kHz - 500 kHz) ===
+	// TDK / EPCOS datasheets
     "3c91": { k: 0.068, alpha: 1.59, beta: 2.71 },
     "3c95": { k: 0.092, alpha: 1.51, beta: 2.80 },
     "3c96": { k: 0.071, alpha: 1.63, beta: 2.68 },
@@ -160,8 +162,9 @@ const SteinmetzParams = {
     "3f46": { k: 0.003, alpha: 2.62, beta: 2.38 },  
     "pc200":{ k: 0.002, alpha: 2.68, beta: 2.34 },  
     "4f1":  { k: 0.0004, alpha: 3.05, beta: 2.24 }, 
-          
-    // === metal dust cores (Magnetics / Micrometals SI Dönüşümü) ===
+    
+	// Magnetics Inc.
+    // === metal dust cores (Magnetics / Micrometals SI convertion) ===
     "kool mu ultra": { k: 0.450, alpha: 1.58, beta: 2.20 },
     "kool mu":       { k: 0.680, alpha: 1.54, beta: 2.21 },
     "sendust":       { k: 0.680, alpha: 1.54, beta: 2.21 },
@@ -170,7 +173,8 @@ const SteinmetzParams = {
     "high flux":     { k: 0.850, alpha: 1.48, beta: 2.24 },
     "xflux":         { k: 1.120, alpha: 1.45, beta: 2.30 },
     "xflux ultra":   { k: 0.940, alpha: 1.50, beta: 2.26 },
-          
+     
+	// Micrometals
     // === iron dust cores ===
     "mix 26":  { k: 3.550, alpha: 1.25, beta: 2.11 },
     "mix 52":  { k: 2.450, alpha: 1.38, beta: 2.14 },
@@ -252,15 +256,12 @@ function getEffectiveWaveformParams(topology, mode, D_switch, extra = {}) {
     }
 }
 
-function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT, T_op, wfMeta = {}) {
-    const K_t = 1 + Math.pow((T_op - 90) / 40, 2);
-    
+function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT, T_op, wfMeta = {}, matParams = {}) {
     const I_a = calculate_Ia(alpha, beta);
-    
-    const k_i = k_steinmetz / (Math.pow(2 * Math.PI, alpha - 1) * I_a);
+    const k_i = k_steinmetz / (Math.pow(2, beta - alpha) * Math.pow(2 * Math.PI, alpha - 1) * I_a);
     
     const f_Hz = f_kHz * 1000; 
-    const delta_B_Tesla = delta_B_mT / 1000; // delta_B tepe-tepe (peak-to-peak) değerdir
+    const delta_B_Tesla = delta_B_mT / 1000;
     
     let D1 = Math.max(0.001, Math.min(0.999, wfMeta.D1 ?? 0.5));
     let D2 = Math.max(0.001, Math.min(0.999, wfMeta.D2 ?? 0.5));
@@ -271,19 +272,38 @@ function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT,
         D2 /= sum;
     }
     
-    const waveform_factor = Math.pow(D1, 1 - alpha) + Math.pow(D2, 1 - alpha);
-
-    const Pv_W_m3 = k_i * Math.pow(delta_B_Tesla, beta - alpha) * Math.pow(f_Hz, alpha) * waveform_factor * K_t;
+    const D_sym = D1 <= 0.5 ? D1 : (1 - D1);
     
-    const Pv_mW_cm3 = Pv_W_m3 * 0.001; // 1 W/m³ = 0.001 mW/cm³
+    const gamma_factor = matParams.gamma ?? 0; 
+    const duty_correction = Math.pow(D_sym, gamma_factor);
+
+    const base_waveform_factor = Math.pow(D1, 1 - alpha) + Math.pow(D2, 1 - alpha);
+    
+    const corrected_waveform_factor = base_waveform_factor * duty_correction;
+
+    const K_t = 1 + Math.pow((T_op - 90) / 40, 2); 
+    
+    const temp_a = matParams.temp_a ?? 0; 
+    const temp_b = matParams.temp_b ?? 1;
+    const DT_TEMP_additive = temp_a * Math.pow(T_op, temp_b);
+
+    let Pv_W_m3 = k_i * Math.pow(delta_B_Tesla, beta) * Math.pow(f_Hz, alpha) * corrected_waveform_factor;
+    
+    Pv_W_m3 = (Pv_W_m3 * K_t) + DT_TEMP_additive;
+    
+    const Pv_mW_cm3 = Pv_W_m3 * 0.001; 
 
     return {
         Pv_mW_cm3: Number.isFinite(Pv_mW_cm3) && Pv_mW_cm3 > 0 ? Pv_mW_cm3 : 0.1,
         breakdown: {
             k: k_steinmetz, alpha, beta, I_a: I_a.toFixed(4), k_i: k_i.toExponential(4),
             K_t: K_t.toFixed(3), delta_B_T: delta_B_Tesla.toFixed(4), f_kHz: f_kHz.toFixed(1),
-            D_used: `D1:${D1.toFixed(3)}, D2:${D2.toFixed(3)}`, waveform_factor: waveform_factor.toFixed(4),
-            confidence: wfMeta.confidence || "high", note: wfMeta.note || "", final_Pv: Pv_mW_cm3.toFixed(2)
+            D_used: `D1:${D1.toFixed(3)}, D2:${D2.toFixed(3)}`, 
+            waveform_factor: corrected_waveform_factor.toFixed(4),
+            gamma_used: gamma_factor.toFixed(3),
+            confidence: wfMeta.confidence || "high", 
+            note: (wfMeta.note || "") + (gamma_factor !== 0 ? " DT-IGSE duty cycle ve sıcaklık düzeltmesi uygulandı." : ""), 
+            final_Pv: Pv_mW_cm3.toFixed(2)
         }
     };
 }
@@ -401,7 +421,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
             let Bmax_calc_mT = 0;
             let N1_calc = 1;
             let actualReqVal = 0;
-            let l_actual_H = 0; // achieved inductance with N1_calc, filled in for "energy" (coil) type
+            let l_actual_H = 0; 
 
             let dynamic_B_sat_T = 0.35; 
             if (isPowderCore) {
@@ -419,6 +439,18 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 dynamic_B_sat_T = B_base - ((currentTemp - 25) * 0.0013);
                 dynamic_B_sat_T = Math.max(0.25, Math.min(0.55, dynamic_B_sat_T));
             }
+
+            const material = core.functionalDescription?.material || 'Unknown';
+            const matKey = material.toLowerCase();
+            let matParams = SteinmetzParams["default"];
+            let bestKeyLen = -1;
+            for (const key in SteinmetzParams) {
+                if (matKey.includes(key) && key.length > bestKeyLen) {
+                    matParams = SteinmetzParams[key];
+                    bestKeyLen = key.length;
+                }
+            }
+            const wf = getEffectiveWaveformParams(topology, smpsMode, D_switch, extraModeParams);
 
             let dimA = 0, dimB = 0, dimC = 0, dimD = 0, dimE = 0, dimF = 0;
             let familyType = "E";
@@ -474,14 +506,11 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                         N1_calc = Math.max(1, N1_sat);
                     }
 
-                    // When N1_sat (saturation-limited turns) exceeds N1_al (turns needed for the
-                    // target L via AL), N1_calc silently produces more inductance than requested.
-                    // Track the achieved L so this is visible in the result instead of hidden.
                     if (AL > 0) l_actual_H = AL * Math.pow(N1_calc, 2);
 
                     const B_peak_T = (L_H * I_peak_est) / (N1_calc * Amin);
 					if (deltaIL > 0) {
-						delta_B_mT = ((L_H * deltaIL) / (N1_calc * Ae)) * 1000; // 2'ye bölme kaldırıldı
+						delta_B_mT = ((L_H * deltaIL) / (N1_calc * Ae)) * 1000; 
 						Bmax_calc_mT = delta_B_mT / 2;
 					} else {
 						delta_B_mT = B_peak_T * 1000; 
@@ -493,15 +522,44 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 const Ve_mm3 = Aele * 1e9;
                 actualReqVal = reqVal;
                 if (Ve_mm3 >= reqVal) {
-                    const deltaB_limit_T = Math.min(dynamic_B_sat_T, 0.2 * Math.pow(50000 / f_sw_hz, 0.6));
-					if (volt_sec > 0) {
-						N1_calc = Math.ceil(volt_sec / (deltaB_limit_T * Ae));
-						delta_B_mT = Math.round((volt_sec / (N1_calc * Ae)) * 1000); // 2'ye bölme kaldırıldı
-						Bmax_calc_mT = delta_B_mT / 2;
-					} else {
-						delta_B_mT = Math.round(deltaB_limit_T * 1000);
-						Bmax_calc_mT = delta_B_mT / 2;
-					}
+                    const deltaB_satCeiling = 2 * dynamic_B_sat_T * 0.85; 
+
+                    const targetPv_mW_cm3 = 300;
+                    const I_a = calculate_Ia(matParams.alpha, matParams.beta);
+                    const k_i = matParams.k / (Math.pow(2, matParams.beta - matParams.alpha) * Math.pow(2 * Math.PI, matParams.alpha - 1) * I_a);
+                    
+                    let D1 = Math.max(0.001, Math.min(0.999, wf.D1 ?? 0.5));
+                    let D2 = Math.max(0.001, Math.min(0.999, wf.D2 ?? 0.5));
+                    if (D1 + D2 > 1.0) { const sum = D1 + D2; D1 /= sum; D2 /= sum; }
+                    
+                    const D_sym = D1 <= 0.5 ? D1 : (1 - D1);
+                    const gamma_factor = matParams.gamma ?? 0;
+                    const duty_correction = Math.pow(D_sym, gamma_factor);
+                    const waveform_factor = (Math.pow(D1, 1 - matParams.alpha) + Math.pow(D2, 1 - matParams.alpha)) * duty_correction;
+                    
+                    const K_t = 1 + Math.pow((T_op - 90) / 40, 2);
+                    
+                    const targetPv_W_m3 = targetPv_mW_cm3 / 0.001;
+                    const temp_a = matParams.temp_a ?? 0;
+                    const temp_b = matParams.temp_b ?? 1;
+                    const DT_TEMP_additive = temp_a * Math.pow(T_op, temp_b);
+                    
+                    const effectiveTargetPv = Math.max(10, targetPv_W_m3 - DT_TEMP_additive);
+                    const denom = k_i * Math.pow(f_kHz * 1000, matParams.alpha) * waveform_factor * K_t;
+                    
+                    const deltaB_lossTarget = Math.pow(effectiveTargetPv / denom, 1 / matParams.beta);
+                    
+                    const deltaB_limit_new = Math.min(deltaB_satCeiling, Number.isFinite(deltaB_lossTarget) && deltaB_lossTarget > 0 ? deltaB_lossTarget : deltaB_satCeiling);
+
+                    if (volt_sec > 0) {
+                        N1_calc = Math.ceil(volt_sec / (deltaB_limit_new * Ae));
+                        delta_B_mT = (volt_sec / (N1_calc * Ae)) * 1000;
+                        Bmax_calc_mT = delta_B_mT / 2;
+                    } else {
+                        delta_B_mT = Math.round(deltaB_limit_new * 1000);
+                        Bmax_calc_mT = delta_B_mT / 2;
+                    }
+                    
                     if ((Bmax_calc_mT / 1000) <= dynamic_B_sat_T) isValid = true;
                 }
             }
@@ -580,19 +638,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                  utilizationRatio = actualReqVal / (Aele * 1e9);
             }
 
-            const material = core.functionalDescription?.material || 'Unknown';
-            const matKey = material.toLowerCase();
-            let matParams = SteinmetzParams["default"];
-            let bestKeyLen = -1;
-            for (const key in SteinmetzParams) {
-                if (matKey.includes(key) && key.length > bestKeyLen) {
-                    matParams = SteinmetzParams[key];
-                    bestKeyLen = key.length;
-                }
-            }
-
-            const wf = getEffectiveWaveformParams(topology, smpsMode, D_switch, extraModeParams);
-            const igseResult = calculateLoss_iGSE_Dynamic(matParams.k, matParams.alpha, matParams.beta, f_kHz, delta_B_mT, T_op, wf);
+            const igseResult = calculateLoss_iGSE_Dynamic(matParams.k, matParams.alpha, matParams.beta, f_kHz, delta_B_mT, T_op, wf, matParams);
             const Pv_mW_cm3 = igseResult.Pv_mW_cm3;
 
 			const core_loss_W = (Pv_mW_cm3 * volume_cm3) / 1000;
@@ -1257,19 +1303,19 @@ async function optimizeSwitches(topology, V_op, I_peak, Irms, f_sw_hz, switchesD
 					const llcModeUsed = extraModeParams?.llcMode || "at";
 					if (llcModeUsed === "above") {
 						e_on_multiplier = 0.6;  
-						e_off_multiplier = 1.0; // 0.8'den 1.0'a düzeltildi
+						e_off_multiplier = 1.0;
 					} else {
 						e_on_multiplier = 0.1;  
-						e_off_multiplier = 1.0; // 0.8'den 1.0'a düzeltildi
+						e_off_multiplier = 1.0;
 					}
 				} else if (currentTopo === "dab") {
 					const dabModulation = extraModeParams?.dabMode || "sps";
 					if (dabModulation === "sps") {
 						e_on_multiplier = 0.1;  
-						e_off_multiplier = 1.0; // 0.8'den 1.0'a düzeltildi
+						e_off_multiplier = 1.0;
 					} else {
 						e_on_multiplier = 0.35; 
-						e_off_multiplier = 1.0; // 0.85'ten 1.0'a düzeltildi
+						e_off_multiplier = 1.0;
 					}
 				}
 
@@ -1303,7 +1349,6 @@ async function optimizeSwitches(topology, V_op, I_peak, Irms, f_sw_hz, switchesD
             }
 
 			const p_tot_W = p_cond_W + p_sw_W;
-			// Dönüştürücü gücüne bağlı limit yerine 75W (Soğutuculu ayrık kılıf limiti) eklendi
 			if (p_tot_W > 75.0) return;
 
             let techPenalty = 1.0;
@@ -1403,7 +1448,6 @@ exports.runSmpsOptimization = onCall({
             const trafoType = isLinearTrafo ? "linear_trafo" : "trafo";
             result.trafoCores = await optimizeCores(veOpt, optMode, "volume", L_H, f_sw, T_op, 0, volt_sec, trafoGapReq, trafoType, dbData, staticDbsPayload, pri_Irms, turnsRatio, topology, smpsMode, D_switch, extraModeParams);
             
-            // f_sw eklendi
             result.priWires = optimizeWires(pri_Irms, CMA_target, maxStrandD, dbData.wires, f_sw);
             result.secWires = optimizeWires(sec_Irms, CMA_target, maxStrandD, dbData.wires, f_sw);
         }
@@ -1419,12 +1463,10 @@ exports.runSmpsOptimization = onCall({
             );
 
             if (isFlyback) {
-                // f_sw eklendi
                 result.priWires = optimizeWires(pri_Irms, CMA_target, maxStrandD, dbData.wires, f_sw);
                 result.secWires = optimizeWires(sec_Irms, CMA_target, maxStrandD, dbData.wires, f_sw);
                 if (hasBias && biasWire_Irms > 0) result.biasWires = optimizeWires(biasWire_Irms, CMA_target, maxStrandD, dbData.wires, f_sw);
             } else {
-                // f_sw eklendi
                 result.coilWires = optimizeWires(coilWire_Irms, CMA_target, maxStrandD, dbData.wires, f_sw);
             }
         }
