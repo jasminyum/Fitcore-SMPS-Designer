@@ -137,7 +137,7 @@ function gamma(z) {
     return Math.sqrt(2 * Math.PI) * Math.pow(t, z + 0.5) * Math.exp(-t) * x;
 }
 
-function calculate_Ia(alpha, beta) {
+function calculate_Ia(alpha) {
     const num = Math.pow(2, alpha + 1) * Math.pow(gamma((alpha + 1) / 2), 2);
     const den = gamma(alpha + 1);
     return num / den;
@@ -183,8 +183,7 @@ function getEffectiveWaveformParams(topology, mode, D_switch, extra = {}) {
 }
 
 function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT, T_op, wfMeta = {}, matParams = {}) {
-    // iGSE integration logic
-    const I_a = calculate_Ia(alpha, beta);
+    const I_a = calculate_Ia(alpha);
     const k_i = k_steinmetz / (Math.pow(2, beta - alpha) * Math.pow(2 * Math.PI, alpha - 1) * I_a);
     
     const f_Hz = f_kHz * 1000; 
@@ -199,7 +198,6 @@ function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT,
         D2 /= sum;
     }
     
-    // DT-IGSE Duty Factor Correction
     const D_sym = D1 <= 0.5 ? D1 : (1 - D1);
     const gamma_factor = matParams.gamma ?? 0; 
     const duty_correction = Math.pow(D_sym, -gamma_factor);
@@ -210,27 +208,27 @@ function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT,
     // Temperature Multiplier (K_t)
     let K_t = 1.0;
     if (matParams.ct0 !== null && matParams.ct0 !== undefined) {
-        // Apply DB-specific 2nd order polynomial correction (ct0 - ct1*T + ct2*T^2)
         K_t = matParams.ct0 - (matParams.ct1 * T_op) + (matParams.ct2 * Math.pow(T_op, 2));
     } else if (matParams.isMnZn) {
-        // Fallback empirical parabola for MnZn ferrites (Loss minimum ~90-100 C)
         K_t = 1 + Math.pow((T_op - 90) / 40, 2); 
     }
-    if (K_t <= 0.1) K_t = 0.1; // Safeguard against invalid DB inputs or extreme roots
+    if (K_t <= 0.1) K_t = 0.1;
 
-    // DT-IGSE Additive Temperature Correction
+    // DT-IGSE Temperature Correction (Multiplicative)
     const temp_a = matParams.temp_a ?? 0; 
     const temp_b = matParams.temp_b ?? 1;
-    const DT_TEMP_additive = temp_a * Math.pow(T_op, temp_b);
+    const DT_TEMP_multiplier = 1 + (temp_a * Math.pow(T_op, temp_b));
 
-    // Final Volumetric Loss (W/m^3)
+    // Final Volumetric Loss (Doğrudan W/m^3 üretiyor - k_steinmetz SI biriminde olduğu için)
     let Pv_W_m3 = k_i * Math.pow(delta_B_Tesla, beta) * Math.pow(f_Hz, alpha) * corrected_waveform_factor;
-    Pv_W_m3 = (Pv_W_m3 * K_t) + DT_TEMP_additive;
+    Pv_W_m3 = Pv_W_m3 * K_t * DT_TEMP_multiplier;
     
-    const Pv_mW_cm3 = Pv_W_m3 * 0.001; 
+    // Geriye dönük uyumluluk ve optimizeCores fonksiyonunun doğru çalışması için W/m3 -> mW/cm3 dönüşümü (Bölü 1000)
+    const Pv_mW_cm3 = Pv_W_m3 / 1000; 
 
     return {
         Pv_mW_cm3: Number.isFinite(Pv_mW_cm3) && Pv_mW_cm3 > 0 ? Pv_mW_cm3 : 0.1,
+        Pv_W_m3: Pv_W_m3, // Saf SI değerini de nesne içinde paslayalım
         breakdown: {
             k: k_steinmetz, alpha, beta, I_a: I_a.toFixed(4), k_i: k_i.toExponential(4),
             K_t: K_t.toFixed(3), delta_B_T: delta_B_Tesla.toFixed(4), f_kHz: f_kHz.toFixed(1),
@@ -238,7 +236,7 @@ function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT,
             waveform_factor: corrected_waveform_factor.toFixed(4),
             gamma_used: gamma_factor.toFixed(3),
             confidence: wfMeta.confidence || "high", 
-            note: (wfMeta.note || "") + " Real DB temperature correction or generic curve applied, alongside DT-IGSE duty multiplier.", 
+            note: (wfMeta.note || "") + " Real DB temperature correction applied with pure SI k coefficient.", 
             final_Pv: Pv_mW_cm3.toFixed(2)
         }
     };
@@ -438,15 +436,14 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 const comp = (matData?.materialComposition || "").toLowerCase();
                 const mName = (matData?.name || materialName).toLowerCase();
                 
-                // Assign generic Steinmetz parameters based on material properties
                 if (comp.includes("nizn") || mName.includes("61") || mName.includes("4f1")) {
-                    dbMatParams = { k: 0.05, alpha: 1.6, beta: 2.6 };
+                    dbMatParams = { k: 7.9244e-5, alpha: 1.6, beta: 2.6 };
                 } else if (comp.includes("mnzn") || mName.includes("3c") || mName.includes("n87") || mName.includes("n97")) {
-                    dbMatParams = { k: 0.015, alpha: 1.65, beta: 2.5 }; 
+                    dbMatParams = { k: 1.6917e-5, alpha: 1.65, beta: 2.5 }; 
                 } else if (isPowderCore) {
-                    dbMatParams = { k: 0.6, alpha: 1.5, beta: 2.2 };
+                    dbMatParams = { k: 1.8974e-3, alpha: 1.5, beta: 2.2 };
                 } else {
-                    dbMatParams = { k: 0.05, alpha: 1.6, beta: 2.5 }; // General fallback
+                    dbMatParams = { k: 7.9244e-5, alpha: 1.6, beta: 2.5 }; // General fallback
                 }
                 matAbsMinFreq = 10000;
                 matAbsMaxFreq = 1000000; // Standard bounds
@@ -545,9 +542,10 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 actualReqVal = reqVal;
                 if (Ve_mm3 >= reqVal) {
                     const deltaB_satCeiling = 2 * dynamic_B_sat_T * 0.85; 
-                    const targetPv_mW_cm3 = 300;
+                    const targetPv_mW_cm3 = 300; // mW/cm³
+                    const targetPv_W_m3 = targetPv_mW_cm3 * 1000; // DOĞRU DÖNÜŞÜM: 300.000 W/m³
                     
-                    const I_a = calculate_Ia(matParams.alpha, matParams.beta);
+                    const I_a = calculate_Ia(matParams.alpha); 
                     const k_i = matParams.k / (Math.pow(2, matParams.beta - matParams.alpha) * Math.pow(2 * Math.PI, matParams.alpha - 1) * I_a);
                     
                     let D1 = Math.max(0.001, Math.min(0.999, wf.D1 ?? 0.5));
@@ -567,16 +565,14 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     }
                     if (K_t <= 0.1) K_t = 0.1;
                     
-                    const targetPv_W_m3 = targetPv_mW_cm3 / 0.001;
                     const temp_a = matParams.temp_a ?? 0;
                     const temp_b = matParams.temp_b ?? 1;
-                    const DT_TEMP_additive = temp_a * Math.pow(T_op, temp_b);
+                    const DT_TEMP_multiplier = 1 + (temp_a * Math.pow(T_op, temp_b)); // Çarpımsal yapıya eşitlendi
                     
-                    const effectiveTargetPv = Math.max(10, targetPv_W_m3 - DT_TEMP_additive);
-                    const denom = k_i * Math.pow(f_kHz * 1000, matParams.alpha) * waveform_factor * K_t;
+                    // iGSE fonksiyonundaki Pv_W_m3 formülünün ters matrisi:
+                    const denom = k_i * Math.pow(f_kHz * 1000, matParams.alpha) * waveform_factor * K_t * DT_TEMP_multiplier;
                     
-                    const deltaB_lossTarget = Math.pow(effectiveTargetPv / denom, 1 / matParams.beta);
-                    
+                    const deltaB_lossTarget = Math.pow(targetPv_W_m3 / denom, 1 / matParams.beta);
                     const deltaB_limit_new = Math.min(deltaB_satCeiling, Number.isFinite(deltaB_lossTarget) && deltaB_lossTarget > 0 ? deltaB_lossTarget : deltaB_satCeiling);
 
                     if (volt_sec > 0) {
