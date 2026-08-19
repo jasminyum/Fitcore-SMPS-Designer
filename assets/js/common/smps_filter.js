@@ -307,9 +307,10 @@ window.openFilterDesign = function (topologyOverride = null) {
             <div class="text-center mb-4">
                 <span class="badge bg-warning text-dark mb-2" style="font-size:14px;">Topology: ${topoName}</span>
                 <p class="text-muted" style="font-size:14px;">${t_pfc_desc}</p>
-                <span class="badge" style="background-color:#1557A0;">
-					%${verim.toFixed(2)}
-				</span>
+				<p style="font-size:14px;">
+					${t_eff} <span class="badge" style="background-color:#0B3D91 !important;">%${verim.toFixed(2)}</span><br>
+					${t_expected_ripple} <span class="badge" style="background-color:#731111 !important;">~${pfc_Vripple} Vpp</span>
+				</p>
             </div>
             
             <div class="p-3 mb-4 rounded" style="background: var(--surface-dark); border: 1px solid var(--border-color);">
@@ -382,7 +383,9 @@ window.openFilterDesign = function (topologyOverride = null) {
             <div class="text-center mb-4">
                 <span class="badge bg-warning text-dark mb-2" style="font-size:14px;">Topology: ${topoName}</span>
                 <p class="text-muted" style="font-size:14px;">${t_desc}</p>
-                <p style="font-size:14px;">${t_eff} <span class="badge bg-info">%${verim.toFixed(2)}</span></p>
+                <p style="font-size:14px;">
+					${t_eff} <span class="badge" style="background-color:#0B3D91 !important;">%${verim.toFixed(2)}</span>
+				</p>
             </div>
             
             <div class="p-3 mb-4 rounded" style="background: var(--surface-dark); border: 1px solid var(--border-color);">
