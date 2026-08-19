@@ -4,7 +4,6 @@
 // ================================================================
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
-
 const staticDbData = require("./smps_database.json");
 
 // ================================================================
@@ -123,79 +122,6 @@ function optimizeWires(Irms, targetCMA, maxStrandD, wiresData, f_sw_hz = 0) {
     return candidates.slice(0, 5);
 }
 
-const SteinmetzParams = {
-    // === low freq (< 200 kHz) ===
-    // standard: f -> Hz, B -> Tesla, Pv -> W/m³
-	// Ferroxcube datasheets
-    "3c92": { k: 0.115, alpha: 1.58, beta: 2.75 },
-    "n41":  { k: 0.142, alpha: 1.25, beta: 2.52 },
-    "3c81": { k: 0.085, alpha: 1.45, beta: 2.70 },
-    "3c90": { k: 0.160, alpha: 1.46, beta: 2.75 }, 
-    "3c94": { k: 0.125, alpha: 1.48, beta: 2.75 },
-
-    // === mid freq (100 kHz - 500 kHz) ===
-	// TDK / EPCOS datasheets
-    "3c91": { k: 0.068, alpha: 1.59, beta: 2.71 },
-    "3c95": { k: 0.092, alpha: 1.51, beta: 2.80 },
-    "3c96": { k: 0.071, alpha: 1.63, beta: 2.68 },
-    "3c97": { k: 0.062, alpha: 1.64, beta: 2.65 },
-    "n72":  { k: 0.025, alpha: 1.65, beta: 2.45 },  
-    "pc47": { k: 0.052, alpha: 1.46, beta: 2.64 },
-    "pc95": { k: 0.041, alpha: 1.48, beta: 2.68 },   
-    "n27":  { k: 0.018, alpha: 1.65, beta: 2.58 },  
-    "n30":  { k: 0.021, alpha: 1.65, beta: 2.58 },  
-    "n87":  { k: 0.015, alpha: 1.68, beta: 2.35 },  
-    "n97":  { k: 0.011, alpha: 1.71, beta: 2.40 },  
-    "n92":  { k: 0.012, alpha: 1.68, beta: 2.42 },  
-    "n95":  { k: 0.009, alpha: 1.72, beta: 2.45 },  
-
-    // === high freq (500 kHz - 1 MHz) ===
-    "3f3":  { k: 0.022, alpha: 1.95, beta: 2.55 },
-    "3f35": { k: 0.015, alpha: 2.10, beta: 2.50 },
-    "3f36": { k: 0.016, alpha: 2.12, beta: 2.50 },  
-    "n49":  { k: 0.019, alpha: 1.70, beta: 2.50 },
-    "n88":  { k: 0.014, alpha: 1.85, beta: 2.45 }, 
-
-    // === ultra high freq (> 1 MHz) ===
-    "3f4":  { k: 0.008, alpha: 2.35, beta: 2.45 },
-    "3f45": { k: 0.005, alpha: 2.50, beta: 2.40 },
-    "3f46": { k: 0.003, alpha: 2.62, beta: 2.38 },  
-    "pc200":{ k: 0.002, alpha: 2.68, beta: 2.34 },  
-    "4f1":  { k: 0.0004, alpha: 3.05, beta: 2.24 }, 
-    
-	// Magnetics Inc.
-    // === metal dust cores (Magnetics / Micrometals SI convertion) ===
-    "kool mu ultra": { k: 0.450, alpha: 1.58, beta: 2.20 },
-    "kool mu":       { k: 0.680, alpha: 1.54, beta: 2.21 },
-    "sendust":       { k: 0.680, alpha: 1.54, beta: 2.21 },
-    "edge":          { k: 0.380, alpha: 1.62, beta: 2.18 },
-    "mpp":           { k: 0.290, alpha: 1.52, beta: 2.15 },
-    "high flux":     { k: 0.850, alpha: 1.48, beta: 2.24 },
-    "xflux":         { k: 1.120, alpha: 1.45, beta: 2.30 },
-    "xflux ultra":   { k: 0.940, alpha: 1.50, beta: 2.26 },
-     
-	// Micrometals
-    // === iron dust cores ===
-    "mix 26":  { k: 3.550, alpha: 1.25, beta: 2.11 },
-    "mix 52":  { k: 2.450, alpha: 1.38, beta: 2.14 },
-    "mix 2":   { k: 1.850, alpha: 1.44, beta: 2.15 },
-    "mix 8":   { k: 0.950, alpha: 1.55, beta: 2.18 },
-    "mix 18":  { k: 0.820, alpha: 1.58, beta: 2.19 },
-    "default": { k: 0.250, alpha: 1.30, beta: 2.50 }
-};
-
-const MATERIAL_FREQ_TIERS = {
-    // (ideal ≤50kHz) ===
-    "n27": "low", "n30": "low", "3c81": "low", "3c92": "low", "n41": "low",
-    // (ideal ~50-300kHz bonus 1.2 and these are classical suggestions) ===
-    "n87": "mid", "n97": "mid", "3c90": "mid", "3c94": "mid",
-    "3c91": "mid", "3c95": "mid", "3c96": "mid", "3c97": "mid",
-    "n72": "mid", "pc47": "mid", "pc95": "mid", "n92": "mid", "n95": "mid",
-    // (ideal ≥300kHz, bonus 1.3) ===
-    "3f3": "high", "3f35": "high", "3f36": "high", "3f4": "high", "3f45": "high", "3f46": "high",
-    "n49": "high", "n88": "high", "pc200": "high", "4f1": "high"
-};
-
 function gamma(z) {
     const g = 7;
     const p = [
@@ -231,7 +157,7 @@ function getEffectiveWaveformParams(topology, mode, D_switch, extra = {}) {
             }
             return { D1: safeD, D2: 1 - safeD, confidence: "low", note: "Mode could not be detected, CCM assumed." };
         case "bridge": return { D1: 0.5, D2: 0.5, confidence: "high", note: "Bridge topology: symmetrical square wave." };
-		case "llc": {
+        case "llc": {
             const fr_ratio = extra.f_sw_over_fr || 1.0;
             const llcMode = extra.llcMode || (Math.abs(fr_ratio - 1) < 0.01 ? "at" : (fr_ratio < 1 ? "below" : "above"));
             if (llcMode === "at") {
@@ -257,6 +183,7 @@ function getEffectiveWaveformParams(topology, mode, D_switch, extra = {}) {
 }
 
 function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT, T_op, wfMeta = {}, matParams = {}) {
+    // iGSE integration logic
     const I_a = calculate_Ia(alpha, beta);
     const k_i = k_steinmetz / (Math.pow(2, beta - alpha) * Math.pow(2 * Math.PI, alpha - 1) * I_a);
     
@@ -272,23 +199,32 @@ function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT,
         D2 /= sum;
     }
     
+    // DT-IGSE Duty Factor Correction
     const D_sym = D1 <= 0.5 ? D1 : (1 - D1);
-    
     const gamma_factor = matParams.gamma ?? 0; 
-    const duty_correction = Math.pow(D_sym, gamma_factor);
+    const duty_correction = Math.pow(D_sym, -gamma_factor);
 
     const base_waveform_factor = Math.pow(D1, 1 - alpha) + Math.pow(D2, 1 - alpha);
-    
     const corrected_waveform_factor = base_waveform_factor * duty_correction;
 
-    const K_t = 1 + Math.pow((T_op - 90) / 40, 2); 
-    
+    // Temperature Multiplier (K_t)
+    let K_t = 1.0;
+    if (matParams.ct0 !== null && matParams.ct0 !== undefined) {
+        // Apply DB-specific 2nd order polynomial correction (ct0 - ct1*T + ct2*T^2)
+        K_t = matParams.ct0 - (matParams.ct1 * T_op) + (matParams.ct2 * Math.pow(T_op, 2));
+    } else if (matParams.isMnZn) {
+        // Fallback empirical parabola for MnZn ferrites (Loss minimum ~90-100 C)
+        K_t = 1 + Math.pow((T_op - 90) / 40, 2); 
+    }
+    if (K_t <= 0.1) K_t = 0.1; // Safeguard against invalid DB inputs or extreme roots
+
+    // DT-IGSE Additive Temperature Correction
     const temp_a = matParams.temp_a ?? 0; 
     const temp_b = matParams.temp_b ?? 1;
     const DT_TEMP_additive = temp_a * Math.pow(T_op, temp_b);
 
+    // Final Volumetric Loss (W/m^3)
     let Pv_W_m3 = k_i * Math.pow(delta_B_Tesla, beta) * Math.pow(f_Hz, alpha) * corrected_waveform_factor;
-    
     Pv_W_m3 = (Pv_W_m3 * K_t) + DT_TEMP_additive;
     
     const Pv_mW_cm3 = Pv_W_m3 * 0.001; 
@@ -302,7 +238,7 @@ function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT,
             waveform_factor: corrected_waveform_factor.toFixed(4),
             gamma_used: gamma_factor.toFixed(3),
             confidence: wfMeta.confidence || "high", 
-            note: (wfMeta.note || "") + (gamma_factor !== 0 ? " DT-IGSE duty cycle ve sıcaklık düzeltmesi uygulandı." : ""), 
+            note: (wfMeta.note || "") + " Real DB temperature correction or generic curve applied, alongside DT-IGSE duty multiplier.", 
             final_Pv: Pv_mW_cm3.toFixed(2)
         }
     };
@@ -319,10 +255,10 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
     const bobbinList = Array.isArray(dbData?.bobbins) ? dbData.bobbins : [];
     let errorCount = 0;
 
-	const CHUNK_SIZE = 1000; 
+    const CHUNK_SIZE = 1000; 
 
-	for (let i = 0; i < coreList.length; i += CHUNK_SIZE) {
-		const chunk = coreList.slice(i, i + CHUNK_SIZE);
+    for (let i = 0; i < coreList.length; i += CHUNK_SIZE) {
+        const chunk = coreList.slice(i, i + CHUNK_SIZE);
 
         chunk.forEach(core => {
           try {
@@ -440,17 +376,103 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 dynamic_B_sat_T = Math.max(0.25, Math.min(0.55, dynamic_B_sat_T));
             }
 
-            const material = core.functionalDescription?.material || 'Unknown';
-            const matKey = material.toLowerCase();
-            let matParams = SteinmetzParams["default"];
-            let bestKeyLen = -1;
-            for (const key in SteinmetzParams) {
-                if (matKey.includes(key) && key.length > bestKeyLen) {
-                    matParams = SteinmetzParams[key];
-                    bestKeyLen = key.length;
+            const wf = getEffectiveWaveformParams(topology, smpsMode, D_switch, extraModeParams);
+            
+            // 1) Name standardization (Removes spaces, dashes, and µ characters, converts to lowercase)
+            const materialName = core.functionalDescription?.material || 'Unknown';
+            const normalizeName = (name) => (name || "").replace(/[\s\-_µμ]+/gi, '').toLowerCase();
+            const normTargetMat = normalizeName(materialName);
+            
+            let dbMatParams = null;
+            let matAbsMinFreq = Infinity;
+            let matAbsMaxFreq = 0;
+
+            const coreMats = dbData.coreMaterials || dbData.materials || dbData.core_materials || [];
+            
+            // 2) Find Material in the Database
+            const matData = coreMats.find(m => normalizeName(m.name) === normTargetMat);
+
+            // 3) Extract Steinmetz data from the correct JSON path or apply a fallback
+            let steinmetzRanges = [];
+            let isFallback = false;
+
+            if (matData && matData.volumetricLosses && Array.isArray(matData.volumetricLosses.default)) {
+                // Find data defined with the "steinmetz" method
+                const sData = matData.volumetricLosses.default.find(d => d.method === "steinmetz");
+                if (sData && Array.isArray(sData.ranges)) {
+                    steinmetzRanges = sData.ranges;
                 }
             }
-            const wf = getEffectiveWaveformParams(topology, smpsMode, D_switch, extraModeParams);
+
+            // 4) Match Frequency Range or Apply Fallbacks
+            if (steinmetzRanges.length > 0) {
+                steinmetzRanges.forEach(r => {
+                    const minF = parseFloat(r.minimumFrequency) || 0;
+                    const maxF = parseFloat(r.maximumFrequency) || Infinity;
+                    if (minF < matAbsMinFreq) matAbsMinFreq = minF;
+                    if (maxF > matAbsMaxFreq) matAbsMaxFreq = maxF;
+                });
+
+                dbMatParams = steinmetzRanges.find(r => {
+                    const minF = parseFloat(r.minimumFrequency) || 0;
+                    const maxF = parseFloat(r.maximumFrequency) || Infinity;
+                    return f_sw_hz >= minF && f_sw_hz <= maxF;
+                });
+                
+                if (!dbMatParams) {
+                    // Select the closest band if outside range
+                    dbMatParams = steinmetzRanges.reduce((prev, curr) => {
+                        const pMin = parseFloat(prev.minimumFrequency) || 0;
+                        const pMax = parseFloat(prev.maximumFrequency) || Infinity;
+                        const cMin = parseFloat(curr.minimumFrequency) || 0;
+                        const cMax = parseFloat(curr.maximumFrequency) || Infinity;
+                        
+                        const prevDiff = Math.min(Math.abs(f_sw_hz - pMin), Math.abs(f_sw_hz - pMax));
+                        const currDiff = Math.min(Math.abs(f_sw_hz - cMin), Math.abs(f_sw_hz - cMax));
+                        return currDiff < prevDiff ? curr : prev;
+                    });
+                }
+            } else {
+                // SPECIAL ADJUSTMENT FOR MATERIALS LACKING STEINMETZ COEFFICIENTS
+                isFallback = true;
+                const comp = (matData?.materialComposition || "").toLowerCase();
+                const mName = (matData?.name || materialName).toLowerCase();
+                
+                // Assign generic Steinmetz parameters based on material properties
+                if (comp.includes("nizn") || mName.includes("61") || mName.includes("4f1")) {
+                    dbMatParams = { k: 0.05, alpha: 1.6, beta: 2.6 };
+                } else if (comp.includes("mnzn") || mName.includes("3c") || mName.includes("n87") || mName.includes("n97")) {
+                    dbMatParams = { k: 0.015, alpha: 1.65, beta: 2.5 }; 
+                } else if (isPowderCore) {
+                    dbMatParams = { k: 0.6, alpha: 1.5, beta: 2.2 };
+                } else {
+                    dbMatParams = { k: 0.05, alpha: 1.6, beta: 2.5 }; // General fallback
+                }
+                matAbsMinFreq = 10000;
+                matAbsMaxFreq = 1000000; // Standard bounds
+            }
+
+            if (!dbMatParams) return;
+
+            // 5) Strictly parse data to FLOAT (Prevents string concatenation and NaN/Infinity errors)
+            const hasCT = dbMatParams.ct0 !== undefined && dbMatParams.ct0 !== null;
+            
+            const matParams = {
+                k: parseFloat(dbMatParams.k) || 0,
+                alpha: parseFloat(dbMatParams.alpha) || 0,
+                beta: parseFloat(dbMatParams.beta) || 0,
+                ct0: hasCT ? parseFloat(dbMatParams.ct0) : null,
+                ct1: hasCT ? parseFloat(dbMatParams.ct1) : null,
+                ct2: hasCT ? parseFloat(dbMatParams.ct2) : null,
+                gamma: parseFloat(dbMatParams.gamma) || 0.0,
+                temp_a: parseFloat(dbMatParams.temp_a) || 0.0,
+                temp_b: parseFloat(dbMatParams.temp_b) || 1.0,
+                isMnZn: (matData?.materialComposition || "").toLowerCase().includes("mnzn") || 
+                        (materialLower.includes("mnzn") && isFallback)
+            };
+
+            // Skip if missing critical Steinmetz data
+            if (matParams.k <= 0 || matParams.alpha <= 0 || matParams.beta <= 0) return;
 
             let dimA = 0, dimB = 0, dimC = 0, dimD = 0, dimE = 0, dimF = 0;
             let familyType = "E";
@@ -476,9 +498,9 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
             }
 
             const Wmax_core_J = (0.5 * Math.pow(dynamic_B_sat_T, 2) * Math.pow(Amin, 2)) / AL;
-			let delta_B_mT = 0;
+            let delta_B_mT = 0;
 
-			if (componentType === "linear_trafo") {
+            if (componentType === "linear_trafo") {
                 const Ve_mm3 = Aele * 1e9;
                 actualReqVal = reqVal; 
                 if (Ve_mm3 >= reqVal) {
@@ -509,13 +531,13 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     if (AL > 0) l_actual_H = AL * Math.pow(N1_calc, 2);
 
                     const B_peak_T = (L_H * I_peak_est) / (N1_calc * Amin);
-					if (deltaIL > 0) {
-						delta_B_mT = ((L_H * deltaIL) / (N1_calc * Ae)) * 1000; 
-						Bmax_calc_mT = delta_B_mT / 2;
-					} else {
-						delta_B_mT = B_peak_T * 1000; 
-						Bmax_calc_mT = B_peak_T * 500;
-					}
+                    if (deltaIL > 0) {
+                        delta_B_mT = ((L_H * deltaIL) / (N1_calc * Ae)) * 1000; 
+                        Bmax_calc_mT = delta_B_mT / 2;
+                    } else {
+                        delta_B_mT = B_peak_T * 1000; 
+                        Bmax_calc_mT = B_peak_T * 500;
+                    }
                     if (B_peak_T <= dynamic_B_sat_T) isValid = true;
                 }
             } else if (type === "volume") {
@@ -523,8 +545,8 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 actualReqVal = reqVal;
                 if (Ve_mm3 >= reqVal) {
                     const deltaB_satCeiling = 2 * dynamic_B_sat_T * 0.85; 
-
                     const targetPv_mW_cm3 = 300;
+                    
                     const I_a = calculate_Ia(matParams.alpha, matParams.beta);
                     const k_i = matParams.k / (Math.pow(2, matParams.beta - matParams.alpha) * Math.pow(2 * Math.PI, matParams.alpha - 1) * I_a);
                     
@@ -534,10 +556,16 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     
                     const D_sym = D1 <= 0.5 ? D1 : (1 - D1);
                     const gamma_factor = matParams.gamma ?? 0;
-                    const duty_correction = Math.pow(D_sym, gamma_factor);
+                    const duty_correction = Math.pow(D_sym, -gamma_factor);
                     const waveform_factor = (Math.pow(D1, 1 - matParams.alpha) + Math.pow(D2, 1 - matParams.alpha)) * duty_correction;
                     
-                    const K_t = 1 + Math.pow((T_op - 90) / 40, 2);
+                    let K_t = 1.0;
+                    if (matParams.ct0 !== null && matParams.ct0 !== undefined) {
+                        K_t = matParams.ct0 - (matParams.ct1 * T_op) + (matParams.ct2 * Math.pow(T_op, 2));
+                    } else if (matParams.isMnZn) {
+                        K_t = 1 + Math.pow((T_op - 90) / 40, 2);
+                    }
+                    if (K_t <= 0.1) K_t = 0.1;
                     
                     const targetPv_W_m3 = targetPv_mW_cm3 / 0.001;
                     const temp_a = matParams.temp_a ?? 0;
@@ -583,12 +611,12 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 if (w_width > 0 && w_height > 0) Aw_mm2 = w_width * w_height;
                 else return;
 
-				let J_target = getCurrentDensity(f_kHz);
+                let J_target = getCurrentDensity(f_kHz);
                 
                 if (volume_cm3 < 3.0) J_target *= 1.25; 
                 else if (volume_cm3 > 15.0) J_target *= 0.85; 
 
-				const N2_calc = turnsRatio > 0 ? Math.max(1, Math.round(N1_calc / turnsRatio)) : 0;
+                const N2_calc = turnsRatio > 0 ? Math.max(1, Math.round(N1_calc / turnsRatio)) : 0;
                 const safe_pri_Irms = Math.max(pri_Irms, 0.05);
                 const safe_sec_Irms = turnsRatio > 0 ? (safe_pri_Irms * turnsRatio) : 0;
 
@@ -614,7 +642,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 const MLT_mm = legPerimeter_mm + Math.PI * w_width;
                 const MLT_m = MLT_mm / 1000;
 
-                const RHO_CU_20C = 1.68e-8; // ohm*m, 20°C cu d
+                const RHO_CU_20C = 1.68e-8; // ohm*m, 20°C cu 
                 const ALPHA_CU = 0.00393;   // 1/°C
                 const rho_cu_T = RHO_CU_20C * (1 + ALPHA_CU * (T_op - 20));
 
@@ -641,16 +669,16 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
             const igseResult = calculateLoss_iGSE_Dynamic(matParams.k, matParams.alpha, matParams.beta, f_kHz, delta_B_mT, T_op, wf, matParams);
             const Pv_mW_cm3 = igseResult.Pv_mW_cm3;
 
-			const core_loss_W = (Pv_mW_cm3 * volume_cm3) / 1000;
-			const lossFactor = core_loss_W;
-			const totalLossW = core_loss_W + copper_loss_W;
+            const core_loss_W = (Pv_mW_cm3 * volume_cm3) / 1000;
+            const lossFactor = core_loss_W;
+            const totalLossW = core_loss_W + copper_loss_W;
 
-			let overLossPenalty = 1.0;
-			if (Pv_mW_cm3 > 600) {
-				overLossPenalty = 0.02;
-			}
+            let overLossPenalty = 1.0;
+            if (Pv_mW_cm3 > 600) {
+                overLossPenalty = 0.02;
+            }
 
-			let lowestCost = null;
+            let lowestCost = null;
             let selectedDistributor = null;
 
             if (core.distributorsInfo && Array.isArray(core.distributorsInfo) && core.distributorsInfo.length > 0) {
@@ -733,12 +761,12 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 }
             }
 
-			candidates.push({
+            candidates.push({
                 name: core.name || shapeName,
                 mfgName: core.manufacturerInfo?.name || core.manufacturer || core.brand || "Unknown",
                 componentType: componentType,
-                material: material,
-				costPerUnit: singlePiecePrice,
+                material: materialName,
+                costPerUnit: singlePiecePrice,
                 totalCost: totalCost,
                 volume: volume_cm3,
                 lossFactor: lossFactor,
@@ -764,7 +792,9 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 windowAreaSource: "dims",
                 l_target_H: (type === "energy" && L_H > 0) ? L_H : null,
                 l_actual_H: l_actual_H > 0 ? l_actual_H : null,
-                l_deviation_pct: l_actual_H > 0 ? l_deviation_pct : null
+                l_deviation_pct: l_actual_H > 0 ? l_deviation_pct : null,
+                matAbsMinFreq: matAbsMinFreq,
+                matAbsMaxFreq: matAbsMaxFreq
             });
 
             if (singlePiecePrice !== 999 && singlePiecePrice > 0) {
@@ -825,42 +855,26 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
 
         let matSuitability = 1.0;
         let matNote = "";
-        const matKey = c.material.toLowerCase();
 
-        let matTier = null;
-        let bestMatKeyLen = -1;
-        for (const code in MATERIAL_FREQ_TIERS) {
-            if (matKey.includes(code) && code.length > bestMatKeyLen) {
-                matTier = MATERIAL_FREQ_TIERS[code];
-                bestMatKeyLen = code.length;
-            }
-        }
+        const f_Hz = f_sw_hz; 
 
-        if (matTier === "low") {
-            if (f_kHz <= 50) { matSuitability = 1.0; }
-            else if (f_kHz >= 150) { matSuitability = 0.4; }
-            else { matSuitability = 1.0 - ((f_kHz - 50) / 100) * 0.6; }
-
-            if (matSuitability < 0.9) matNote = ` Material is not ideal for high frequencies (>50kHz), approaching manufacturer limits (Safety multiplier: ${matSuitability.toFixed(2)}).`;
-        }
-        else if (matTier === "mid") {
-            if (f_kHz >= 50 && f_kHz <= 300) { matSuitability = 1.2; matNote = " Most ideal material range for this operating frequency (Suitability bonus: 1.20)."; }
-            else if (f_kHz < 50) { matSuitability = 1.0 + (f_kHz / 50) * 0.2; }
-            else if (f_kHz > 300 && f_kHz <= 500) { matSuitability = 1.2 - ((f_kHz - 300) / 200) * 0.2; }
-            else { matSuitability = 1.0; }
-        }
-        else if (matTier === "high") {
-            if (f_kHz >= 300) { matSuitability = 1.3; matNote = " Special and ideal material for high frequency (Suitability bonus: 1.30)."; }
-            else if (f_kHz <= 50) { matSuitability = 0.6; matNote = " Unnecessarily expensive/unsuitable material for low frequencies, performance cannot be fully utilized (Multiplier: 0.60)."; }
-            else { matSuitability = 0.6 + ((f_kHz - 50) / 250) * 0.7; }
+        if (f_Hz < c.matAbsMinFreq) {
+            matSuitability = 0.6 + (0.4 * (f_Hz / c.matAbsMinFreq));
+            matNote = ` Operating frequency is below the material's ideal frequency band (${(c.matAbsMinFreq/1000).toFixed(0)} kHz). (Multiplier: ${matSuitability.toFixed(2)}).`;
+        } else if (f_Hz > c.matAbsMaxFreq) {
+            matSuitability = Math.max(0.4, 1.0 - ((f_Hz - c.matAbsMaxFreq) / c.matAbsMaxFreq));
+            matNote = ` WARNING: Operating frequency exceeds the material's supported maximum frequency (${(c.matAbsMaxFreq/1000).toFixed(0)} kHz)! Losses may drastically increase (Multiplier: ${matSuitability.toFixed(2)}).`;
+        } else {
+            matSuitability = 1.2; 
+            matNote = ` Material is used in its ideal operating frequency band. (Bonus: 1.20).`;
         }
 
         if (c.igseBreakdown) {
             c.igseBreakdown.note = (c.igseBreakdown.note || "") + matNote;
             if (overSizePenalty < 1.0) {
-                c.igseBreakdown.note += ` Core capacity is well above the design target, unnecessary volume penalty applied (Multiplier: ${overSizePenalty.toFixed(2)}).`;
+                c.igseBreakdown.note += ` Core capacity is well above the design target; an unnecessary volume penalty was applied (Multiplier: ${overSizePenalty.toFixed(2)}).`;
             }
-            c.igseBreakdown.note += ` Loss breakdown: core ${c.coreLossW.toFixed(3)}W + copper ${c.copperLossW.toFixed(3)}W = ${c.totalLossW.toFixed(3)}W total.`;
+            c.igseBreakdown.note += ` Loss Distribution: Core ${c.coreLossW.toFixed(3)}W + Copper ${c.copperLossW.toFixed(3)}W = Total ${c.totalLossW.toFixed(3)}W.`;
         }
 
         const effectiveScoreEff = Math.min(1.0, scoreEff * matSuitability);
@@ -892,6 +906,10 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
     merged.sort((a, b) => b.fuzzyScore - a.fuzzyScore);
     return merged;
 }
+
+// ================================================================
+// EXPORTS AND UTILS REMAINING (interp1, findClosestEntry, etc. are retained exactly as they were...)
+// ================================================================
 
 function interp1(xs, ys, xq, scaleToZero = false) {
     if (!xs || !ys || xs.length === 0 || xs.length !== ys.length) return null;
@@ -1299,30 +1317,30 @@ async function optimizeSwitches(topology, V_op, I_peak, Irms, f_sw_hz, switchesD
                 // topology name. Above LLC resonance, or with non-SPS DAB modulation, ZVS can be
                 // reduced or lost (especially at light load / small phase shift), so those cases
                 // fall back to more conservative multipliers instead of the full ZVS discount.
-				if (currentTopo === "llc") {
-					const llcModeUsed = extraModeParams?.llcMode || "at";
-					if (llcModeUsed === "above") {
-						e_on_multiplier = 0.6;  
-						e_off_multiplier = 1.0;
-					} else {
-						e_on_multiplier = 0.1;  
-						e_off_multiplier = 1.0;
-					}
-				} else if (currentTopo === "dab") {
-					const dabModulation = extraModeParams?.dabMode || "sps";
-					if (dabModulation === "sps") {
-						e_on_multiplier = 0.1;  
-						e_off_multiplier = 1.0;
-					} else {
-						e_on_multiplier = 0.35; 
-						e_off_multiplier = 1.0;
-					}
-				}
+                if (currentTopo === "llc") {
+                    const llcModeUsed = extraModeParams?.llcMode || "at";
+                    if (llcModeUsed === "above") {
+                        e_on_multiplier = 0.6;  
+                        e_off_multiplier = 1.0;
+                    } else {
+                        e_on_multiplier = 0.1;  
+                        e_off_multiplier = 1.0;
+                    }
+                } else if (currentTopo === "dab") {
+                    const dabModulation = extraModeParams?.dabMode || "sps";
+                    if (dabModulation === "sps") {
+                        e_on_multiplier = 0.1;  
+                        e_off_multiplier = 1.0;
+                    } else {
+                        e_on_multiplier = 0.35; 
+                        e_off_multiplier = 1.0;
+                    }
+                }
 
                 let qrr_loss_W = 0;
                 const hardSwitchedTopologies = ["buck", "boost", "buckboost", "forward"];
 
-				if (smpsMode === "CCM" && hardSwitchedTopologies.includes(currentTopo)) {
+                if (smpsMode === "CCM" && hardSwitchedTopologies.includes(currentTopo)) {
                     let qrr_nC = 0;
                     if (sw.diode && sw.diode.qrr) qrr_nC = parseFloat(sw.diode.qrr);
                     else if (sw.reverse_recovery && sw.reverse_recovery.qrr_nc) qrr_nC = parseFloat(sw.reverse_recovery.qrr_nc);
@@ -1348,8 +1366,8 @@ async function optimizeSwitches(topology, V_op, I_peak, Irms, f_sw_hz, switchesD
                 return; 
             }
 
-			const p_tot_W = p_cond_W + p_sw_W;
-			if (p_tot_W > 75.0) return;
+            const p_tot_W = p_cond_W + p_sw_W;
+            if (p_tot_W > 75.0) return;
 
             let techPenalty = 1.0;
             if (typeUp.includes("SIC") || typeUp.includes("GAN")) {
@@ -1444,7 +1462,7 @@ exports.runSmpsOptimization = onCall({
             result.switches = [];
         }
 
-		if (hasVeOpt) {
+        if (hasVeOpt) {
             const trafoType = isLinearTrafo ? "linear_trafo" : "trafo";
             result.trafoCores = await optimizeCores(veOpt, optMode, "volume", L_H, f_sw, T_op, 0, volt_sec, trafoGapReq, trafoType, dbData, staticDbsPayload, pri_Irms, turnsRatio, topology, smpsMode, D_switch, extraModeParams);
             
