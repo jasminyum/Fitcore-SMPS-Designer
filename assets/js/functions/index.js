@@ -667,6 +667,32 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     if ((Bmax_calc_mT / 1000) <= dynamic_B_sat_T) isValid = true;
                 }
             }
+			
+			let N2_calc = 0;
+            if (isValid && turnsRatio > 0 && (componentType.includes("trafo") || componentType.includes("flyback"))) {
+                let exact_N2 = N1_calc / turnsRatio;
+                
+                if (exact_N2 < 1) {
+                    // In step-down mode, we fix N2 at 1 and pull N1 upwards
+                    N2_calc = 1;
+                    N1_calc = Math.ceil(turnsRatio); 
+                } else {
+                    // Normally, we round N2 to the nearest integer and synchronize N1
+                    N2_calc = Math.round(exact_N2);
+                    N1_calc = Math.round(N2_calc * turnsRatio);
+                }
+                
+                // Since N1 has changed, the flux density (B_Max) is being recalculated for safety reasons
+                if (type === "volume" && volt_sec > 0) {
+                    delta_B_mT = (volt_sec / (N1_calc * Ae)) * 1000;
+                    Bmax_calc_mT = delta_B_mT / 2;
+                } else if (type === "energy" && actualReqVal > 0) {
+                    const I_peak_est = Math.sqrt((actualReqVal * 2) / L_H);
+                    const B_peak_T = (L_H * I_peak_est) / (N1_calc * Amin);
+                    delta_B_mT = (deltaIL > 0) ? ((L_H * deltaIL) / (N1_calc * Ae)) * 1000 : (B_peak_T * 1000);
+                    Bmax_calc_mT = delta_B_mT / 2;
+                }
+            }
 
             let copper_loss_W = 0;
 
@@ -701,7 +727,6 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 if (volume_cm3 < 3.0) J_target *= 1.25; 
                 else if (volume_cm3 > 15.0) J_target *= 0.85; 
 
-                const N2_calc = turnsRatio > 0 ? Math.max(1, Math.round(N1_calc / turnsRatio)) : 0;
                 const safe_pri_Irms = Math.max(pri_Irms, 0.05);
                 const safe_sec_Irms = turnsRatio > 0 ? (safe_pri_Irms * turnsRatio) : 0;
 
@@ -743,32 +768,6 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 }
 
                 if (!Number.isFinite(copper_loss_W) || copper_loss_W < 0) copper_loss_W = 0;
-            }
-			
-			let N2_calc = 0;
-            if (isValid && turnsRatio > 0 && (componentType.includes("trafo") || componentType.includes("flyback"))) {
-                let exact_N2 = N1_calc / turnsRatio;
-                
-                if (exact_N2 < 1) {
-                    // In step-down mode, we fix N2 at 1 and pull N1 upwards
-                    N2_calc = 1;
-                    N1_calc = Math.ceil(turnsRatio); 
-                } else {
-                    // Normally, we round N2 to the nearest integer and synchronize N1
-                    N2_calc = Math.round(exact_N2);
-                    N1_calc = Math.round(N2_calc * turnsRatio);
-                }
-                
-                // Since N1 has changed, the flux density (B_Max) is being recalculated for safety reasons
-                if (type === "volume" && volt_sec > 0) {
-                    delta_B_mT = (volt_sec / (N1_calc * Ae)) * 1000;
-                    Bmax_calc_mT = delta_B_mT / 2;
-                } else if (type === "energy" && actualReqVal > 0) {
-                    const I_peak_est = Math.sqrt((actualReqVal * 2) / L_H);
-                    const B_peak_T = (L_H * I_peak_est) / (N1_calc * Amin);
-                    delta_B_mT = (deltaIL > 0) ? ((L_H * deltaIL) / (N1_calc * Ae)) * 1000 : (B_peak_T * 1000);
-                    Bmax_calc_mT = delta_B_mT / 2;
-                }
             }
 
             if (!isValid) return;
