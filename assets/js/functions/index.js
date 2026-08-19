@@ -146,11 +146,30 @@ function optimizeWires(Irms, targetCMA, maxStrandD, wiresData, f_sw_hz = 0) {
         const area_mm2 = Math.PI * Math.pow(d_mm / 2, 2);
         const area_cmil = area_mm2 * 1973.525;
 
-        if (d_mm > safeMaxStrandD) return;
+        let penalty = 0;
+
+        if (d_mm > safeMaxStrandD) {
+            // Apply a heavy penalty instead of immediate rejection
+            penalty += (d_mm - safeMaxStrandD) * 500; 
+        }
 
         const parallelStrands = Math.ceil(reqArea_mm2 / area_mm2);
-        
-        if (parallelStrands > 3000) return; 
+        let coatingType = wire.coating?.type || "Enameled";
+
+        if (parallelStrands <= 150) {
+            // Standard manufacturing limits (Can be wound manually or via standard winding machine)
+            coatingType = wire.coating?.type || "Enameled";
+        } 
+        else if (parallelStrands > 150 && parallelStrands <= 1500) {
+            // High current transition zone: Pre-bundled Litz wire is required
+            coatingType = "Bundled Litz Wire Required";
+            penalty += 50; 
+        } 
+        else {
+            // Extreme current region: Copper foil is recommended over thousands of strands
+            coatingType = "Copper Foil Recommended";
+            penalty += 150; 
+        }
 
         const actualCMA = (parallelStrands * area_cmil) / Irms;
 
@@ -161,13 +180,14 @@ function optimizeWires(Irms, targetCMA, maxStrandD, wiresData, f_sw_hz = 0) {
             strands: parallelStrands,
             totalArea: (area_mm2 * parallelStrands).toFixed(3),
             cma: Math.round(actualCMA),
-            coating: wire.coating?.type || "Emaye"
+            coating: coatingType,
+            penalty: penalty
         });
     });
 
     candidates.sort((a, b) => {
-        const diffA = Math.abs(a.cma - safeCMA) + (a.strands * 2);
-        const diffB = Math.abs(b.cma - safeCMA) + (b.strands * 2);
+        const diffA = Math.abs(a.cma - safeCMA) + (a.strands * 2) + a.penalty;
+        const diffB = Math.abs(b.cma - safeCMA) + (b.strands * 2) + b.penalty;
         return diffA - diffB;
     });
 
@@ -664,8 +684,17 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     else if (dimB > 0 && dimD > 0) w_height = (dimB - dimD / 2) * 2;
                 }
 
-                if (w_width > 0 && w_height > 0) Aw_mm2 = w_width * w_height;
-                else return;
+				if (w_width > 0 && w_height > 0) {
+                    // Estimated plastic frame thickness (mm) based on core width (dimA)
+                    const bobbin_wall_mm = (dimA < 20) ? 0.7 : ((dimA < 40) ? 1.2 : 1.5);
+                    
+                    // One wall (middle leg) is deducted from the width, 
+					// and two walls (bottom and top flanges) are deducted from the height
+                    w_width = Math.max(0.1, w_width - bobbin_wall_mm);
+                    w_height = Math.max(0.1, w_height - (bobbin_wall_mm * 2));
+                    
+                    Aw_mm2 = w_width * w_height;
+                } else return;
 
                 let J_target = getCurrentDensity(f_kHz);
                 
@@ -676,8 +705,11 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 const safe_pri_Irms = Math.max(pri_Irms, 0.05);
                 const safe_sec_Irms = turnsRatio > 0 ? (safe_pri_Irms * turnsRatio) : 0;
 
-                let primary_Cu_mm2 = N1_calc * (safe_pri_Irms / J_target);
-                let secondary_Cu_mm2 = (N2_calc > 0) ? (N2_calc * (safe_sec_Irms / J_target)) : 0;
+                // 15% penalty for waste due to standard AWG blanks and round wires being strung side-by-side
+                const discrete_wire_penalty = 1.15; 
+                
+                let primary_Cu_mm2 = N1_calc * (safe_pri_Irms / J_target) * discrete_wire_penalty;
+                let secondary_Cu_mm2 = (N2_calc > 0) ? (N2_calc * (safe_sec_Irms / J_target)) * discrete_wire_penalty : 0;
 
                 const packing_and_insulation_factor = 1.25; 
                 let total_Cu_mm2 = (primary_Cu_mm2 + secondary_Cu_mm2) * packing_and_insulation_factor;
@@ -711,6 +743,32 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 }
 
                 if (!Number.isFinite(copper_loss_W) || copper_loss_W < 0) copper_loss_W = 0;
+            }
+			
+			let N2_calc = 0;
+            if (isValid && turnsRatio > 0 && (componentType.includes("trafo") || componentType.includes("flyback"))) {
+                let exact_N2 = N1_calc / turnsRatio;
+                
+                if (exact_N2 < 1) {
+                    // In step-down mode, we fix N2 at 1 and pull N1 upwards
+                    N2_calc = 1;
+                    N1_calc = Math.ceil(turnsRatio); 
+                } else {
+                    // Normally, we round N2 to the nearest integer and synchronize N1
+                    N2_calc = Math.round(exact_N2);
+                    N1_calc = Math.round(N2_calc * turnsRatio);
+                }
+                
+                // Since N1 has changed, the flux density (B_Max) is being recalculated for safety reasons
+                if (type === "volume" && volt_sec > 0) {
+                    delta_B_mT = (volt_sec / (N1_calc * Ae)) * 1000;
+                    Bmax_calc_mT = delta_B_mT / 2;
+                } else if (type === "energy" && actualReqVal > 0) {
+                    const I_peak_est = Math.sqrt((actualReqVal * 2) / L_H);
+                    const B_peak_T = (L_H * I_peak_est) / (N1_calc * Amin);
+                    delta_B_mT = (deltaIL > 0) ? ((L_H * deltaIL) / (N1_calc * Ae)) * 1000 : (B_peak_T * 1000);
+                    Bmax_calc_mT = delta_B_mT / 2;
+                }
             }
 
             if (!isValid) return;
