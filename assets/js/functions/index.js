@@ -219,16 +219,15 @@ function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT,
     const temp_b = matParams.temp_b ?? 1;
     const DT_TEMP_multiplier = 1 + (temp_a * Math.pow(T_op, temp_b));
 
-    // Final Volumetric Loss (Doğrudan W/m^3 üretiyor - k_steinmetz SI biriminde olduğu için)
+    // Final Volumetric Loss
     let Pv_W_m3 = k_i * Math.pow(delta_B_Tesla, beta) * Math.pow(f_Hz, alpha) * corrected_waveform_factor;
     Pv_W_m3 = Pv_W_m3 * K_t * DT_TEMP_multiplier;
     
-    // Geriye dönük uyumluluk ve optimizeCores fonksiyonunun doğru çalışması için W/m3 -> mW/cm3 dönüşümü (Bölü 1000)
     const Pv_mW_cm3 = Pv_W_m3 / 1000; 
 
     return {
         Pv_mW_cm3: Number.isFinite(Pv_mW_cm3) && Pv_mW_cm3 > 0 ? Pv_mW_cm3 : 0.1,
-        Pv_W_m3: Pv_W_m3, // Saf SI değerini de nesne içinde paslayalım
+        Pv_W_m3: Pv_W_m3,
         breakdown: {
             k: k_steinmetz, alpha, beta, I_a: I_a.toFixed(4), k_i: k_i.toExponential(4),
             K_t: K_t.toFixed(3), delta_B_T: delta_B_Tesla.toFixed(4), f_kHz: f_kHz.toFixed(1),
@@ -431,11 +430,12 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     });
                 }
             } else {
-                // SPECIAL ADJUSTMENT FOR MATERIALS LACKING STEINMETZ COEFFICIENTS
+                // SPECIAL ADJUSTMENT FOR MATERIALS LACKING STEINMETZ COEFFICIENTS!!!
                 isFallback = true;
                 const comp = (matData?.materialComposition || "").toLowerCase();
                 const mName = (matData?.name || materialName).toLowerCase();
                 
+                // Assign generic Steinmetz parameters based on material properties - Pure SI Units from Datasheets
                 if (comp.includes("nizn") || mName.includes("61") || mName.includes("4f1")) {
                     dbMatParams = { k: 7.9244e-5, alpha: 1.6, beta: 2.6 };
                 } else if (comp.includes("mnzn") || mName.includes("3c") || mName.includes("n87") || mName.includes("n97")) {
@@ -446,12 +446,12 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     dbMatParams = { k: 7.9244e-5, alpha: 1.6, beta: 2.5 }; // General fallback
                 }
                 matAbsMinFreq = 10000;
-                matAbsMaxFreq = 1000000; // Standard bounds
+                matAbsMaxFreq = 1000000;
             }
 
             if (!dbMatParams) return;
 
-            // 5) Strictly parse data to FLOAT (Prevents string concatenation and NaN/Infinity errors)
+            // 5) Strictly parse data to FLOAT
             const hasCT = dbMatParams.ct0 !== undefined && dbMatParams.ct0 !== null;
             
             const matParams = {
@@ -543,7 +543,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 if (Ve_mm3 >= reqVal) {
                     const deltaB_satCeiling = 2 * dynamic_B_sat_T * 0.85; 
                     const targetPv_mW_cm3 = 300; // mW/cm³
-                    const targetPv_W_m3 = targetPv_mW_cm3 * 1000; // DOĞRU DÖNÜŞÜM: 300.000 W/m³
+                    const targetPv_W_m3 = targetPv_mW_cm3 * 1000;
                     
                     const I_a = calculate_Ia(matParams.alpha); 
                     const k_i = matParams.k / (Math.pow(2, matParams.beta - matParams.alpha) * Math.pow(2 * Math.PI, matParams.alpha - 1) * I_a);
@@ -567,9 +567,8 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     
                     const temp_a = matParams.temp_a ?? 0;
                     const temp_b = matParams.temp_b ?? 1;
-                    const DT_TEMP_multiplier = 1 + (temp_a * Math.pow(T_op, temp_b)); // Çarpımsal yapıya eşitlendi
+                    const DT_TEMP_multiplier = 1 + (temp_a * Math.pow(T_op, temp_b));
                     
-                    // iGSE fonksiyonundaki Pv_W_m3 formülünün ters matrisi:
                     const denom = k_i * Math.pow(f_kHz * 1000, matParams.alpha) * waveform_factor * K_t * DT_TEMP_multiplier;
                     
                     const deltaB_lossTarget = Math.pow(targetPv_W_m3 / denom, 1 / matParams.beta);
@@ -664,8 +663,9 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
 
             const igseResult = calculateLoss_iGSE_Dynamic(matParams.k, matParams.alpha, matParams.beta, f_kHz, delta_B_mT, T_op, wf, matParams);
             const Pv_mW_cm3 = igseResult.Pv_mW_cm3;
+            const Pv_W_m3 = igseResult.Pv_W_m3;
 
-            const core_loss_W = (Pv_mW_cm3 * volume_cm3) / 1000;
+            const core_loss_W = Pv_W_m3 * Aele; 
             const lossFactor = core_loss_W;
             const totalLossW = core_loss_W + copper_loss_W;
 
@@ -904,7 +904,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
 }
 
 // ================================================================
-// EXPORTS AND UTILS REMAINING (interp1, findClosestEntry, etc. are retained exactly as they were...)
+// EXPORTS AND UTILS REMAINING
 // ================================================================
 
 function interp1(xs, ys, xq, scaleToZero = false) {
@@ -1309,10 +1309,6 @@ async function optimizeSwitches(topology, V_op, I_peak, Irms, f_sw_hz, switchesD
                 let e_on_multiplier = 1.0;
                 let e_off_multiplier = 1.0;
 
-                // ZVS benefit depends on where the converter actually operates, not just on the
-                // topology name. Above LLC resonance, or with non-SPS DAB modulation, ZVS can be
-                // reduced or lost (especially at light load / small phase shift), so those cases
-                // fall back to more conservative multipliers instead of the full ZVS discount.
                 if (currentTopo === "llc") {
                     const llcModeUsed = extraModeParams?.llcMode || "at";
                     if (llcModeUsed === "above") {
