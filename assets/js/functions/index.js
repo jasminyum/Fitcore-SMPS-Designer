@@ -1,3 +1,50 @@
+/**
+* ===========================================================================
+* HYBRID CORE LOSS MODEL & THEORETICAL BACKGROUND
+* ==============================================================================
+* This module uses an advanced Hybrid Core Loss Model to calculate magnetic core losses in non-sinusoidal, asymmetric, and temperature-variable conditions.
+* Mathematical Foundations and Physical Corrections are based on the following academic literature:
+*
+* 1. iGSE (Improved Generalized Steinmetz Equation) and k_i Calculation:
+* - Losses for non-sinusoidal (triangular, square, etc.) waveforms are calculated using the iGSE
+* approach [cite: 15, 24].
+* - The numerical integral (I_a) required to find the k_i constant is solved analytically using Gamma functions in a way that perfectly matches the definition 
+* in the original articles [cite: 15, 24].
+*
+* 2. Duty Cycle Asymmetry and DT-IGSE:
+* - Standard iGSE loses its accuracy
+* at extremely asymmetric duty cycles (D != 0.5). To compensate for this, in the DT-IGSE (Duty-Temperature IGSE) model,
+* the proposed asymmetry weighting factor (D_sym) is integrated into the equation [cite: 18, 27].
+*
+* 3. Trapezoidal Flux and Relaxation Losses:
+* - In topologies containing dead-time or "zero voltage" periods such as DAB and LLC, additional losses arise from magnetic relaxation [cite: 16, 25].
+* - Asymmetry multipliers and effective waveform parameters are designed to compensate for these "off-time" relaxation effects [cite: 16, 25].
+*
+* 4. Temperature Dependence and Multiplicative Correction:
+* - Core losses are highly dependent on temperature (T_op). Empirical loss modeling
+* In accordance with the literature, second-order polynomial corrections and empirical parabolic formulas for MnZn cores have been used [cite: 13, 22].
+* - In addition; the temperature factor was proposed as "additive" (+ TEMP) in the original DT-IGSE article, which leads to an error that produces losses 
+* even at zero flux [cite: 18, 27]. In this module, the theory in question has been transformed into a "multiplicative" form (DT_TEMP_multiplier) through 
+* engineering optimization, ensuring 100% physical consistency.
+*
+*
+* REFERENCES:
+* [1] Mühlethaler, J., Biela, J., Kolar, J. W., & Ecklebe, A. (2012). "Improved 
+*     Core-Loss Calculation for Magnetic Components Employed in Power Electronic 
+*     Systems." IEEE Transactions on Power Electronics[cite: 15, 24].
+* [2] Wang, Y., Liu, X., & Li, J. (2026). "Improved equations for core loss prediction 
+*     under asymmetric triangular excitation waveforms based on improved generalized 
+*     Steinmetz equation." Journal of Magnetism and Magnetic Materials[cite: 18, 27].
+* [3] Barg, S., & Bertilsson, K. (2021). "Core Loss Calculation of Symmetric Trapezoidal 
+*     Magnetic Flux Density Waveform." IEEE Open Journal of Power Electronics[cite: 16, 25].
+* [4] Ridley, R., & Nace, A. (2006). "Modeling Ferrite Core Losses." 
+*     Switching Power Magazine[cite: 13, 22].
+* [5] Zhang, W., Yang, Q., Li, Y., Lin, Z., & Yang, M. (2022). "Temperature Dependence 
+*     of Powder Cores Magnetic Properties for Medium-Frequency Applications." 
+*     IEEE Transactions on Magnetics[cite: 17, 26].
+* ============================================================================
+*/
+
 // ================================================================
 // Server Section
 // SPDX-License-Identifier: AGPL-3.0-only
