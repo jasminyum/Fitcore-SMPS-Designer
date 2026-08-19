@@ -148,25 +148,23 @@ function optimizeWires(Irms, targetCMA, maxStrandD, wiresData, f_sw_hz = 0) {
 
         let penalty = 0;
 
+        // DFM FIX 1: Convert Skin Depth limit from "Hard Block" to "Soft Penalty"
         if (d_mm > safeMaxStrandD) {
-            // Apply a heavy penalty instead of immediate rejection
             penalty += (d_mm - safeMaxStrandD) * 500; 
         }
 
         const parallelStrands = Math.ceil(reqArea_mm2 / area_mm2);
         let coatingType = wire.coating?.type || "Enameled";
 
+        // DFM FIX 2: Multi-strand transition logic based on current requirements
         if (parallelStrands <= 150) {
-            // Standard manufacturing limits (Can be wound manually or via standard winding machine)
             coatingType = wire.coating?.type || "Enameled";
         } 
         else if (parallelStrands > 150 && parallelStrands <= 1500) {
-            // High current transition zone: Pre-bundled Litz wire is required
             coatingType = "Bundled Litz Wire Required";
             penalty += 50; 
         } 
         else {
-            // Extreme current region: Copper foil is recommended over thousands of strands
             coatingType = "Copper Foil Recommended";
             penalty += 150; 
         }
@@ -542,7 +540,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 ct0: hasCT ? parseFloat(dbMatParams.ct0) : null,
                 ct1: hasCT ? parseFloat(dbMatParams.ct1) : null,
                 ct2: hasCT ? parseFloat(dbMatParams.ct2) : null,
-                gamma: parseFloat(dbMatParams.gamma) || 0.0,
+                gamma: parseFloat(dbMatParams.gamma) || 0.12, // DFM FIX: Relaksasyon kaybı (Asimetrik dalga) cezası için fallback
                 temp_a: parseFloat(dbMatParams.temp_a) || 0.0,
                 temp_b: parseFloat(dbMatParams.temp_b) || 1.0,
                 isMnZn: (matData?.materialComposition || "").toLowerCase().includes("mnzn") || 
@@ -668,21 +666,21 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 }
             }
 			
-			let N2_calc = 0;
+            let N2_calc = 0;
             if (isValid && turnsRatio > 0 && (componentType.includes("trafo") || componentType.includes("flyback"))) {
                 let exact_N2 = N1_calc / turnsRatio;
                 
                 if (exact_N2 < 1) {
-                    // In step-down mode, we fix N2 at 1 and pull N1 upwards
+                    // Step-down mode, fix N2 at 1 and pull N1 upwards
                     N2_calc = 1;
                     N1_calc = Math.ceil(turnsRatio); 
                 } else {
-                    // Normally, we round N2 to the nearest integer and synchronize N1
-                    N2_calc = Math.round(exact_N2);
-                    N1_calc = Math.round(N2_calc * turnsRatio);
+                    // DFM FIX: N1'in asla doyum sınırının altına düşmemesi için yukarı yuvarlama (ceil) zorunludur!
+                    N2_calc = Math.ceil(exact_N2);
+                    N1_calc = Math.ceil(N2_calc * turnsRatio);
                 }
                 
-                // Since N1 has changed, the flux density (B_Max) is being recalculated for safety reasons
+                // N1 değiştiği için akı yoğunluğu (B_Max) güvenlik amacıyla yeniden hesaplanıyor
                 if (type === "volume" && volt_sec > 0) {
                     delta_B_mT = (volt_sec / (N1_calc * Ae)) * 1000;
                     Bmax_calc_mT = delta_B_mT / 2;
@@ -691,6 +689,11 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     const B_peak_T = (L_H * I_peak_est) / (N1_calc * Amin);
                     delta_B_mT = (deltaIL > 0) ? ((L_H * deltaIL) / (N1_calc * Ae)) * 1000 : (B_peak_T * 1000);
                     Bmax_calc_mT = delta_B_mT / 2;
+                }
+
+                // KRİTİK DÜZELTME: N1 oranlanırken Bmax fırlamış olabilir. Nüve doyuma girdiyse direkt reddet!
+                if ((Bmax_calc_mT / 1000) > dynamic_B_sat_T) {
+                    isValid = false;
                 }
             }
 
@@ -761,11 +764,10 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
 
                 copper_loss_W = (N1_calc * safe_pri_Irms * rho_cu_T * MLT_m) * (J_target * 1e6);
 
-                if ((componentType.includes("trafo") || componentType.includes("flyback")) && turnsRatio > 0) {
-                    const n2_est = Math.max(1, Math.round(N1_calc / turnsRatio));
-                    const sec_Irms_est = safe_pri_Irms * turnsRatio;
-                    copper_loss_W += n2_est * sec_Irms_est * rho_cu_T * MLT_m * J_target * 1e6;
-                }
+				if ((componentType.includes("trafo") || componentType.includes("flyback")) && turnsRatio > 0) {
+					const sec_Irms_est = safe_pri_Irms * turnsRatio;
+					copper_loss_W += N2_calc * sec_Irms_est * rho_cu_T * MLT_m * J_target * 1e6;
+				}
 
                 if (!Number.isFinite(copper_loss_W) || copper_loss_W < 0) copper_loss_W = 0;
             }
@@ -859,11 +861,6 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 if (!isFinite(gap_mm) || isNaN(gap_mm) || gap_mm < 0.005) gap_mm = 0;
             }
 
-            let n2_calc = 0;
-            if (turnsRatio > 0 && (componentType === "trafo" || componentType === "flyback")) {
-                n2_calc = Math.max(1, Math.round(N1_calc / turnsRatio));
-            }
-
             let l_deviation_pct = 0;
             if (l_actual_H > 0 && L_H > 0) {
                 l_deviation_pct = ((l_actual_H - L_H) / L_H) * 100;
@@ -892,7 +889,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 totalLossW: totalLossW,
                 bmax: Bmax_calc_mT,
                 n1_calc: N1_calc,
-                n2_calc: n2_calc,
+                n2_calc: N2_calc,
                 al_nH: AL * 1e9,
                 Ae_mm2: Ae * 1e6,
                 bobbinName: compatibleBobbin ? compatibleBobbin.name : "-",
