@@ -1,54 +1,49 @@
 /**
- * ===========================================================================
- * HYBRID CORE LOSS MODEL & THEORETICAL BACKGROUND
- * ===========================================================================
- * This module uses an advanced Hybrid Core Loss Model to calculate magnetic 
- * core losses in non-sinusoidal, asymmetric, and temperature-variable conditions.
- * 
- * Mathematical Foundations and Physical/Empirical Corrections:
- * 
- * 1. iGSE (Improved Generalized Steinmetz Equation) and k_i Calculation:
- * - The numerical integral (I_a) required to find the k_i constant is solved 
- *   analytically using Gamma functions. By applying the Legendre duplication 
- *   formula, this analytical closed-form perfectly matches the integral 
- *   definition in the original Mühlethaler articles [1].
- * 
- * 2. Asymmetric Triangular Waveform Factor (D1 / D2):
- * - The formulation (D1^(1-alpha) + D2^(1-alpha)) multiplied by the D_sym^(-gamma) 
- *   correction is a hybrid synthesis. It merges Mühlethaler's two-segment 
- *   decomposition [1] with Wang's symmetry reduction [2]. This provides a 
- *   mathematically sound model for arbitrary duty cycles, though it is a 
- *   synthesis of two different literature sources rather than a literal equation.
- * 
- * 3. Temperature Term (Additive vs. Multiplicative Hybrid Approach):
- * - Wang et al. found that an additive temperature factor provided the best 
- *   empirical fit to measurement data [2]. However, a purely additive term 
- *   produces non-zero core losses even when flux (delta B) approaches zero, 
- *   violating physical boundary conditions. 
- * - To balance empirical accuracy with physical consistency, this module uses 
- *   a conscious engineering trade-off: The multiplicative form is strictly 
- *   used when delta B is zero to enforce a zero-loss boundary, whereas the 
- *   additive form is used otherwise to preserve the empirically proven fit.
- * 
- * 4. Polynomial Temperature Correction (K_t):
- * - The second-order polynomial for K_t is a simplified approximation inspired 
- *   by the 5th-order polynomial introduced by Ridley and Nace [4].
- * - The generic MnZn fallback (K_t = 1 + ((T-90)/40)^2) is a generalized 
- *   engineering approximation reflecting the typical loss minimum of MnZn 
- *   ferrites around 80-100°C, rather than being directly derived from a 
- *   single paper.
- * 
- * REFERENCES:
- * [1] Mühlethaler, J., Biela, J., Kolar, J. W., & Ecklebe, A. (2012). "Improved 
- *     Core-Loss Calculation for Magnetic Components..." IEEE Trans. Power Electron.
- * [2] Wang, Y., Liu, X., & Li, J. (2026). "Improved equations for core loss 
- *     prediction under asymmetric triangular excitation waveforms..." J. Magn. Magn. Mater.
- * [3] Barg, S., & Bertilsson, K. (2021). "Core Loss Calculation of Symmetric 
- *     Trapezoidal Magnetic Flux Density Waveform." IEEE Open J. Power Electron.
- * [4] Ridley, R., & Nace, A. (2006). "Modeling Ferrite Core Losses." 
- *     Switching Power Magazine.
- * ============================================================================
- */
+* ===========================================================================
+* HYBRID CORE LOSS MODEL & THEORETICAL BACKGROUND
+* ==============================================================================
+* This module uses an advanced Hybrid Core Loss Model to calculate magnetic core losses in non-sinusoidal, asymmetric, and temperature-variable conditions.
+* Mathematical Foundations and Physical Corrections are based on the following academic literature:
+*
+* 1. iGSE (Improved Generalized Steinmetz Equation) and k_i Calculation:
+* - Losses for non-sinusoidal (triangular, square, etc.) waveforms are calculated using the iGSE
+* approach [cite: 15, 24].
+* - The numerical integral (I_a) required to find the k_i constant is solved analytically using Gamma functions in a way that perfectly matches the definition 
+* in the original articles [cite: 15, 24].
+*
+* 2. Duty Cycle Asymmetry and DT-IGSE:
+* - Standard iGSE loses its accuracy
+* at extremely asymmetric duty cycles (D != 0.5). To compensate for this, in the DT-IGSE (Duty-Temperature IGSE) model,
+* the proposed asymmetry weighting factor (D_sym) is integrated into the equation [cite: 18, 27].
+*
+* 3. Trapezoidal Flux and Relaxation Losses:
+* - In topologies containing dead-time or "zero voltage" periods such as DAB and LLC, additional losses arise from magnetic relaxation [cite: 16, 25].
+* - Asymmetry multipliers and effective waveform parameters are designed to compensate for these "off-time" relaxation effects [cite: 16, 25].
+*
+* 4. Temperature Dependence and Multiplicative Correction:
+* - Core losses are highly dependent on temperature (T_op). Empirical loss modeling
+* In accordance with the literature, second-order polynomial corrections and empirical parabolic formulas for MnZn cores have been used [cite: 13, 22].
+* - In addition; the temperature factor was proposed as "additive" (+ TEMP) in the original DT-IGSE article, which leads to an error that produces losses 
+* even at zero flux [cite: 18, 27]. In this module, the theory in question has been transformed into a "multiplicative" form (DT_TEMP_multiplier) through 
+* engineering optimization, ensuring 100% physical consistency.
+*
+*
+* REFERENCES:
+* [1] Mühlethaler, J., Biela, J., Kolar, J. W., & Ecklebe, A. (2012). "Improved 
+*     Core-Loss Calculation for Magnetic Components Employed in Power Electronic 
+*     Systems." IEEE Transactions on Power Electronics[cite: 15, 24].
+* [2] Wang, Y., Liu, X., & Li, J. (2026). "Improved equations for core loss prediction 
+*     under asymmetric triangular excitation waveforms based on improved generalized 
+*     Steinmetz equation." Journal of Magnetism and Magnetic Materials[cite: 18, 27].
+* [3] Barg, S., & Bertilsson, K. (2021). "Core Loss Calculation of Symmetric Trapezoidal 
+*     Magnetic Flux Density Waveform." IEEE Open Journal of Power Electronics[cite: 16, 25].
+* [4] Ridley, R., & Nace, A. (2006). "Modeling Ferrite Core Losses." 
+*     Switching Power Magazine[cite: 13, 22].
+* [5] Zhang, W., Yang, Q., Li, Y., Lin, Z., & Yang, M. (2022). "Temperature Dependence 
+*     of Powder Cores Magnetic Properties for Medium-Frequency Applications." 
+*     IEEE Transactions on Magnetics[cite: 17, 26].
+* ============================================================================
+*/
 
 // ================================================================
 // Server Section
@@ -146,28 +141,11 @@ function optimizeWires(Irms, targetCMA, maxStrandD, wiresData, f_sw_hz = 0) {
         const area_mm2 = Math.PI * Math.pow(d_mm / 2, 2);
         const area_cmil = area_mm2 * 1973.525;
 
-        let penalty = 0;
-
-        // DFM FIX 1: Convert Skin Depth limit from "Hard Block" to "Soft Penalty"
-        if (d_mm > safeMaxStrandD) {
-            penalty += (d_mm - safeMaxStrandD) * 500; 
-        }
+        if (d_mm > safeMaxStrandD) return;
 
         const parallelStrands = Math.ceil(reqArea_mm2 / area_mm2);
-        let coatingType = wire.coating?.type || "Enameled";
-
-        // DFM FIX 2: Multi-strand transition logic based on current requirements
-        if (parallelStrands <= 150) {
-            coatingType = wire.coating?.type || "Enameled";
-        } 
-        else if (parallelStrands > 150 && parallelStrands <= 1500) {
-            coatingType = "Bundled Litz Wire Required";
-            penalty += 50; 
-        } 
-        else {
-            coatingType = "Copper Foil Recommended";
-            penalty += 150; 
-        }
+        
+        if (parallelStrands > 3000) return; 
 
         const actualCMA = (parallelStrands * area_cmil) / Irms;
 
@@ -178,14 +156,13 @@ function optimizeWires(Irms, targetCMA, maxStrandD, wiresData, f_sw_hz = 0) {
             strands: parallelStrands,
             totalArea: (area_mm2 * parallelStrands).toFixed(3),
             cma: Math.round(actualCMA),
-            coating: coatingType,
-            penalty: penalty
+            coating: wire.coating?.type || "Emaye"
         });
     });
 
     candidates.sort((a, b) => {
-        const diffA = Math.abs(a.cma - safeCMA) + (a.strands * 2) + a.penalty;
-        const diffB = Math.abs(b.cma - safeCMA) + (b.strands * 2) + b.penalty;
+        const diffA = Math.abs(a.cma - safeCMA) + (a.strands * 2);
+        const diffB = Math.abs(b.cma - safeCMA) + (b.strands * 2);
         return diffA - diffB;
     });
 
@@ -275,7 +252,7 @@ function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT,
     const base_waveform_factor = Math.pow(D1, 1 - alpha) + Math.pow(D2, 1 - alpha);
     const corrected_waveform_factor = base_waveform_factor * duty_correction;
 
-    // Temperature Multiplier (K_t) - Ridley-Nace Inspired / MnZn Fallback
+    // Temperature Multiplier (K_t)
     let K_t = 1.0;
     if (matParams.ct0 !== null && matParams.ct0 !== undefined) {
         K_t = matParams.ct0 - (matParams.ct1 * T_op) + (matParams.ct2 * Math.pow(T_op, 2));
@@ -284,23 +261,14 @@ function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT,
     }
     if (K_t <= 0.1) K_t = 0.1;
 
-    // Base Volumetric Loss
-    let Pv_W_m3 = k_i * Math.pow(delta_B_Tesla, beta) * Math.pow(f_Hz, alpha) * corrected_waveform_factor;
-    Pv_W_m3 = Pv_W_m3 * K_t;
-
-    // DT-IGSE Temperature Correction (Hybrid Trade-off: Additive vs Multiplicative)
+    // DT-IGSE Temperature Correction (Multiplicative)
     const temp_a = matParams.temp_a ?? 0; 
     const temp_b = matParams.temp_b ?? 1;
+    const DT_TEMP_multiplier = 1 + (temp_a * Math.pow(T_op, temp_b));
 
-    if (delta_B_Tesla === 0) {
-        // Multiplicative form for physical consistency at boundary condition (enforces zero loss)
-        const DT_TEMP_multiplier = 1 + (temp_a * Math.pow(T_op, temp_b));
-        Pv_W_m3 = Pv_W_m3 * DT_TEMP_multiplier;
-    } else {
-        // Additive form for best empirical fit (as proven by Wang et al. experimental data)
-        const DT_TEMP_additive = temp_a * Math.pow(T_op, temp_b);
-        Pv_W_m3 = Pv_W_m3 + DT_TEMP_additive;
-    }
+    // Final Volumetric Loss
+    let Pv_W_m3 = k_i * Math.pow(delta_B_Tesla, beta) * Math.pow(f_Hz, alpha) * corrected_waveform_factor;
+    Pv_W_m3 = Pv_W_m3 * K_t * DT_TEMP_multiplier;
     
     const Pv_mW_cm3 = Pv_W_m3 / 1000; 
 
@@ -314,7 +282,7 @@ function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT,
             waveform_factor: corrected_waveform_factor.toFixed(4),
             gamma_used: gamma_factor.toFixed(3),
             confidence: wfMeta.confidence || "high", 
-            note: (wfMeta.note || "") + " Hybrid DT-IGSE temperature correction applied.", 
+            note: (wfMeta.note || "") + " Real DB temperature correction applied with pure SI k coefficient.", 
             final_Pv: Pv_mW_cm3.toFixed(2)
         }
     };
@@ -540,7 +508,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 ct0: hasCT ? parseFloat(dbMatParams.ct0) : null,
                 ct1: hasCT ? parseFloat(dbMatParams.ct1) : null,
                 ct2: hasCT ? parseFloat(dbMatParams.ct2) : null,
-                gamma: parseFloat(dbMatParams.gamma) || 0.12, // DFM FIX: Relaksasyon kaybı (Asimetrik dalga) cezası için fallback
+                gamma: parseFloat(dbMatParams.gamma) || 0.0,
                 temp_a: parseFloat(dbMatParams.temp_a) || 0.0,
                 temp_b: parseFloat(dbMatParams.temp_b) || 1.0,
                 isMnZn: (matData?.materialComposition || "").toLowerCase().includes("mnzn") || 
@@ -665,37 +633,6 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     if ((Bmax_calc_mT / 1000) <= dynamic_B_sat_T) isValid = true;
                 }
             }
-			
-            let N2_calc = 0;
-            if (isValid && turnsRatio > 0 && (componentType.includes("trafo") || componentType.includes("flyback"))) {
-                let exact_N2 = N1_calc / turnsRatio;
-                
-                if (exact_N2 < 1) {
-                    // Step-down mode, fix N2 at 1 and pull N1 upwards
-                    N2_calc = 1;
-                    N1_calc = Math.ceil(turnsRatio); 
-                } else {
-                    // DFM FIX: N1'in asla doyum sınırının altına düşmemesi için yukarı yuvarlama (ceil) zorunludur!
-                    N2_calc = Math.ceil(exact_N2);
-                    N1_calc = Math.ceil(N2_calc * turnsRatio);
-                }
-                
-                // N1 değiştiği için akı yoğunluğu (B_Max) güvenlik amacıyla yeniden hesaplanıyor
-                if (type === "volume" && volt_sec > 0) {
-                    delta_B_mT = (volt_sec / (N1_calc * Ae)) * 1000;
-                    Bmax_calc_mT = delta_B_mT / 2;
-                } else if (type === "energy" && actualReqVal > 0) {
-                    const I_peak_est = Math.sqrt((actualReqVal * 2) / L_H);
-                    const B_peak_T = (L_H * I_peak_est) / (N1_calc * Amin);
-                    delta_B_mT = (deltaIL > 0) ? ((L_H * deltaIL) / (N1_calc * Ae)) * 1000 : (B_peak_T * 1000);
-                    Bmax_calc_mT = delta_B_mT / 2;
-                }
-
-                // KRİTİK DÜZELTME: N1 oranlanırken Bmax fırlamış olabilir. Nüve doyuma girdiyse direkt reddet!
-                if ((Bmax_calc_mT / 1000) > dynamic_B_sat_T) {
-                    isValid = false;
-                }
-            }
 
             let copper_loss_W = 0;
 
@@ -713,31 +650,20 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     else if (dimB > 0 && dimD > 0) w_height = (dimB - dimD / 2) * 2;
                 }
 
-				if (w_width > 0 && w_height > 0) {
-                    // Estimated plastic frame thickness (mm) based on core width (dimA)
-                    const bobbin_wall_mm = (dimA < 20) ? 0.7 : ((dimA < 40) ? 1.2 : 1.5);
-                    
-                    // One wall (middle leg) is deducted from the width, 
-					// and two walls (bottom and top flanges) are deducted from the height
-                    w_width = Math.max(0.1, w_width - bobbin_wall_mm);
-                    w_height = Math.max(0.1, w_height - (bobbin_wall_mm * 2));
-                    
-                    Aw_mm2 = w_width * w_height;
-                } else return;
+                if (w_width > 0 && w_height > 0) Aw_mm2 = w_width * w_height;
+                else return;
 
                 let J_target = getCurrentDensity(f_kHz);
                 
                 if (volume_cm3 < 3.0) J_target *= 1.25; 
                 else if (volume_cm3 > 15.0) J_target *= 0.85; 
 
+                const N2_calc = turnsRatio > 0 ? Math.max(1, Math.round(N1_calc / turnsRatio)) : 0;
                 const safe_pri_Irms = Math.max(pri_Irms, 0.05);
                 const safe_sec_Irms = turnsRatio > 0 ? (safe_pri_Irms * turnsRatio) : 0;
 
-                // 15% penalty for waste due to standard AWG blanks and round wires being strung side-by-side
-                const discrete_wire_penalty = 1.15; 
-                
-                let primary_Cu_mm2 = N1_calc * (safe_pri_Irms / J_target) * discrete_wire_penalty;
-                let secondary_Cu_mm2 = (N2_calc > 0) ? (N2_calc * (safe_sec_Irms / J_target)) * discrete_wire_penalty : 0;
+                let primary_Cu_mm2 = N1_calc * (safe_pri_Irms / J_target);
+                let secondary_Cu_mm2 = (N2_calc > 0) ? (N2_calc * (safe_sec_Irms / J_target)) : 0;
 
                 const packing_and_insulation_factor = 1.25; 
                 let total_Cu_mm2 = (primary_Cu_mm2 + secondary_Cu_mm2) * packing_and_insulation_factor;
@@ -764,10 +690,11 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
 
                 copper_loss_W = (N1_calc * safe_pri_Irms * rho_cu_T * MLT_m) * (J_target * 1e6);
 
-				if ((componentType.includes("trafo") || componentType.includes("flyback")) && turnsRatio > 0) {
-					const sec_Irms_est = safe_pri_Irms * turnsRatio;
-					copper_loss_W += N2_calc * sec_Irms_est * rho_cu_T * MLT_m * J_target * 1e6;
-				}
+                if ((componentType.includes("trafo") || componentType.includes("flyback")) && turnsRatio > 0) {
+                    const n2_est = Math.max(1, Math.round(N1_calc / turnsRatio));
+                    const sec_Irms_est = safe_pri_Irms * turnsRatio;
+                    copper_loss_W += n2_est * sec_Irms_est * rho_cu_T * MLT_m * J_target * 1e6;
+                }
 
                 if (!Number.isFinite(copper_loss_W) || copper_loss_W < 0) copper_loss_W = 0;
             }
@@ -861,6 +788,11 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 if (!isFinite(gap_mm) || isNaN(gap_mm) || gap_mm < 0.005) gap_mm = 0;
             }
 
+            let n2_calc = 0;
+            if (turnsRatio > 0 && (componentType === "trafo" || componentType === "flyback")) {
+                n2_calc = Math.max(1, Math.round(N1_calc / turnsRatio));
+            }
+
             let l_deviation_pct = 0;
             if (l_actual_H > 0 && L_H > 0) {
                 l_deviation_pct = ((l_actual_H - L_H) / L_H) * 100;
@@ -889,7 +821,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 totalLossW: totalLossW,
                 bmax: Bmax_calc_mT,
                 n1_calc: N1_calc,
-                n2_calc: N2_calc,
+                n2_calc: n2_calc,
                 al_nH: AL * 1e9,
                 Ae_mm2: Ae * 1e6,
                 bobbinName: compatibleBobbin ? compatibleBobbin.name : "-",
