@@ -121,49 +121,83 @@ function optimizeWires(Irms, targetCMA, maxStrandD, wiresData, f_sw_hz = 0) {
     if (Irms <= 0 || !Array.isArray(wiresData)) return candidates;
 
     const safeCMA = (Number.isFinite(targetCMA) && targetCMA > 0) ? targetCMA : 400;
-    let safeMaxStrandD = (Number.isFinite(maxStrandD) && maxStrandD > 0) ? maxStrandD : 5.0;
+    
+    let safeMaxStrandD = (Number.isFinite(maxStrandD) && maxStrandD > 0) ? maxStrandD : 2.5;
 
     if (f_sw_hz > 0) {
         const skinDepth_mm = 66 / Math.sqrt(f_sw_hz);
-        const maxSkinD_mm = skinDepth_mm * 2;
+        const maxSkinD_mm = skinDepth_mm * 2; 
         if (safeMaxStrandD > maxSkinD_mm) {
             safeMaxStrandD = maxSkinD_mm;
         }
     }
 
     const reqArea_mm2 = (Irms * safeCMA) / 1973.525;
+    
+    const practicalMaxParallelCables = 6;
 
     wiresData.forEach(wire => {
-        const d_nom = wire.conductingDiameter?.nominal;
-        if (!d_nom) return;
+        let d_mm = 0;
+        let strandsPerCable = 1;
+        const isLitz = wire.type === "litz";
 
-        const d_mm = d_nom * 1000;
-        const area_mm2 = Math.PI * Math.pow(d_mm / 2, 2);
-        const area_cmil = area_mm2 * 1973.525;
+        if (isLitz) {
+            strandsPerCable = wire.numberConductors || 1;
+            const strandMatch = wire.strand?.match(/[\d.]+/);
+            if (strandMatch) {
+                d_mm = parseFloat(strandMatch[0]);
+            } else {
+                const nameMatch = wire.name?.match(/x\s*([0-9.]+)/);
+                if (nameMatch) d_mm = parseFloat(nameMatch[1]);
+            }
+        } else {
+            const d_nom = wire.conductingDiameter?.nominal;
+            if (d_nom) d_mm = d_nom * 1000;
+        }
 
-        if (d_mm > safeMaxStrandD) return;
+        if (!d_mm || d_mm <= 0 || d_mm > safeMaxStrandD) return;
 
-        const parallelStrands = Math.ceil(reqArea_mm2 / area_mm2);
-        
-        if (parallelStrands > 3000) return; 
+        const singleStrandArea_mm2 = Math.PI * Math.pow(d_mm / 2, 2);
+        const singleCableArea_mm2 = singleStrandArea_mm2 * strandsPerCable;
+        const singleCableArea_cmil = singleCableArea_mm2 * 1973.525;
 
-        const actualCMA = (parallelStrands * area_cmil) / Irms;
+        const parallelCables = Math.ceil(reqArea_mm2 / singleCableArea_mm2);
+
+        if (parallelCables > practicalMaxParallelCables) return; 
+
+        const actualCMA = (parallelCables * singleCableArea_cmil) / Irms;
+        const totalStrandsInBundle = parallelCables * strandsPerCable;
 
         candidates.push({
             name: wire.name,
-            standard: wire.standardName || "-",
+            
+            standard: isLitz ? wire.name : (wire.standardName || wire.name || "-"), 
+            
+            type: isLitz ? "Litz" : "Solid",
             d_mm: d_mm.toFixed(3),
-            strands: parallelStrands,
-            totalArea: (area_mm2 * parallelStrands).toFixed(3),
+            
+            strands: parallelCables, 
+            
+            parallelCables: parallelCables,
+            strandsPerCable: strandsPerCable,
+            totalStrands: totalStrandsInBundle,
+            totalArea: (singleCableArea_mm2 * parallelCables).toFixed(3),
             cma: Math.round(actualCMA),
-            coating: wire.coating?.type || "Emaye"
+            coating: isLitz ? (wire.coating?.type || "Bare/Served") : (wire.coating?.type || "Enamelled")
         });
     });
 
     candidates.sort((a, b) => {
-        const diffA = Math.abs(a.cma - safeCMA) + (a.strands * 2);
-        const diffB = Math.abs(b.cma - safeCMA) + (b.strands * 2);
-        return diffA - diffB;
+        const cmaErrorA = Math.abs(a.cma - safeCMA) / safeCMA;
+        const cmaErrorB = Math.abs(b.cma - safeCMA) / safeCMA;
+        
+        const cablePenaltyA = (a.parallelCables - 1) * 0.15; 
+        const cablePenaltyB = (b.parallelCables - 1) * 0.15;
+
+        const scoreA = cmaErrorA + cablePenaltyA;
+        const scoreB = cmaErrorB + cablePenaltyB;
+
+        return scoreA - scoreB;
     });
 
     return candidates.slice(0, 5);
@@ -649,6 +683,19 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     if (dimF > 0) w_height = dimF * 2;
                     else if (dimB > 0 && dimD > 0) w_height = (dimB - dimD / 2) * 2;
                 }
+				
+				const bobbin_margin_mm = 1.0;
+
+				if (w_width > bobbin_margin_mm) w_width -= bobbin_margin_mm;
+				else w_width = 0;
+
+				if (w_height > bobbin_margin_mm) w_height -= bobbin_margin_mm;
+				else w_height = 0;
+
+				if (w_width > 0 && w_height > 0) Aw_mm2 = w_width * w_height;
+				else {
+					isValid = false;
+				}
 
                 if (w_width > 0 && w_height > 0) Aw_mm2 = w_width * w_height;
                 else return;
@@ -658,7 +705,15 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 if (volume_cm3 < 3.0) J_target *= 1.25; 
                 else if (volume_cm3 > 15.0) J_target *= 0.85; 
 
-                const N2_calc = turnsRatio > 0 ? Math.max(1, Math.round(N1_calc / turnsRatio)) : 0;
+				let N2_calc = turnsRatio > 0 ? Math.round(N1_calc / turnsRatio) : 0;
+
+				if (turnsRatio > 0) {
+					if (N2_calc < 1) {
+						N2_calc = 1;
+					}
+					N1_calc = Math.round(N2_calc * turnsRatio);
+				}
+				
                 const safe_pri_Irms = Math.max(pri_Irms, 0.05);
                 const safe_sec_Irms = turnsRatio > 0 ? (safe_pri_Irms * turnsRatio) : 0;
 
