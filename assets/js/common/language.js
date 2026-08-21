@@ -3,6 +3,7 @@
 
 const translations = {
     tr: {
+        adv_mc_no_data: "Lütfen önce standart termal testi çalıştırın.",
 		adv_only_known_stock: "Sadece Stok Bilinenler",
         adv_thermal_gate_scale_label: "Sürücü paralel adede göre güçlendirildi (anahtarlama kaybı sabit kalır)",
         adv_thermal_gate_scale_tooltip: "İşaretliyse: paralel MOSFET sayısı arttıkça sürücünün de güçlendirildiği varsayılır, anahtarlama kaybı toplamda sabit kalır. İşaretli değilse: sürücü gücü sabit kabul edilir, toplam gate yükü arttığı için anahtarlama kaybı adet ile orantılı büyür (kötümser / güvenli taraf).",
@@ -825,6 +826,7 @@ const translations = {
         chart_4_exp: "İlk iki grafiğin üst üste bindirilmiş halidir. Mavi kare dalga ile kırmızı kesik çizgili kare dalga arasındaki kayma miktarı, sistemin ne kadar güç aktaracağını belirlemektedir."
     },
     en: {
+        adv_mc_no_data: "Please run the standard thermal test first.",
 		adv_only_known_stock: "Only Known Stocks",
         adv_thermal_gate_scale_label: "Driver scaled with parallel count (switching loss stays constant)",
         adv_thermal_gate_scale_tooltip: "If checked: it is assumed the gate driver is scaled up as the parallel MOSFET count increases, so total switching loss stays roughly constant. If unchecked: driver strength is assumed fixed, so total gate charge increases with count and switching loss grows proportionally (pessimistic / safe-side).",
@@ -1645,6 +1647,7 @@ const translations = {
         chart_4_exp: "A superimposed version of the first two charts. The shift between the blue square wave and the red dashed square wave determines the amount of power to be transferred."
     },
     de: {
+        adv_mc_no_data: "Bitte führen Sie zuerst den standardisierten thermischen Test durch.",
 		adv_only_known_stock: "Nur bekannte Aktien",
         adv_thermal_gate_scale_label: "Treiber mit paralleler Anzahl skaliert (Schaltverlust bleibt konstant)",
         adv_thermal_gate_scale_tooltip: "Wenn aktiviert: Es wird angenommen, dass der Gate-Treiber mit zunehmender Anzahl paralleler MOSFETs verstärkt wird, sodass der gesamte Schaltverlust annähernd konstant bleibt. Wenn nicht aktiviert: Die Treiberleistung wird als konstant angenommen, wodurch die Gesamt-Gate-Ladung mit der Anzahl steigt und der Schaltverlust proportional zunimmt (pessimistisch / sichere Seite).",
