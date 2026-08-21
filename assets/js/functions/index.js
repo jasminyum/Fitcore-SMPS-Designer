@@ -947,20 +947,34 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
 
     const BASE_LOSS_W = 0.1;
     const weights = getFuzzyWeights(mode);
+    
+    const validCandidates = candidates.filter(c => !c.windowExceeded);
+    
+    const refCandidates = validCandidates.length > 0 ? validCandidates : candidates;
 
-    const logMin = (minCost !== Infinity && minCost > 0) ? Math.log(minCost) : 0;
-    const logMax = (maxCost > 0) ? Math.log(maxCost) : 0;
+    let calcMinCost = Infinity, calcMaxCost = 0, calcMinLoss = Infinity, calcMinVol = Infinity;
+    refCandidates.forEach(c => {
+        if (c.costPerUnit !== 999 && c.costPerUnit > 0) {
+            if (c.costPerUnit < calcMinCost) calcMinCost = c.costPerUnit;
+            if (c.costPerUnit > calcMaxCost) calcMaxCost = c.costPerUnit;
+        }
+        if (c.totalLossW < calcMinLoss) calcMinLoss = c.totalLossW;
+        if (c.volume < calcMinVol) calcMinVol = c.volume;
+    });
+
+    const logMin = (calcMinCost !== Infinity && calcMinCost > 0) ? Math.log(calcMinCost) : 0;
+    const logMax = (calcMaxCost > 0) ? Math.log(calcMaxCost) : 0;
     const logDiff = logMax - logMin;
 
     let robustMinLoss = Infinity, robustMinVol = Infinity;
-    candidates.forEach(c => {
+    refCandidates.forEach(c => {
         if (c.utilizationRatio >= 0.15) {
             if (c.totalLossW < robustMinLoss) robustMinLoss = c.totalLossW;
             if (c.volume < robustMinVol) robustMinVol = c.volume;
         }
     });
-    if (robustMinLoss === Infinity) robustMinLoss = minLoss;
-    if (robustMinVol === Infinity) robustMinVol = minVol;
+    if (robustMinLoss === Infinity) robustMinLoss = calcMinLoss;
+    if (robustMinVol === Infinity) robustMinVol = calcMinVol;
 
     candidates.forEach(c => {
         let scoreCost = 0.01;
