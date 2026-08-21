@@ -2462,6 +2462,8 @@ window.runCustomThermalTest = function () {
             <strong class="text-danger bg-dark px-2 py-1 rounded border border-danger">+${Delta_T.toFixed(1)} °C</strong>
         </div>
         <button class="btn btn-sm btn-outline-success w-100 mt-3 fw-bold" onclick="window.downloadCustomThermalCSV()">${safeGetT('adv_thermal_btn_csv') || 'Download Thermal Report (CSV)'}</button>
+        
+        <button class="btn btn-sm btn-outline-warning w-100 mt-2 fw-bold" onclick="window.runMonteCarloThermal()">Monte Carlo Analysis</button>
     `;
 };
 
@@ -2484,6 +2486,44 @@ window.downloadCustomThermalCSV = function () {
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
     link.setAttribute("download", "Custom_Thermal_Analysis_Report.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+window.mcValue = function (baseValue, tolPercent) {
+    const tol = tolPercent / 100;
+    const min = baseValue * (1 - tol);
+    const max = baseValue * (1 + tol);
+    return min + Math.random() * (max - min);
+};
+
+window.runMonteCarloThermal = function () {
+    const data = window.lastCustomThermalData;
+    if (!data) return alert(safeGetT('adv_mc_no_data') || "Lütfen önce standart termal testi çalıştırın.");
+
+    const iterations = 1000;
+    const tolerance = 10;
+
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+    csvContent += "Iteration,Core_Loss(W),Copper_Loss(W),Switch_Loss(W),Total_Loss(W),R_th(C/W),Delta_T(C)\n";
+
+    for (let i = 1; i <= iterations; i++) {
+        let cLoss = window.mcValue(data.coreLoss, tolerance);
+        let cuLoss = window.mcValue(data.copperLoss, tolerance);
+        let swLoss = window.mcValue(data.switchLoss, tolerance);
+        let rth = window.mcValue(data.rTh, tolerance);
+
+        let pLoss = cLoss + cuLoss + swLoss;
+        let dT = pLoss * rth;
+
+        csvContent += `${i},${cLoss.toFixed(3)},${cuLoss.toFixed(3)},${swLoss.toFixed(3)},${pLoss.toFixed(3)},${rth.toFixed(3)},${dT.toFixed(2)}\n`;
+    }
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `MonteCarlo_Thermal_${iterations}_runs.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -2512,7 +2552,8 @@ Object.assign(window.SMPSApp, {
     openCustomThermalModal: window.openCustomThermalModal,
     runCustomThermalTest: window.runCustomThermalTest,
     downloadCustomThermalCSV: window.downloadCustomThermalCSV,
-    updatePowerDensity: window.updatePowerDensity
+    updatePowerDensity: window.updatePowerDensity,
+    runMonteCarloThermal: window.runMonteCarloThermal
 });
 // Live access to state values that change at runtime:
 Object.defineProperties(window.SMPSApp, {
