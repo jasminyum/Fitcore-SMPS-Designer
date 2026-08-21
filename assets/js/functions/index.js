@@ -155,13 +155,23 @@ function optimizeWires(Irms, targetCMA, maxStrandD, wiresData, f_sw_hz = 0) {
             if (d_nom) d_mm = d_nom * 1000;
         }
 
-        if (!d_mm || d_mm <= 0 || d_mm > safeMaxStrandD) return;
+        if (!d_mm || d_mm <= 0) return;
 
-        const singleStrandArea_mm2 = Math.PI * Math.pow(d_mm / 2, 2);
-        const singleCableArea_mm2 = singleStrandArea_mm2 * strandsPerCable;
-        const singleCableArea_cmil = singleCableArea_mm2 * 1973.525;
+        let singleStrandArea_mm2 = Math.PI * Math.pow(d_mm / 2, 2);
+        let effectiveStrandArea_mm2 = singleStrandArea_mm2;
 
-        const parallelCables = Math.ceil(reqArea_mm2 / singleCableArea_mm2);
+        if (!isLitz && d_mm > safeMaxStrandD) {
+            const skinDepth = safeMaxStrandD / 2;
+            const innerD = d_mm - (2 * skinDepth);
+            const deadArea_mm2 = Math.PI * Math.pow(innerD / 2, 2);
+            effectiveStrandArea_mm2 = singleStrandArea_mm2 - deadArea_mm2;
+        }
+
+        const singleCableEffectiveArea_mm2 = effectiveStrandArea_mm2 * strandsPerCable;
+        const singleCablePhysicalArea_mm2 = singleStrandArea_mm2 * strandsPerCable;
+        const singleCableArea_cmil = singleCablePhysicalArea_mm2 * 1973.525;
+
+        const parallelCables = Math.ceil(reqArea_mm2 / singleCableEffectiveArea_mm2);
 
         if (parallelCables > practicalMaxParallelCables) return; 
 
