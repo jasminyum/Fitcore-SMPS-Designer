@@ -1462,7 +1462,27 @@ window.filterResultsByManufacturer = function () {
 
 		if (bestCoil1 && wire1 && wire1.totalArea) {
 			let Ae = bestCoil1.Ae_mm2 || 100;
-			let MLT = 4.5 * Math.sqrt(Ae);
+            let dimA = bestCoil1.dim_A || 0;
+            let dimD = bestCoil1.dim_D || 0;
+            let dimE = bestCoil1.dim_E || 0;
+            let family = bestCoil1.family || "E";
+            let w_width = 0;
+
+            if (family === "RM" || family === "PQ" || family === "PM") {
+                if (dimA > 0 && dimD > 0) w_width = (dimA - dimD) / 3;
+                else if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
+            } else {
+                if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
+                else if (dimA > 0 && dimD > 0) w_width = (dimA - 2 * dimD) / 2;
+            }
+
+            w_width = Math.max(0, w_width - 1.0);
+
+            const legPerimeter_mm = 4 * Math.sqrt(Ae);
+            let MLT_mm = legPerimeter_mm + (Math.PI * w_width);
+            if (w_width === 0) MLT_mm = 4.5 * Math.sqrt(Ae);
+
+            let MLT = MLT_mm / 1000;
 			let n1 = bestCoil1.n1_calc || 10;
 			let parsedArea = parseFloat(wire1.totalArea) || 0.5;
 			let dcr = rho * ((n1 * MLT) / 1000) / (parsedArea * 1e-6);
@@ -1470,7 +1490,27 @@ window.filterResultsByManufacturer = function () {
 		}
 		if (bestCoil2 && wire2 && wire2.totalArea) {
 			let Ae = bestCoil2.Ae_mm2 || 100;
-			let MLT = 4.5 * Math.sqrt(Ae);
+            let dimA = bestCoil2.dim_A || 0;
+            let dimD = bestCoil2.dim_D || 0;
+            let dimE = bestCoil2.dim_E || 0;
+            let family = bestCoil2.family || "E";
+            let w_width = 0;
+
+            if (family === "RM" || family === "PQ" || family === "PM") {
+                if (dimA > 0 && dimD > 0) w_width = (dimA - dimD) / 3;
+                else if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
+            } else {
+                if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
+                else if (dimA > 0 && dimD > 0) w_width = (dimA - 2 * dimD) / 2;
+            }
+
+            w_width = Math.max(0, w_width - 1.0);
+
+            const legPerimeter_mm = 4 * Math.sqrt(Ae);
+            let MLT_mm = legPerimeter_mm + (Math.PI * w_width);
+            if (w_width === 0) MLT_mm = 4.5 * Math.sqrt(Ae);
+
+            let MLT = MLT_mm / 1000;
 			let n1 = bestCoil2.n1_calc || 10;
 			let parsedArea2 = parseFloat(wire2.totalArea) || 0.5; 
 			let dcr = rho * ((n1 * MLT) / 1000) / (parsedArea2 * 1e-6);
@@ -1494,7 +1534,26 @@ window.filterResultsByManufacturer = function () {
 
 		if (bestTrafoCore) {
             let Ae = bestTrafoCore.Ae_mm2 || 100;
-            let MLT_mm = 4.5 * Math.sqrt(Ae);
+            let dimA = bestTrafoCore.dim_A || 0;
+            let dimD = bestTrafoCore.dim_D || 0;
+            let dimE = bestTrafoCore.dim_E || 0;
+            let family = bestTrafoCore.family || "E";
+            let w_width = 0;
+
+            if (family === "RM" || family === "PQ" || family === "PM") {
+                if (dimA > 0 && dimD > 0) w_width = (dimA - dimD) / 3;
+                else if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
+            } else {
+                if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
+                else if (dimA > 0 && dimD > 0) w_width = (dimA - 2 * dimD) / 2;
+            }
+
+            w_width = Math.max(0, w_width - 1.0);
+
+            const legPerimeter_mm = 4 * Math.sqrt(Ae);
+            let MLT_mm = legPerimeter_mm + (Math.PI * w_width);
+            if (w_width === 0) MLT_mm = 4.5 * Math.sqrt(Ae);
+
             let MLT_m = MLT_mm / 1000;
             let n1 = bestTrafoCore.n1_calc || 10;
             let n2 = bestTrafoCore.n2_calc || Math.max(4, Math.floor(n1 / 2));
@@ -1519,7 +1578,27 @@ window.filterResultsByManufacturer = function () {
 
         if (bestCoilCore) {
             let Ae = bestCoilCore.Ae_mm2 || 100;
-            let MLT_mm = 4.5 * Math.sqrt(Ae);
+            let dimA = bestCoilCore.dim_A || 0;
+            let dimD = bestCoilCore.dim_D || 0;
+            let dimE = bestCoilCore.dim_E || 0;
+            let family = bestCoilCore.family || "E";
+            let w_width = 0;
+
+            if (family === "RM" || family === "PQ" || family === "PM") {
+                if (dimA > 0 && dimD > 0) w_width = (dimA - dimD) / 3;
+                else if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
+            } else {
+                if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
+                else if (dimA > 0 && dimD > 0) w_width = (dimA - 2 * dimD) / 2;
+            }
+
+            w_width = Math.max(0, w_width - 1.0);
+
+            const legPerimeter_mm = 4 * Math.sqrt(Ae);
+            let MLT_mm = legPerimeter_mm + (Math.PI * w_width);
+            if (w_width === 0) MLT_mm = 4.5 * Math.sqrt(Ae);
+
+            let MLT_m = MLT_mm / 1000;
             let n1 = bestCoilCore.n1_calc || bestCoilCore.n1 || 10;
 
             let targetWire = coilWire || priWire;
@@ -2074,10 +2153,15 @@ function renderAdvancedResults(res, skinDepthD, states) {
                 const pageTitle = (document.title || "").toLowerCase();
                 const isLLCorDAB = pageTitle.includes('llc') || pageTitle.includes('dab');
 
-                // In LLC/DAB systems, the external resonant coil is optional (can be integrated into the transformer),
-                // so it does not contribute to the mandatory volume.
-                if (!isLLCorDAB || states.isCoilOnly) {
-                    volSelectsHtml += createVolSelect('selVolCoil', states.isFlyback ? (safeGetT('adv_pd_sel_flyback') || 'Flyback Nüvesi') : (safeGetT('adv_pd_sel_coil') || 'Bobin Nüvesi'), res.coilCores);
+                const hasExternalCoil = res.coilCores && res.coilCores.length > 0;
+
+                if (!isLLCorDAB || states.isCoilOnly || hasExternalCoil) {
+                    volSelectsHtml += createVolSelect(
+                        'selVolCoil',
+                        states.isFlyback ? (safeGetT('adv_pd_sel_flyback') || 'Flyback Nüvesi')
+                            : (safeGetT('adv_pd_sel_coil') || 'Harici Bobin Nüvesi'),
+                        res.coilCores
+                    );
                 }
             }
         }
@@ -2369,7 +2453,27 @@ window.runCustomThermalTest = function () {
         let cuLoss = 0;
 
         let Ae = core.Ae_mm2 || 100;
-        let MLT_mm = 4.5 * Math.sqrt(Ae);
+        let dimA = core.dim_A || 0;
+        let dimD = core.dim_D || 0;
+        let dimE = core.dim_E || 0;
+        let family = core.family || "E";
+        let w_width = 0;
+
+        if (family === "RM" || family === "PQ" || family === "PM") {
+            if (dimA > 0 && dimD > 0) w_width = (dimA - dimD) / 3;
+            else if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
+        } else {
+            if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
+            else if (dimA > 0 && dimD > 0) w_width = (dimA - 2 * dimD) / 2;
+        }
+
+        w_width = Math.max(0, w_width - 1.0);
+
+        const legPerimeter_mm = 4 * Math.sqrt(Ae);
+        let MLT_mm = legPerimeter_mm + (Math.PI * w_width);
+        if (w_width === 0) MLT_mm = 4.5 * Math.sqrt(Ae);
+
+        let MLT_m = MLT_mm / 1000;
         let n1 = core.n1_calc || core.n1 || 10;
         let n2 = core.n2_calc || Math.max(4, Math.floor(n1 / 2));
 
@@ -2433,8 +2537,8 @@ window.runCustomThermalTest = function () {
         const sw = res.switches[idx];
         const gateScales = !!gateScalesEl?.checked;
         selSwitchName = `${sw.name} (x${qty})${gateScales ? '' : ' - worst-case Psw'}`;
-        
-        switchLoss = (sw.p_cond_W / qty) + (gateScales ? sw.p_sw_W : sw.p_sw_W * Math.pow(qty, 2));
+
+        switchLoss = (sw.p_cond_W / qty) + (gateScales ? sw.p_sw_W : sw.p_sw_W * qty);
     } else {
         switchLoss = states.bestSwitchLoss;
     }
