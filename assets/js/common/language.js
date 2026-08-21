@@ -3,6 +3,7 @@
 
 const translations = {
     tr: {
+        adv_monte_carlo_switch: "Monte Carlo Analizi (1#)",
         adv_mc_no_data: "Lütfen önce standart termal testi çalıştırın.",
 		adv_only_known_stock: "Sadece Stok Bilinenler",
         adv_thermal_gate_scale_label: "Sürücü paralel adede göre güçlendirildi (anahtarlama kaybı sabit kalır)",
@@ -826,6 +827,7 @@ const translations = {
         chart_4_exp: "İlk iki grafiğin üst üste bindirilmiş halidir. Mavi kare dalga ile kırmızı kesik çizgili kare dalga arasındaki kayma miktarı, sistemin ne kadar güç aktaracağını belirlemektedir."
     },
     en: {
+        adv_monte_carlo_switch: "Monte Carlo Analysis (1#)",
         adv_mc_no_data: "Please run the standard thermal test first.",
 		adv_only_known_stock: "Only Known Stocks",
         adv_thermal_gate_scale_label: "Driver scaled with parallel count (switching loss stays constant)",
@@ -1647,6 +1649,7 @@ const translations = {
         chart_4_exp: "A superimposed version of the first two charts. The shift between the blue square wave and the red dashed square wave determines the amount of power to be transferred."
     },
     de: {
+        adv_monte_carlo_switch: "Monte Carlo Analyse (1#)",
         adv_mc_no_data: "Bitte führen Sie zuerst den standardisierten thermischen Test durch.",
 		adv_only_known_stock: "Nur bekannte Aktien",
         adv_thermal_gate_scale_label: "Treiber mit paralleler Anzahl skaliert (Schaltverlust bleibt konstant)",
