@@ -1614,7 +1614,13 @@ function renderAdvancedResults(res, skinDepthD, states) {
 
     const genCoreTable = (title, data) => {
         const bestCoreJson = (data && data.length > 0) ? encodeURIComponent(JSON.stringify(data[0])).replace(/'/g, "%27") : "{}";
-        let t = `<h4 class="section-title">${sanitizeHTML(title)}</h4><div class="table-responsive"><table class="adv-table">
+
+        let t = `
+            <div class="d-flex justify-content-between align-items-center mb-2 mt-3">
+                <h4 class="section-title" style="margin:0;">${sanitizeHTML(title)}</h4>
+                ${(data && data.length > 0) ? `<button class="btn btn-sm btn-outline-info fw-bold" onclick="window.runMonteCarloCore('${bestCoreJson}')">${sanitizeHTML(safeGetT('adv_monte_carlo_switch') || 'Monte Carlo Analizi (1#)')}</button>` : ''}
+            </div>
+            <div class="table-responsive"><table class="adv-table">
             <thead><tr>
                 <th>${sanitizeHTML(safeGetT('adv_tbl_rank') || 'Sıra')}</th><th>${sanitizeHTML(safeGetT('adv_tbl_core_name') || 'Nüve')}</th>
                 <th>${sanitizeHTML(safeGetT('adv_tbl_material') || 'Malzeme')}</th><th>${sanitizeHTML(safeGetT('adv_tbl_bobbin') || 'Karkas')}</th>
@@ -1646,7 +1652,6 @@ function renderAdvancedResults(res, skinDepthD, states) {
             }
 
             const lossColor = item.pv > 600 ? "#ef5350" : "#81c784";
-
             const formattedLossW = item.coreLossW < 0.01 ? "< 0.01 W" : `${item.coreLossW.toFixed(2)} W`;
             const formattedPv = item.pv < 1 ? "< 1" : item.pv.toFixed(0);
 
@@ -1716,7 +1721,12 @@ function renderAdvancedResults(res, skinDepthD, states) {
     };
 
     const genSwitchTable = (title, data) => {
-        let t = `<h4 class="section-title" style="color: #00AEEF; border-bottom-color: #00AEEF;">${sanitizeHTML(title)}</h4><div class="table-responsive"><table class="adv-table">
+        let t = `
+            <div class="d-flex justify-content-between align-items-center mb-2 mt-3">
+                <h4 class="section-title" style="color: #00AEEF; border-bottom-color: #00AEEF; margin:0;">${sanitizeHTML(title)}</h4>
+                <button class="btn btn-sm btn-outline-info fw-bold" onclick="window.runMonteCarloSwitch(0)">${sanitizeHTML(safeGetT('adv_monte_carlo_switch') || 'Monte Carlo Analizi (1#)')}</button>
+            </div>
+            <div class="table-responsive"><table class="adv-table">
             <thead><tr style="background-color: #004d40;">
                 <th>${sanitizeHTML(safeGetT('adv_tbl_rank') || 'Sıra')}</th><th>${sanitizeHTML(safeGetT('adv_tbl_semi_name') || 'Model')}</th>
                 <th>${sanitizeHTML(safeGetT('adv_tbl_semi_type') || 'Teknoloji')}</th><th>${sanitizeHTML(safeGetT('adv_tbl_semi_v_i') || 'V/I Rating')}</th>
@@ -1727,7 +1737,7 @@ function renderAdvancedResults(res, skinDepthD, states) {
             </tr></thead><tbody>`;
 
         if (!data || data.length === 0)
-            return t + `<tr><td colspan="8" style="color:#ef5350;padding:15px;">there is no switcing device for this voltage level</td></tr></tbody></table></div>`;
+            return t + `<tr><td colspan="8" style="color:#ef5350;padding:15px;">Bu voltaj seviyesi için uygun anahtarlama elemanı bulunamadı.</td></tr></tbody></table></div>`;
 
         data.forEach((item, index) => {
             let techColor = item.type.includes("GaN") ? "#b388ff" : (item.type.includes("SiC") ? "#8c9eff" : "#ffcc80");
@@ -2529,6 +2539,70 @@ window.runMonteCarloThermal = function () {
     document.body.removeChild(link);
 };
 
+window.runMonteCarloSwitch = function (switchIdx = 0) {
+    if (!lastOptimizationResults || !lastOptimizationResults.switches || lastOptimizationResults.switches.length === 0) {
+        return alert(safeGetT('adv_mc_no_switch') || "Anahtarlama elemanı verisi bulunamadı.");
+    }
+
+    const sw = lastOptimizationResults.switches[switchIdx];
+    const iterations = 1000;
+
+    const tolCond = 20; // Rds(on) / Vf tolerance
+    const tolSw = 20;   // Capacitance and E_on/E_off tolerances
+
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+    csvContent += `Iteration,Component,Conduction_Loss_Tolerance(%),Switching_Loss_Tolerance(%),Conduction_Loss(W),Switching_Loss(W),Total_Loss(W)\n`;
+
+    for (let i = 1; i <= iterations; i++) {
+        let pCond = window.mcValue(sw.p_cond_W, tolCond);
+        let pSw = window.mcValue(sw.p_sw_W, tolSw);
+        let pTot = pCond + pSw;
+
+        csvContent += `${i},${sw.name},±${tolCond},±${tolSw},${pCond.toFixed(3)},${pSw.toFixed(3)},${pTot.toFixed(3)}\n`;
+    }
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `MonteCarlo_Switch_${sw.name}_${iterations}_runs.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+window.runMonteCarloCore = function (coreDataString) {
+    if (!coreDataString || coreDataString === '{}') {
+        return alert(safeGetT('adv_mc_no_data') || "Nüve verisi bulunamadı.");
+    }
+
+    const core = JSON.parse(decodeURIComponent(coreDataString));
+    const iterations = 1000;
+
+    const tolBmax = 15;     // AL ve Ae tolerances (±15%)
+    const tolCoreLoss = 20; // Steinmetz (k, alpha, beta) tolerances and material property variations (±20%)
+    const tolCuLoss = 10;   // DCR and temperature coefficient tolerances (±10%)
+
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+    csvContent += `Iteration,Component,Bmax_Tolerance(%),Loss_Tolerance(%),Bmax(mT),Core_Loss(W),Copper_Loss(W),Total_Inductor_Loss(W)\n`;
+
+    for (let i = 1; i <= iterations; i++) {
+        let simBmax = window.mcValue(core.bmax, tolBmax);
+        let simCoreLoss = window.mcValue(core.coreLossW, tolCoreLoss);
+        let simCuLoss = window.mcValue(core.copperLossW, tolCuLoss);
+        let pTot = simCoreLoss + simCuLoss;
+
+        csvContent += `${i},${core.name},±${tolBmax},±${tolCoreLoss},${simBmax.toFixed(2)},${simCoreLoss.toFixed(3)},${simCuLoss.toFixed(3)},${pTot.toFixed(3)}\n`;
+    }
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `MonteCarlo_Core_${core.name}_${iterations}_runs.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
 // ================================================================
 // SMPSApp Namespace
 // The global window.* assignments are kept as-is for backward
@@ -2553,7 +2627,9 @@ Object.assign(window.SMPSApp, {
     runCustomThermalTest: window.runCustomThermalTest,
     downloadCustomThermalCSV: window.downloadCustomThermalCSV,
     updatePowerDensity: window.updatePowerDensity,
-    runMonteCarloThermal: window.runMonteCarloThermal
+    runMonteCarloThermal: window.runMonteCarloThermal,
+    runMonteCarloSwitch: window.runMonteCarloSwitch,
+    runMonteCarloCore: window.runMonteCarloCore
 });
 // Live access to state values that change at runtime:
 Object.defineProperties(window.SMPSApp, {
