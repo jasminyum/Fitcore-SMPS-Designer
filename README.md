@@ -24,6 +24,7 @@ A light browser-based calculation, optimization, and circuit-simulation tool for
 
 - **17 topology calculators** — separate pages for Buck, Boost, Buck-Boost, Ćuk, SEPIC, Zeta, Flyback, Forward (single/double transistor), Half-Bridge, Full-Bridge, LLC (Half/Full), DAB, PFC, transformer, and inductor design.
 - **Cloud-based magnetics optimization** — the `runSmpsOptimization` Cloud Function, running on Firebase Cloud Functions, picks the best combination from the core and wire database using fuzzy-weighted cost/efficiency/size targets, with per-topology duty-cycle (D1/D2) assumptions applied correctly (see [Architecture](#architecture)).
+- **Monte Carlo Tolerance Analysis** — run 1000-iteration statistical simulations to evaluate the impact of manufacturing tolerances (e.g., ±10-20% on core loss, switching loss, conduction loss, and thermal resistance) on thermal performance and magnetic saturation. Results are instantly exportable as CSV for yield and reliability analysis.
 - **3D core visualization** — a 3D render of the selected magnetic core via Three.js.
 - **Custom thermal analysis simulation** — a thermal test that runs against the core/switch combination actually selected by the optimizer, triggered from a separate modal (`window.openCustomThermalModal`) and downloadable as CSV.
 - **Embedded circuit simulator** — a live Falstad/CircuitJS circuit simulation can be opened from any topology page (the `falstad/` directory is a separate Java/GWT app).
