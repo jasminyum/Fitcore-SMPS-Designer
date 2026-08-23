@@ -1,5 +1,5 @@
 /**
-* ===========================================================================
+* ==============================================================================
 * HYBRID CORE LOSS MODEL & THEORETICAL BACKGROUND
 * ==============================================================================
 * This module uses an advanced Hybrid Core Loss Model to calculate magnetic core losses in non-sinusoidal, asymmetric, and temperature-variable conditions.
@@ -7,41 +7,58 @@
 *
 * 1. iGSE (Improved Generalized Steinmetz Equation) and k_i Calculation:
 * - Losses for non-sinusoidal (triangular, square, etc.) waveforms are calculated using the iGSE
-* approach [cite: 15, 24].
+* approach.
 * - The numerical integral (I_a) required to find the k_i constant is solved analytically using Gamma functions in a way that perfectly matches the definition 
-* in the original articles [cite: 15, 24].
+* in the original articles.
 *
 * 2. Duty Cycle Asymmetry and DT-IGSE:
 * - Standard iGSE loses its accuracy
 * at extremely asymmetric duty cycles (D != 0.5). To compensate for this, in the DT-IGSE (Duty-Temperature IGSE) model,
-* the proposed asymmetry weighting factor (D_sym) is integrated into the equation [cite: 18, 27].
+* the proposed asymmetry weighting factor (D_sym) is integrated into the equation.
 *
 * 3. Trapezoidal Flux and Relaxation Losses:
-* - In topologies containing dead-time or "zero voltage" periods such as DAB and LLC, additional losses arise from magnetic relaxation [cite: 16, 25].
-* - Asymmetry multipliers and effective waveform parameters are designed to compensate for these "off-time" relaxation effects [cite: 16, 25].
+* - In topologies containing dead-time or "zero voltage" periods such as DAB and LLC, additional losses arise from magnetic relaxation.
+* - Asymmetry multipliers and effective waveform parameters are designed to compensate for these "off-time" relaxation effects.
 *
-* 4. Temperature Dependence and Multiplicative Correction:
+* 4. Temperature Dependence and Additive Correction:
 * - Core losses are highly dependent on temperature (T_op). Empirical loss modeling
-* In accordance with the literature, second-order polynomial corrections and empirical parabolic formulas for MnZn cores have been used [cite: 13, 22].
-* - In addition; the temperature factor was proposed as "additive" (+ TEMP) in the original DT-IGSE article, which leads to an error that produces losses 
-* even at zero flux [cite: 18, 27]. In this module, the theory in question has been transformed into a "multiplicative" form (DT_TEMP_multiplier) through 
-* engineering optimization, ensuring 100% physical consistency.
+* In accordance with the literature, second-order polynomial corrections and empirical parabolic formulas for MnZn cores have been used.
+* - The DT-IGSE temperature term (TEMP = temp_a * T_op^temp_b) is applied additively, matching the form its
+* coefficients were fitted against in the original DT-IGSE article. The zero-flux artifact this term can otherwise
+* cause (nonzero loss at zero flux swing) is instead handled by a dedicated delta_B<=0 early return, so the
+* additive form does not need to be distorted into a multiplicative one to stay physically consistent.
 *
 *
 * REFERENCES:
 * [1] Mühlethaler, J., Biela, J., Kolar, J. W., & Ecklebe, A. (2012). "Improved 
 *     Core-Loss Calculation for Magnetic Components Employed in Power Electronic 
-*     Systems." IEEE Transactions on Power Electronics[cite: 15, 24].
+*     Systems." IEEE Transactions on Power Electronics.
 * [2] Wang, Y., Liu, X., & Li, J. (2026). "Improved equations for core loss prediction 
 *     under asymmetric triangular excitation waveforms based on improved generalized 
-*     Steinmetz equation." Journal of Magnetism and Magnetic Materials[cite: 18, 27].
+*     Steinmetz equation." Journal of Magnetism and Magnetic Materials.
 * [3] Barg, S., & Bertilsson, K. (2021). "Core Loss Calculation of Symmetric Trapezoidal 
-*     Magnetic Flux Density Waveform." IEEE Open Journal of Power Electronics[cite: 16, 25].
+*     Magnetic Flux Density Waveform." IEEE Open Journal of Power Electronics.
 * [4] Ridley, R., & Nace, A. (2006). "Modeling Ferrite Core Losses." 
-*     Switching Power Magazine[cite: 13, 22].
+*     Switching Power Magazine.
 * [5] Zhang, W., Yang, Q., Li, Y., Lin, Z., & Yang, M. (2022). "Temperature Dependence 
 *     of Powder Cores Magnetic Properties for Medium-Frequency Applications." 
-*     IEEE Transactions on Magnetics[cite: 17, 26].
+*     IEEE Transactions on Magnetics.
+* [6] Bin, C. (2019). "Design optimisation of an inductor-integrated MF transformer 
+*     for a high-power isolated dual-active-bridge DC-DC converter." 
+*     IET Power Electronics[cite: 15].
+* [7] Zhang, Z., & Andersen, M. A. E. (2016). "High Frequency AC Inductor Analysis 
+*     and Design for Dual Active Bridge (DAB) Converters." 
+*     Proceedings of IEEE Applied Power Electronics Conference[cite: 16].
+* [8] Zengin, S., & Boztepe, M. "Trapezoid Current Modulated DCM AC/DC DAB Converter 
+*     for Two-Stage Solid State Transformer." 
+*     Ege University[cite: 17].
+* [9] Janghorban, S., Teixeira, C., Holmes, D. G., & McGoldrick, P. "Magnetics Design 
+*     for a 2.5-kW Battery Charger." 
+*     RMIT University & Creative Power Technologies[cite: 18].
+* [10] Shimizu, T. (2023). "Loss Evaluation of Magnetic Devices Used in Power Converters." 
+*      IEEJ Transactions on Electrical and Electronic Engineering[cite: 19].
+* [11] Gao, S., & Zhao, Z. (2020). "Magnetic Integrated LLC Resonant Converter Based 
+*      on Independent Inductance Winding." IEEE Access[cite: 20].
 * ============================================================================
 */
 
@@ -240,40 +257,46 @@ function getEffectiveWaveformParams(topology, mode, D_switch, extra = {}) {
         case "buck": case "boost": case "buckboost":
         case "flyback": case "forward": case "pushpull":
         case "sepic": case "cuk": case "zeta":
-            if (mode === "CCM") return { D1: safeD, D2: 1 - safeD, confidence: "high", note: "CCM: switch duty cycle is used directly." };
+            if (mode === "CCM") return { D1: safeD, D2: 1 - safeD, Dz: 0, confidence: "high", note: "CCM: switch duty cycle is used directly." };
             if (mode === "DCM" || mode === "CRM") {
                 const D1 = extra.D1 ?? safeD;
                 const D2 = extra.D2 ?? Math.max(0.05, 1 - D1);
-                return { D1: D1, D2: D2, confidence: "medium", note: `DCM/CRM: active flux segments (D1=${D1.toFixed(2)}, D2=${D2.toFixed(2)}) used directly; zero-current interval is assumed lossless.` };
+                const Dz = Math.max(0, 1 - (D1 + D2));
+                return { D1: D1, D2: D2, Dz: Dz, confidence: "medium", note: `DCM/CRM: active flux segments used directly; relaxation period Dz=${Dz.toFixed(2)}.` };
             }
-            return { D1: safeD, D2: 1 - safeD, confidence: "low", note: "Mode could not be detected, CCM assumed." };
-        case "bridge": return { D1: 0.5, D2: 0.5, confidence: "high", note: "Bridge topology: symmetrical square wave." };
+            return { D1: safeD, D2: 1 - safeD, Dz: 0, confidence: "low", note: "Mode could not be detected, CCM assumed." };
+        case "bridge": return { D1: 0.5, D2: 0.5, Dz: 0, confidence: "high", note: "Bridge topology: symmetrical square wave." };
         case "llc": {
             const fr_ratio = extra.f_sw_over_fr || 1.0;
             const llcMode = extra.llcMode || (Math.abs(fr_ratio - 1) < 0.01 ? "at" : (fr_ratio < 1 ? "below" : "above"));
+
             if (llcMode === "at") {
-                return { D1: 0.5, D2: 0.5, confidence: "medium", note: "LLC at resonance point: flux waveform is close to sinusoidal, iGSE may give slightly conservative results." };
+                return { D1: 0.5, D2: 0.5, Dz: 0, confidence: "high", note: "LLC at resonance: flux waveform is quasi-sinusoidal." };
             } else if (llcMode === "below") {
-                return { D1: 0.5, D2: 0.5, confidence: "medium", note: "Below resonance LLC: continuous symmetric flux with frequency modulation." };
+                return { D1: 0.5, D2: 0.5, Dz: 0, confidence: "high", note: "Below resonance LLC: Lm+Lr resonance active, continuous moving flux (no relaxation)." };
             } else {
-                return { D1: 0.5, D2: 0.5, confidence: "medium", note: "Above resonance LLC: sinusoidal segments." };
+                return { D1: 0.5, D2: 0.5, Dz: 0, confidence: "high", note: "Above resonance LLC: continuous quasi-sinusoidal segments." };
             }
         }
         case "dab": {
             const phaseShift = extra.phaseShift || 0;
-            const modulation = extra.dabMode || "sps";
-            const estD = Math.max(0.1, Math.min(0.9, 0.5 - phaseShift * 0.2));
+            const modulation = (extra.dabMode || "sps").toLowerCase();
+
             if (modulation === "sps") {
-                return { D1: 0.5, D2: 0.5, confidence: "high", note: "DAB-SPS: both bridges generate a constant 50% duty cycle." };
+                return { D1: 0.5, D2: 0.5, Dz: 0, confidence: "high", note: "DAB-SPS: Pure 50% square wave. Phase shift controls power, no zero-voltage period on transformer." };
             } else {
-                return { D1: estD, D2: 1 - estD, confidence: "medium", note: `DAB-${modulation.toUpperCase()} active.` };
+                const inner_shift = phaseShift * 0.5;
+                const actD = Math.max(0.1, 0.5 - inner_shift);
+                const dz_est = Math.max(0, 1 - (2 * actD));
+
+                return { D1: actD, D2: actD, Dz: dz_est, confidence: "medium", note: `DAB-${modulation.toUpperCase()}: Intra-bridge phase shift creates symmetrical zero-voltage steps (Dz=${dz_est.toFixed(2)}).` };
             }
         }
-        default: return { D1: 0.5, D2: 0.5, confidence: "low", note: "Unknown topology, default D1=D2=0.5 used." };
+        default: return { D1: 0.5, D2: 0.5, Dz: 0, confidence: "low", note: "Unknown topology, default D1=D2=0.5 used." };
     }
 }
 
-function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT, T_op, wfMeta = {}, matParams = {}) {
+function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT, T_op, wfMeta = {}, matParams = {}, matData = null) {
     const I_a = calculate_Ia(alpha);
     const k_i = k_steinmetz / (Math.pow(2, beta - alpha) * Math.pow(2 * Math.PI, alpha - 1) * I_a);
 
@@ -296,18 +319,30 @@ function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT,
 
     let D1 = Math.max(0.001, Math.min(0.999, wfMeta.D1 ?? 0.5));
     let D2 = Math.max(0.001, Math.min(0.999, wfMeta.D2 ?? 0.5));
+    let Dz = wfMeta.Dz ?? Math.max(0, 1.0 - (D1 + D2));
 
     if (D1 + D2 > 1.0) {
-        const sum = D1 + D2;
-        D1 /= sum;
-        D2 /= sum;
+        const sum = D1 + D2; D1 /= sum; D2 /= sum; Dz = 0;
     }
 
     const D_sym = D1 <= 0.5 ? D1 : (1 - D1);
     const gamma_factor = matParams.gamma ?? 0;
     const duty_correction = Math.pow(D_sym, -gamma_factor);
 
-    const base_waveform_factor = Math.pow(D1, 1 - alpha) + Math.pow(D2, 1 - alpha);
+    const safe_Dz = Math.min(0.95, Dz);
+    let base_waveform_factor = Math.pow(D1, 1 - alpha) + Math.pow(D2, 1 - alpha);
+
+    let tau_str = "0";
+    if (Dz > 0 && matData) {
+        const tau = getDynamicRelaxationTau(matData, f_Hz);
+        if (tau > 0) {
+            tau_str = tau.toExponential(3);
+            const Tz = Dz / f_Hz;
+            const relaxation_factor = Math.pow((Tz / tau), (beta - alpha)) * (matParams.relax_scale || 0.1);
+            base_waveform_factor += relaxation_factor;
+        }
+    }
+
     const corrected_waveform_factor = base_waveform_factor * duty_correction;
 
     // Temperature Multiplier (K_t)
@@ -319,14 +354,16 @@ function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT,
     }
     if (K_t <= 0.1) K_t = 0.1;
 
-    // DT-IGSE Temperature Correction (Multiplicative)
+    // DT-IGSE Temperature Correction (Additive, per source paper Eq. 16 —
+    // the zero-flux artifact this used to be converted to avoid is already
+    // handled by the delta_B_Tesla<=0 early return above)
     const temp_a = matParams.temp_a ?? 0;
     const temp_b = matParams.temp_b ?? 1;
-    const DT_TEMP_multiplier = 1 + (temp_a * Math.pow(T_op, temp_b));
+    const TEMP_W_m3 = temp_a * Math.pow(T_op, temp_b);
 
     // Final Volumetric Loss
     let Pv_W_m3 = k_i * Math.pow(delta_B_Tesla, beta) * Math.pow(f_Hz, alpha) * corrected_waveform_factor;
-    Pv_W_m3 = Pv_W_m3 * K_t * DT_TEMP_multiplier;
+    Pv_W_m3 = (Pv_W_m3 * K_t) + TEMP_W_m3;
 
     const Pv_mW_cm3 = Pv_W_m3 / 1000;
 
@@ -336,11 +373,11 @@ function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT,
         breakdown: {
             k: k_steinmetz, alpha, beta, I_a: I_a.toFixed(4), k_i: k_i.toExponential(4),
             K_t: K_t.toFixed(3), delta_B_T: delta_B_Tesla.toFixed(4), f_kHz: f_kHz.toFixed(1),
-            D_used: `D1:${D1.toFixed(3)}, D2:${D2.toFixed(3)}`,
+            D_used: `D1:${D1.toFixed(3)}, D2:${D2.toFixed(3)}, Dz:${Dz.toFixed(3)}`,
             waveform_factor: corrected_waveform_factor.toFixed(4),
             gamma_used: gamma_factor.toFixed(3),
             confidence: wfMeta.confidence || "high",
-            note: (wfMeta.note || "") + " Real DB temperature correction applied with pure SI k coefficient.",
+            note: (wfMeta.note || "") + ` i2GSE Relaxation applied (Tau=${tau_str}).`,
             final_Pv: Pv_mW_cm3.toFixed(2)
         }
     };
@@ -569,8 +606,8 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     gamma: parseFloat(dbMatParams.gamma) || 0.0,
                     temp_a: parseFloat(dbMatParams.temp_a) || 0.0,
                     temp_b: parseFloat(dbMatParams.temp_b) || 1.0,
-                    isMnZn: (matData?.materialComposition || "").toLowerCase().includes("mnzn") ||
-                        (materialLower.includes("mnzn") && isFallback)
+                    isMnZn: (matData?.materialComposition || "").toLowerCase().includes("mnzn") || (materialLower.includes("mnzn") && isFallback),
+                    relax_scale: parseFloat(dbMatParams.relax_scale) || (isPowderCore ? 0.15 : ((matData?.materialComposition || "").toLowerCase().includes("nizn") ? 0.05 : 0.1))
                 };
 
                 // Skip if missing critical Steinmetz data
@@ -645,6 +682,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 } else if (type === "volume") {
                     const Ve_mm3 = Aele * 1e9;
                     actualReqVal = reqVal;
+
                     if (Ve_mm3 >= reqVal) {
                         const deltaB_satCeiling = 2 * dynamic_B_sat_T * 0.85;
                         const targetPv_mW_cm3 = 300; // mW/cm³
@@ -655,12 +693,32 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
 
                         let D1 = Math.max(0.001, Math.min(0.999, wf.D1 ?? 0.5));
                         let D2 = Math.max(0.001, Math.min(0.999, wf.D2 ?? 0.5));
-                        if (D1 + D2 > 1.0) { const sum = D1 + D2; D1 /= sum; D2 /= sum; }
+                        let Dz = wf.Dz ?? Math.max(0, 1.0 - (D1 + D2)); // dead-time relaxation period
+
+                        if (D1 + D2 > 1.0) {
+                            const sum = D1 + D2;
+                            D1 /= sum;
+                            D2 /= sum;
+                            Dz = 0;
+                        }
 
                         const D_sym = D1 <= 0.5 ? D1 : (1 - D1);
                         const gamma_factor = matParams.gamma ?? 0;
                         const duty_correction = Math.pow(D_sym, -gamma_factor);
-                        const waveform_factor = (Math.pow(D1, 1 - matParams.alpha) + Math.pow(D2, 1 - matParams.alpha)) * duty_correction;
+
+                        const safe_Dz_sizing = Math.min(0.95, Dz);
+                        let base_waveform_factor = Math.pow(D1, 1 - matParams.alpha) + Math.pow(D2, 1 - matParams.alpha);
+
+                        if (Dz > 0 && matData) {
+                            const tau = getDynamicRelaxationTau(matData, f_sw_hz);
+                            if (tau > 0) {
+                                const Tz = Dz / f_sw_hz;
+                                const relaxation_factor = Math.pow((Tz / tau), (matParams.beta - matParams.alpha)) * (matParams.relax_scale || 0.1);
+                                base_waveform_factor += relaxation_factor;
+                            }
+                        }
+
+                        const waveform_factor = base_waveform_factor * duty_correction;
 
                         let K_t = 1.0;
                         if (matParams.ct0 !== null && matParams.ct0 !== undefined) {
@@ -672,11 +730,11 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
 
                         const temp_a = matParams.temp_a ?? 0;
                         const temp_b = matParams.temp_b ?? 1;
-                        const DT_TEMP_multiplier = 1 + (temp_a * Math.pow(T_op, temp_b));
+                        const TEMP_W_m3 = temp_a * Math.pow(T_op, temp_b);
 
-                        const denom = k_i * Math.pow(f_kHz * 1000, matParams.alpha) * waveform_factor * K_t * DT_TEMP_multiplier;
+                        const denom = k_i * Math.pow(f_kHz * 1000, matParams.alpha) * waveform_factor * K_t;
 
-                        const deltaB_lossTarget = Math.pow(targetPv_W_m3 / denom, 1 / matParams.beta);
+                        const deltaB_lossTarget = Math.pow(Math.max(0, targetPv_W_m3 - TEMP_W_m3) / denom, 1 / matParams.beta);
                         const deltaB_limit_new = Math.min(deltaB_satCeiling, Number.isFinite(deltaB_lossTarget) && deltaB_lossTarget > 0 ? deltaB_lossTarget : deltaB_satCeiling);
 
                         if (volt_sec > 0) {
@@ -792,7 +850,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     utilizationRatio = actualReqVal / (Aele * 1e9);
                 }
 
-                const igseResult = calculateLoss_iGSE_Dynamic(matParams.k, matParams.alpha, matParams.beta, f_kHz, delta_B_mT, T_op, wf, matParams);
+                const igseResult = calculateLoss_iGSE_Dynamic(matParams.k, matParams.alpha, matParams.beta, f_kHz, delta_B_mT, T_op, wf, matParams, matData);
                 const Pv_mW_cm3 = igseResult.Pv_mW_cm3;
                 const Pv_W_m3 = igseResult.Pv_W_m3;
 
@@ -947,9 +1005,9 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
 
     const BASE_LOSS_W = 0.1;
     const weights = getFuzzyWeights(mode);
-    
+
     const validCandidates = candidates.filter(c => !c.windowExceeded);
-    
+
     const refCandidates = validCandidates.length > 0 ? validCandidates : candidates;
 
     let calcMinCost = Infinity, calcMaxCost = 0, calcMinLoss = Infinity, calcMinVol = Infinity;
@@ -1090,6 +1148,28 @@ function interp1(xs, ys, xq, scaleToZero = false) {
         }
     }
     return pts[pts.length - 1][1];
+}
+
+// tau calculation based on complex permeability data
+function getDynamicRelaxationTau(matData, f_sw_hz) {
+    if (!matData || !matData.permeability || !matData.permeability.complex) return 0;
+
+    const complexPerm = matData.permeability.complex;
+    if (!complexPerm.real || !complexPerm.imaginary) return 0;
+
+    const freqs_real = complexPerm.real.map(d => d.frequency);
+    const vals_real = complexPerm.real.map(d => d.value);
+
+    const freqs_imag = complexPerm.imaginary.map(d => d.frequency);
+    const vals_imag = complexPerm.imaginary.map(d => d.value);
+
+    const mu_real = interp1(freqs_real, vals_real, f_sw_hz);
+    const mu_imag = interp1(freqs_imag, vals_imag, f_sw_hz);
+
+    if (mu_real && mu_imag && mu_real > 0) {
+        return mu_imag / (2 * Math.PI * f_sw_hz * mu_real);
+    }
+    return 0;
 }
 
 function findClosestEntry(entries, targets) {
