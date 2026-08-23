@@ -405,8 +405,16 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 const gappingInfo = core.functionalDescription?.gapping;
                 const coreName = (core.name || "").toLowerCase();
                 const materialLower = (core.functionalDescription?.material || "").toLowerCase();
-                const isPowderCore = /kool|sendust|iron|powder|mpp|flux|edge|mix\s*\d+|ms\s*\d+|\bms\b|fs\s*\d+|\bfs\b|hf\s*\d+|\bhf\b|cs\s*\d+|\bcs\b|hs\s*\d+|\bhs\b|\bj\b|permalloy|carbonyl|optilloy/i.test(materialLower) ||
-                    /kool|sendust|iron|powder|mpp|flux|edge|mix\s*\d+|ms\s*\d+|\bms\b|fs\s*\d+|\bfs\b|hf\s*\d+|\bhf\b|cs\s*\d+|\bcs\b|hs\s*\d+|\bhs\b|\bj\b|permalloy|carbonyl|optilloy/i.test(coreName);
+
+                const isPowderCore = /kool|sendust|iron|powder|mpp|flux|edge|mix\s*\d+|ms\s*\d+|\bms\b|fs\s*\d+|\bfs\b|hf\s*\d+|\bhf\b|cs\s*\d+|\bcs\b|hs\s*\d+|\bhs\b|permalloy|carbonyl|optilloy/i.test(materialLower) ||
+                    /kool|sendust|iron|powder|mpp|flux|edge|mix\s*\d+|ms\s*\d+|\bms\b|fs\s*\d+|\bfs\b|hf\s*\d+|\bhf\b|cs\s*\d+|\bcs\b|hs\s*\d+|\bhs\b|permalloy|carbonyl|optilloy/i.test(coreName);
+
+                const isEmiFerrite = /\bj\b|\bw\b|\bt38\b|\bn30\b|h5k|h7k|h10k/i.test(materialLower) ||
+                    /\bj\b|\bw\b|\bt38\b|\bn30\b|h5k|h7k|h10k/i.test(coreName);
+
+                if (isEmiFerrite) {
+                    return;
+                }
 
                 if ((componentType === "trafo" || componentType === "linear_trafo") && isPowderCore) {
                     return;
