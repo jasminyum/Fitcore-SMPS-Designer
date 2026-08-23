@@ -870,9 +870,13 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 const lossFactor = core_loss_W;
                 const totalLossW = core_loss_W + copper_loss_W;
 
+                if (Pv_mW_cm3 > 1200 || totalLossW > 150) {
+                    return;
+                }
+
                 let overLossPenalty = 1.0;
                 if (Pv_mW_cm3 > 600) {
-                    overLossPenalty = 0.02;
+                    overLossPenalty = 0.05;
                 }
 
                 let lowestCost = null;
@@ -989,6 +993,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     windowAreaSource: "dims",
                     windowPenalty: windowPenalty,
                     windowExceeded: windowExceeded,
+                    overLossPenalty: overLossPenalty,
                     l_target_H: (type === "energy" && L_H > 0) ? L_H : null,
                     l_actual_H: l_actual_H > 0 ? l_actual_H : null,
                     l_deviation_pct: l_actual_H > 0 ? l_deviation_pct : null,
@@ -1096,7 +1101,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
         const effectiveScoreEff = Math.min(1.0, scoreEff * matSuitability);
 
         let rawFuzzyScore = ((weights.cost * scoreCost) + (weights.size * scoreSize) + (weights.eff * effectiveScoreEff)) * 100;
-        c.fuzzyScore = Math.min(100, (rawFuzzyScore * overSizePenalty) / (c.windowPenalty || 1.0));
+        c.fuzzyScore = Math.min(100, (rawFuzzyScore * overSizePenalty * (c.overLossPenalty || 1.0)) / (c.windowPenalty || 1.0));
     });
 
     candidates.sort((a, b) => b.fuzzyScore - a.fuzzyScore);
