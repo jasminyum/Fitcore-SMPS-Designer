@@ -384,9 +384,6 @@ function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT,
 }
 
 async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, volt_sec, gapRequirement, componentType, dbData, staticDbsPayload, pri_Irms = 0, turnsRatio = 0, topology = "unknown", smpsMode = "CCM", D_switch = 0.5, extraModeParams = {}) {
-    if ((componentType === "trafo" || componentType === "linear_trafo") && isPowderCore) {
-        return;
-    }
 
     let candidates = [];
 
@@ -408,7 +405,13 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 const gappingInfo = core.functionalDescription?.gapping;
                 const coreName = (core.name || "").toLowerCase();
                 const materialLower = (core.functionalDescription?.material || "").toLowerCase();
-                const isPowderCore = materialLower.includes("kool mu") || materialLower.includes("sendust") || materialLower.includes("iron") || materialLower.includes("mpp") || materialLower.includes("flux") || materialLower.includes("edge");
+                const isPowderCore = /kool|sendust|iron|powder|mpp|flux|edge|mix\s*\d+|ms\s*\d+|\bms\b|fs\s*\d+|\bfs\b|hf\s*\d+|\bhf\b|cs\s*\d+|\bcs\b|hs\s*\d+|\bhs\b|\bj\b|permalloy|carbonyl|optilloy/i.test(materialLower) ||
+                    /kool|sendust|iron|powder|mpp|flux|edge|mix\s*\d+|ms\s*\d+|\bms\b|fs\s*\d+|\bfs\b|hf\s*\d+|\bhf\b|cs\s*\d+|\bcs\b|hs\s*\d+|\bhs\b|\bj\b|permalloy|carbonyl|optilloy/i.test(coreName);
+
+                if ((componentType === "trafo" || componentType === "linear_trafo") && isPowderCore) {
+                    return;
+                }
+
                 let isGapped = false;
 
                 if (gappingInfo && gappingInfo.length > 0) isGapped = true;
@@ -581,15 +584,20 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     const comp = (matData?.materialComposition || "").toLowerCase();
                     const mName = (matData?.name || materialName).toLowerCase();
 
-                    // Assign generic Steinmetz parameters based on material properties - Pure SI Units from Datasheets
-                    if (comp.includes("nizn") || mName.includes("61") || mName.includes("4f1")) {
-                        dbMatParams = { k: 7.9244e-5, alpha: 1.6, beta: 2.6 };
-                    } else if (comp.includes("mnzn") || mName.includes("3c") || mName.includes("n87") || mName.includes("n97")) {
-                        dbMatParams = { k: 1.6917e-5, alpha: 1.65, beta: 2.5 };
+                    // Assign generic Steinmetz parameters based on material properties (Corrected multipliers for Hz, Tesla -> W/m³)
+                    const matString = comp + " " + mName;
+
+                    if (/nizn|\b43\b|\b52\b|\b61\b|\b67\b|4f\d|4s\d/i.test(matString)) {
+                        dbMatParams = { k: 0.79244, alpha: 1.6, beta: 2.6 };
+
+                    } else if (/mnzn|3c\d*|3f\d*|n27|n49|n87|n92|n95|n97|n99|pc\d+|tp\d+|mb\d+|ml\d+|\bp[45]\d*|\b7[789]\b/i.test(matString)) {
+                        dbMatParams = { k: 0.16917, alpha: 1.65, beta: 2.5 };
+
                     } else if (isPowderCore) {
-                        dbMatParams = { k: 1.8974e-3, alpha: 1.5, beta: 2.2 };
+                        dbMatParams = { k: 18.974, alpha: 1.5, beta: 2.2 };
+
                     } else {
-                        dbMatParams = { k: 7.9244e-5, alpha: 1.6, beta: 2.5 }; // General fallback
+                        dbMatParams = { k: 0.16917, alpha: 1.65, beta: 2.5 };
                     }
                     matAbsMinFreq = 10000;
                     matAbsMaxFreq = 1000000;
