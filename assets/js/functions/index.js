@@ -384,6 +384,10 @@ function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT,
 }
 
 async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, volt_sec, gapRequirement, componentType, dbData, staticDbsPayload, pri_Irms = 0, turnsRatio = 0, topology = "unknown", smpsMode = "CCM", D_switch = 0.5, extraModeParams = {}) {
+    if ((componentType === "trafo" || componentType === "linear_trafo") && isPowderCore) {
+        return;
+    }
+
     let candidates = [];
 
     let minCost = Infinity, maxCost = 0, minLoss = Infinity, minVol = Infinity;
@@ -742,7 +746,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                             delta_B_mT = (volt_sec / (N1_calc * Ae)) * 1000;
                             Bmax_calc_mT = delta_B_mT / 2;
                         } else {
-                            delta_B_mT = Math.round(deltaB_limit_new * 1000);
+                            delta_B_mT = deltaB_limit_new * 1000;
                             Bmax_calc_mT = delta_B_mT / 2;
                         }
 
