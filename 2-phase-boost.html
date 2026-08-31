@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title data-i18n="card_interleaved_title">2-Phase Interleaved Boost Converter</title>
+    <meta content="" name="description">
+    <meta content="" name="keywords">
+    <meta property="og:title" content="">
+    <meta property="og:image" content="">
+    <meta property="og:url" content="">
+    <meta property="og:site_name" content="">
+    <meta property="og:description" content="">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:site" content="">
+    <meta name="twitter:title" content="">
+    <meta name="twitter:description" content="">
+    <meta name="twitter:image" content="">
+    <link href="assets/img/favicon.png" rel="icon">
+    <link href="assets/img/apple-touch-icon.png" rel="apple-touch-icon">
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,700,700i%7CRaleway:300,400,500,700,800"
+          rel="stylesheet">
+    <link href="assets/vendor/aos/aos.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+    <link href="assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
+    <link href="assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
+    <link href="assets/css/style.css" rel="stylesheet">
+    <link href="assets/css/design.css" rel="stylesheet">
+</head>
+<body>
+    <header id="header" class="d-flex align-items-center">
+        <div class="container d-flex align-items-center justify-content-between">
+            <a href="index.html" class="logo mr-auto"><img src="assets/img/logo.png" alt=""></a>
+            <nav id="navbar" class="navbar">
+                <ul>
+                    <li><a class="nav-link scrollto active" href="index.html" data-i18n="nav_home">Anasayfa</a></li>
+                    <li><a class="nav-link scrollto" href="yardim.html" data-i18n="nav_help">Yardım</a></li>
+                    <li><a class="nav-link scrollto" href="index.html#contact" data-i18n="nav_feedback">Feedback Formu</a></li>
+                    <li id="language" class="dropdown">
+                        <a href="javascript:void(0);" onclick="this.parentElement.classList.toggle('mobile-active');">
+                            <span>🌍 Dil / Language</span> <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <ul>
+                            <li><a href="javascript:void(0);" onclick="changeLanguage('tr');">🇹🇷 Türkçe</a></li>
+                            <li><a href="javascript:void(0);" onclick="changeLanguage('en');">🇬🇧 English</a></li>
+                            <li><a href="javascript:void(0);" onclick="changeLanguage('de');">🇩🇪 Deutsch</a></li>
+                        </ul>
+                    </li>
+                </ul>
+                <i class="bi bi-list mobile-nav-toggle"></i>
+            </nav>
+        </div>
+    </header>
+    <main id="main">
+        <section class="breadcrumbs">
+            <div class="container">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2 data-i18n="card_interleaved_title">2-Phase Interleaved Boost Converter Hesapla</h2>
+                    <ol>
+                        <li data-i18n="nav_home"><a href="index.html">Anasayfa</a></li>
+                        <li data-i18n="interleaved_breadcrumb">Interleaved Boost</li>
+                    </ol>
+                </div>
+            </div>
+        </section>
+        <section class="inner-page">
+            <div id="container">
+                <div class="row">
+                    <div class="col-md-4 d-flex align-items-center justify-content-center p-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 750 320" style="width: 100%; height: auto; max-width: 750px;">
+                            <defs>
+                                <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                                    <polygon points="0 0, 8 3, 0 6" fill="#00AEEF" />
+                                </marker>
+                                <style>
+                                    .wire {
+                                        fill: none;
+                                        stroke: var(--text-main, #e0e0e0);
+                                        stroke-width: 2.5;
+                                        stroke-linecap: round;
+                                        stroke-linejoin: round;
+                                    }
+
+                                    .node {
+                                        fill: var(--text-main, #e0e0e0);
+                                    }
+
+                                    .comp-fill {
+                                        fill: var(--text-main, #e0e0e0);
+                                    }
+
+                                    .arrow-line {
+                                        fill: none;
+                                        stroke: #00AEEF;
+                                        stroke-width: 3.5;
+                                        marker-end: url(#arrowhead);
+                                    }
+
+                                    .svg-label {
+                                        fill: var(--text-main, #e0e0e0);
+                                        font-family: 'Segoe UI', Arial, sans-serif;
+                                        font-size: 16px;
+                                        font-weight: 500;
+                                    }
+
+                                    .cyan-label {
+                                        fill: #00AEEF;
+                                        font-family: 'Segoe UI', Arial, sans-serif;
+                                        font-size: 16px;
+                                        font-weight: 700;
+                                    }
+                                </style>
+                            </defs>
+
+                            <!-- Ground Wire -->
+                            <line x1="50" y1="280" x2="680" y2="280" class="wire" />
+
+                            <!-- Input Source (Vin) -->
+                            <circle cx="50" cy="175" r="25" class="wire" />
+                            <line x1="45" y1="162" x2="55" y2="162" class="wire" stroke-width="2" />
+                            <line x1="50" y1="157" x2="50" y2="167" class="wire" stroke-width="2" />
+                            <line x1="45" y1="188" x2="55" y2="188" class="wire" stroke-width="2" />
+                            <text x="30" y="210" text-anchor="end" class="cyan-label">Vin</text>
+
+                            <!-- Input Connections -->
+                            <line x1="50" y1="150" x2="50" y2="120" class="wire" />
+                            <line x1="50" y1="200" x2="50" y2="280" class="wire" />
+                            <line x1="50" y1="120" x2="100" y2="120" class="wire" />
+                            <line x1="100" y1="70" x2="100" y2="170" class="wire" />
+                            <circle cx="100" cy="120" r="4.5" class="node" />
+
+                            <!-- Branch 1 (Top) -->
+                            <line x1="100" y1="70" x2="120" y2="70" class="wire" />
+                            <polyline points="120,70 125,60 135,80 145,60 155,80 160,70" class="wire" /> <!-- rL1 -->
+                            <text x="140" y="45" text-anchor="middle" class="svg-label">rL1</text>
+
+                            <line x1="160" y1="70" x2="190" y2="70" class="wire" />
+                            <path d="M 190 70 A 12 12 0 0 1 214 70 A 12 12 0 0 1 238 70 A 12 12 0 0 1 262 70 A 12 12 0 0 1 286 70" class="wire" /> <!-- L1 -->
+                            <text x="200" y="50" text-anchor="middle" class="svg-label">L1</text>
+
+                            <line x1="286" y1="70" x2="330" y2="70" class="wire" />
+                            <circle cx="330" cy="70" r="4.5" class="node" />
+                            <line x1="330" y1="70" x2="370" y2="70" class="wire" />
+
+                            <!-- MOSFET Q1 -->
+                            <line x1="330" y1="70" x2="330" y2="95" class="wire" />
+                            <line x1="330" y1="95" x2="320" y2="95" class="wire" />
+                            <line x1="330" y1="135" x2="330" y2="280" class="wire" />
+                            <line x1="330" y1="135" x2="320" y2="135" class="wire" />
+                            <line x1="320" y1="95" x2="320" y2="135" class="wire" />
+                            <line x1="310" y1="95" x2="310" y2="135" class="wire" />
+                            <line x1="310" y1="115" x2="295" y2="115" class="wire" />
+                            <circle cx="330" cy="280" r="4.5" class="node" />
+
+                            <!-- Diode D1 -->
+                            <polygon points="370,55 370,85 400,70" class="comp-fill" />
+                            <line x1="400" y1="55" x2="400" y2="85" class="wire" stroke-width="4" />
+                            <line x1="400" y1="70" x2="520" y2="70" class="wire" />
+                            <text x="385" y="45" text-anchor="middle" class="svg-label">D1</text>
+
+                            <!-- Branch 2 (Bottom) -->
+                            <line x1="100" y1="170" x2="120" y2="170" class="wire" />
+                            <polyline points="120,170 125,160 135,180 145,160 155,180 160,170" class="wire" /> <!-- rL2 -->
+                            <text x="140" y="145" text-anchor="middle" class="svg-label">rL2</text>
+
+                            <line x1="160" y1="170" x2="190" y2="170" class="wire" />
+                            <path d="M 190 170 A 12 12 0 0 1 214 170 A 12 12 0 0 1 238 170 A 12 12 0 0 1 262 170 A 12 12 0 0 1 286 170" class="wire" /> <!-- L2 -->
+                            <text x="200" y="150" text-anchor="middle" class="svg-label">L2</text>
+
+                            <line x1="286" y1="170" x2="430" y2="170" class="wire" />
+                            <circle cx="430" cy="170" r="4.5" class="node" />
+                            <line x1="430" y1="170" x2="470" y2="170" class="wire" />
+
+                            <!-- MOSFET Q2 -->
+                            <line x1="430" y1="170" x2="430" y2="195" class="wire" />
+                            <line x1="430" y1="195" x2="420" y2="195" class="wire" />
+                            <line x1="430" y1="235" x2="430" y2="280" class="wire" />
+                            <line x1="430" y1="235" x2="420" y2="235" class="wire" />
+                            <line x1="420" y1="195" x2="420" y2="235" class="wire" />
+                            <line x1="410" y1="195" x2="410" y2="235" class="wire" />
+                            <line x1="410" y1="215" x2="395" y2="215" class="wire" />
+                            <circle cx="430" cy="280" r="4.5" class="node" />
+
+                            <!-- Diode D2 -->
+                            <polygon points="470,155 470,185 500,170" class="comp-fill" />
+                            <line x1="500" y1="155" x2="500" y2="185" class="wire" stroke-width="4" />
+                            <line x1="500" y1="170" x2="520" y2="170" class="wire" />
+                            <text x="485" y="145" text-anchor="middle" class="svg-label">D2</text>
+
+                            <!-- Common Output Line -->
+                            <line x1="520" y1="70" x2="520" y2="170" class="wire" />
+                            <line x1="520" y1="70" x2="680" y2="70" class="wire" />
+                            <circle cx="520" cy="70" r="4.5" class="node" />
+
+                            <!-- Capacitor Branch (C + rc) -->
+                            <line x1="600" y1="70" x2="600" y2="90" class="wire" />
+                            <circle cx="600" cy="70" r="4.5" class="node" />
+                            <polyline points="600,90 590,95 610,105 590,115 610,125 600,130" class="wire" />
+                            <text x="585" y="115" text-anchor="end" class="svg-label">rc</text>
+
+                            <line x1="600" y1="130" x2="600" y2="160" class="wire" />
+                            <line x1="580" y1="160" x2="620" y2="160" class="wire" stroke-width="4" />
+                            <line x1="580" y1="175" x2="620" y2="175" class="wire" stroke-width="4" />
+                            <text x="570" y="172" text-anchor="end" class="svg-label">C</text>
+
+                            <line x1="600" y1="175" x2="600" y2="280" class="wire" />
+                            <circle cx="600" cy="280" r="4.5" class="node" />
+
+                            <!-- Load Resistor Branch (Ro) -->
+                            <line x1="680" y1="70" x2="680" y2="120" class="wire" />
+                            <polyline points="680,120 670,130 690,150 670,170 690,190 680,200" class="wire" />
+                            <text x="700" y="165" text-anchor="start" class="svg-label">Ro</text>
+                            <line x1="680" y1="200" x2="680" y2="280" class="wire" />
+
+                            <!-- Cyan Analysis Arrows and Labels -->
+                            <line x1="60" y1="110" x2="90" y2="110" class="arrow-line" />
+                            <text x="77" y="95" text-anchor="middle" class="cyan-label">Iin</text>
+
+                            <line x1="223" y1="50" x2="253" y2="50" class="arrow-line" />
+                            <text x="238" y="38" text-anchor="middle" class="cyan-label">IL1</text>
+
+                            <line x1="223" y1="150" x2="253" y2="150" class="arrow-line" />
+                            <text x="238" y="138" text-anchor="middle" class="cyan-label">IL2</text>
+
+                            <line x1="540" y1="50" x2="570" y2="50" class="arrow-line" />
+                            <text x="555" y="35" text-anchor="middle" class="cyan-label">Iout</text>
+
+                            <line x1="630" y1="250" x2="630" y2="190" class="arrow-line" />
+                            <text x="635" y="235" text-anchor="start" class="cyan-label">Vout</text>
+
+                            <!-- Cyan PWM / Gate Signals -->
+                            <line x1="255" y1="115" x2="285" y2="115" class="arrow-line" />
+                            <text x="255" y="110" text-anchor="end" class="svg-label">Q1</text>
+
+                            <line x1="355" y1="215" x2="385" y2="215" class="arrow-line" />
+                            <text x="355" y="230" text-anchor="end" class="svg-label">Q2</text>
+                        </svg>
+                    </div>
+                    <div class="col-md-8">
+                        <div id="inputs">
+                            <h2 data-i18n="input_header">Giriş Bilgileri</h2>
+                            <div class="input-group mb-3">
+                                <label class="input-group-text" data-i18n="label_vin_min">Min. Giriş [V]</label>
+                                <input id="vin_min" type="number" class="form-control" placeholder="40">
+                                <label class="input-group-text" data-i18n="label_vin_max">Max. Giriş [V]</label>
+                                <input id="vin_max" type="number" class="form-control" placeholder="60">
+                                <label class="input-group-text" data-i18n="label_vin_nom">Nominal [V]</label>
+                                <input id="vin_nom" type="number" class="form-control" placeholder="50">
+                            </div>
+                            <div class="input-group mb-3">
+                                <label class="input-group-text" data-i18n="label_vout">Çıkış [V]</label>
+                                <input id="vout" type="number" class="form-control" placeholder="181">
+                                <label class="input-group-text" data-i18n="label_iout">Çıkış Akımı [A]</label>
+                                <input id="ilout" type="number" class="form-control" placeholder="1.9">
+                                <label class="input-group-text" data-i18n="label_fsw">Frekans [kHz]</label>
+                                <input id="f_khz" type="number" class="form-control" placeholder="100">
+                            </div>
+
+                            <div class="input-group mb-3 flex-wrap flex-md-nowrap">
+                                <label class="input-group-text" data-i18n="label_mode">Mod</label>
+                                <select id="mode" class="form-select">
+                                    <option value="continuous">CCM</option>
+                                    <option value="critical">CRM</option>
+                                    <option value="discontinuous">DCM</option>
+                                </select>
+
+                                <label class="input-group-text" data-i18n="label_rect_type">Doğrultucu</label>
+                                <select id="rectifierMode" class="form-select" onchange="toggleEffMode()">
+                                    <option value="async" data-i18n="opt_diode_async">Asenkron (Diyot)</option>
+                                </select>
+
+                                <label class="input-group-text" data-i18n="label_eff_mode">Verim Modu</label>
+                                <select id="effMode" class="form-select" onchange="toggleEffMode()">
+                                    <option value="ideal" data-i18n="opt_ideal">İdeal</option>
+                                    <option value="real" data-i18n="opt_real">Gerçek (Power Loss)</option>
+                                </select>
+
+                                <div id="idealInputGroup" style="display: contents;">
+                                    <label style="border-radius: 0;" class="input-group-text" data-i18n="label_eff">Verim [%]</label>
+                                    <input id="verim" type="number" class="form-control eff-input" value="90" style="border-bottom-left-radius: 0; border-top-left-radius: 0;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="inputs">
+                        <div id="realInputGroup" style="display:none;">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="param-group">
+                                        <h5 data-i18n="mosfet_header">MOSFET (İletim & Kapasitans)</h5>
+                                        <div class="input-group input-group-sm mb-2" id="wrap_ron_h"><span class="input-group-text">Ron_Sync (High) [Ω]</span><input type="number" id="p_ron_h" value="0.100" class="form-control"></div>
+                                        <div class="input-group input-group-sm mb-2"><span class="input-group-text">Ron_Main (Low) [Ω]</span><input type="number" id="p_ron_l" value="0.050" class="form-control"></div>
+                                        <div class="input-group input-group-sm mb-2"><span class="input-group-text">Coss_L [pF]</span><input type="number" id="p_coss_l" value="120" class="form-control"></div>
+                                        <div class="input-group input-group-sm mb-2"><span class="input-group-text">Qg_L [nC]</span><input type="number" id="p_qg_l" value="15" class="form-control"></div>
+                                        <div class="input-group input-group-sm"><span class="input-group-text">Vgs [V]</span><input type="number" id="p_vgs" value="10.0" class="form-control"></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="param-group">
+                                        <h5 data-i18n="switching_header">Anahtarlama Süreleri & Dead-Time</h5>
+                                        <div class="input-group input-group-sm mb-2"><span class="input-group-text">tr_L / tf_L [ns]</span><input type="number" id="p_tr_l" value="10" class="form-control"><input type="number" id="p_tf_l" value="10" class="form-control"></div>
+                                        <div class="input-group input-group-sm mb-2" id="wrap_deadtime"><span class="input-group-text">tDr / tDf [ns]</span><input type="number" id="p_tdr" value="30" class="form-control"><input type="number" id="p_tdf" value="30" class="form-control"></div>
+                                        <div class="input-group input-group-sm mb-2">
+                                            <span class="input-group-text" id="lbl_vd">Diode Vd [V]</span>
+                                            <input type="number" id="p_vd" value="0.7" class="form-control">
+                                        </div>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text" id="lbl_trr">trr [ns] / Irr [A]</span>
+                                            <input type="number" id="p_trr" value="25" class="form-control">
+                                            <input type="number" id="p_irr" value="0.5" class="form-control">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-12 mt-2">
+                                    <div class="param-group">
+                                        <h5 data-i18n="pasif_comp">Pasif Komponentler & IC</h5>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text">L DCR [Ω]</span><input type="number" id="p_dcr" value="0.080" class="form-control">
+                                            <span class="input-group-text">IC Icc [mA]</span><input type="number" id="p_icc" value="2.0" class="form-control">
+                                            <span class="input-group-text">ESR_Cin [Ω]</span><input type="number" id="p_esrcin" value="0.003" class="form-control">
+                                            <span class="input-group-text">ESR_Cout [Ω]</span><input type="number" id="p_esrcout" value="0.005" class="form-control">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="param-group mt-3" style="text-align: center;">
+                        <h5 style="border-bottom: none; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                            <span data-i18n="core_selection_mode">Çekirdek & Tel Seçim Modu</span>
+                            <button type="button" class="btn btn-sm btn-outline-warning" onclick="showModeInfo()" style="border-radius: 50%; width: 24px; height: 24px; padding: 0; line-height: 1; font-weight: bold;">i</button>
+                        </h5>
+                        <div class="btn-group w-75" role="group">
+                            <input type="radio" class="btn-check" name="coreSelectionMode" id="modeStandard" value="standard" checked>
+                            <label data-i18n="mod1" class="btn btn-outline-info" for="modeStandard" style="border-color: #3f51b5; color: #e0e0e0;">Standart Mod</label>
+
+                            <input type="radio" class="btn-check" name="coreSelectionMode" id="modeAdvanced" value="advanced">
+                            <label data-i18n="mod2" class="btn btn-outline-info" for="modeAdvanced" style="border-color: #3f51b5; color: #e0e0e0; ">Advanced Mod (AI)</label>
+                        </div>
+                    </div>
+
+                    <button id="calculateButton" class="btn btn-primary d-block mx-auto w-25" data-i18n="btn_calc">Hesapla</button>
+                </div>
+                <br>
+
+                <div id="modeWarning" style="display:none; padding:8px; margin:8px 0; border-radius:4px;"></div>
+
+                <div class="row mt-10">
+                    <div class="col-md-6">
+                        <h2 data-i18n="results_title">Sonuçlar</h2>
+                        <table id="outputsTable" class="table">
+                            <tr>
+                                <th data-i18n="res_L111">L1 [µH]</th>
+                                <th data-i18n="res_L222">L2 [µH]</th>
+                                <th data-i18n="res_C">Cout [µF]</th>
+                                <th data-i18n="res_R">R_load [Ω]</th>
+                            </tr>
+                            <tr>
+                                <td><span id="lOutput1">-</span> µH</td>
+                                <td><span id="lOutput2">-</span> µH</td>
+                                <td><span id="cOutput">-</span> µF</td>
+                                <td><span id="rOutput">-</span> Ω</td>
+                            </tr>
+                            <tr>
+                                <th data-i18n="res_deltaIL1">ΔIL1 [A]</th>
+                                <th data-i18n="res_deltaIL2">ΔIL2 [A]</th>
+                                <th data-i18n="res_wmax_l1">Wmax L1 [µWs]</th>
+                                <th data-i18n="res_wmax_l2">Wmax L2 [µWs]</th>
+                            </tr>
+                            <tr>
+                                <td><span id="deltaIL1Max">-</span> A</td>
+                                <td><span id="deltaIL2Max">-</span> A</td>
+                                <td><span id="wmaxL1">-</span> µWs</td>
+                                <td><span id="wmaxL2">-</span> µWs</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div class="col-md-6 d-flex align-items-center justify-content-end">
+                        <div id="buttons" class="d-flex flex-wrap gap-2 justify-content-end">
+                            <button id="printButton" class="btn btn-primary" data-i18n="btn_print">Yazdır</button>
+                            <button id="openButton" onclick="openSelectedTable()" class="btn btn-primary" data-i18n="btn_inductors">L1 & L2 Bobin Data</button>
+                            <button id="filterButton" onclick="openFilterDesign()" class="btn btn-primary" data-i18n="btn_filter">Filtre Tasarımı</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <br>
+
+            <div id="charts">
+                <h2 data-i18n="charts_title">Grafikler</h2>
+                <div class="row">
+                    <div class="col-md-6">
+                        <canvas id="ilChart" width="600" height="300"></canvas>
+                    </div>
+                    <div class="col-md-6">
+                        <canvas id="vdsChart" width="600" height="300"></canvas>
+                    </div>
+                    <div class="col-md-6">
+                        <canvas id="idChart" width="600" height="300"></canvas>
+                    </div>
+                    <div class="col-md-6">
+                        <canvas id="effChart" width="600" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <br>
+            <button data-i18n="simm" id="btnFalstad" onclick="openFalstadInterleavedSimulation()" class="btn btn-primary">
+                Simülasyon İçin Tıkla
+            </button>
+            <br>
+
+            <div id="simulationContainer" style="display: none; margin-top: 20px; border: 1px solid #333; border-radius: 12px; overflow: hidden; background: #000;">
+                <iframe id="circuitFrame" style="width: 100%; height: 600px; border: none;"></iframe>
+            </div>
+
+            <div id="liveDataBox" style="display: none; padding: 15px; background: #121212; color: #81c784; font-family: 'Consolas', monospace; border-radius: 0 0 12px 12px; border: 1px solid #333; border-top: none;">
+                Loading...
+            </div>
+
+            <br>
+
+            <div class="row mt-3" id="powerLossSection" style="display: none;">
+                <div class="col-md-12">
+                    <div class="param-group">
+                        <h2 data-i18n="real_power_loss_title">Gerçek Güç Kaybı (Power Loss) Analizi</h2>
+                        <div class="table-responsive">
+                            <table class="table table-sm ploss-table text-center">
+                                <thead>
+                                    <tr>
+                                        <th id="th_pon_h" data-i18n="res_pon_h_title">Diyot İletim (2x Pdiode)</th>
+                                        <th data-i18n="res_pon_l_title">Low-Side İletim (2x Pon_L)</th>
+                                        <th data-i18n="res_psw_l_title">Anahtarlama (2x Psw)</th>
+                                        <th id="th_pdiode" data-i18n="res_pdiode_title">Diyot Rev. Rec. (2x Prr)</th>
+                                        <th data-i18n="res_pcoss_title">Çıkış Kap. (2x Pcoss)</th>
+                                        <th data-i18n="res_pd_title">Ölü Zaman (2x Pd)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td id="res_pon_h">-</td>
+                                        <td id="res_pon_l">-</td>
+                                        <td id="res_psw_l">-</td>
+                                        <td id="res_pdiode">-</td>
+                                        <td id="res_pcoss">-</td>
+                                        <td id="res_pd">-</td>
+                                    </tr>
+                                </tbody>
+                                <thead class="mt-2">
+                                    <tr>
+                                        <th data-i18n="res_pg_title">Gate Şarj (2x Pg)</th>
+                                        <th data-i18n="res_pic_title">IC Tüketim (Pic)</th>
+                                        <th data-i18n="res_pl_dcr_title">Bobin İletim (Pl1+Pl2)</th>
+                                        <th data-i18n="res_pcin_title">Giriş Cap ESR (Pcin)</th>
+                                        <th data-i18n="res_pcout_title">Çıkış Cap ESR (Pcout)</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td id="res_pg">-</td>
+                                        <td id="res_pic">-</td>
+                                        <td id="res_pl_dcr">-</td>
+                                        <td id="res_pcin">-</td>
+                                        <td id="res_pcout">-</td>
+                                        <td></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <table class="table table-sm ploss-table mt-2">
+                                <tr class="total-row text-center" style="font-size: 1.2em;">
+                                    <td width="50%"><span data-i18n="total_power_loss">Toplam Güç Kaybı (Ptotal):</span> <span id="res_ptotal">-</span></td>
+                                    <td width="50%"><span data-i18n="calc_efficiency">Hesaplanan Genel Verim (η):</span> <span id="res_peff">-</span></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <br>
+
+            <div id="table">
+                <h2 data-i18n="table_header">Tablo</h2>
+                <div class="table-responsive">
+                    <table id="resultTable" class="table table-bordered text-center">
+                        <thead>
+                            <tr>
+                                <th data-i18n="col_time">Zaman [µs]</th>
+                                <th>Vds1 [V]</th>
+                                <th>Vds2 [V]</th>
+                                <th>IL1 [A]</th>
+                                <th>IL2 [A]</th>
+                                <th>Id1 [A]</th>
+                                <th>Id2 [A]</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+    <footer id="footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="copyright"> © Copyright <strong>ATAQ Advanced Technology</strong>. <span data-i18n="footer_rights">Tüm hakları saklıdır.</span> </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <div class="modal fade" id="buckWarningModal" tabindex="-1" aria-labelledby="buckWarningModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background-color: #1e1e1e; color: #e0e0e0; border: 1px solid #333;">
+                <div class="modal-header text-white" style="background-color: #00AEEF; border-bottom: 1px solid #333;">
+                    <h5 style="color:#333 !important;" class="modal-title" id="buckWarningModalLabel">
+                        <i class="bi bi-exclamation-triangle-fill"></i> <span style="color:#333 !important;" data-i18n="modal_warn_title">Uyarı: Topoloji Hatası!</span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-start">
+                    <p data-i18n="modal_boost_error_desc">Boost (Step-Up) dönüştürücülerde çıkış gerilimi (Vout), giriş geriliminden (Vin) küçük veya ona eşit olamaz.</p>
+                    <p data-i18n="modal_ask_buck"><strong>Buck (Step-Down) Converter</strong> mı tasarlamaya çalışıyorsunuz?</p>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid #333;">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="modal_btn_close">Kapat ve Düzelt</button>
+                    <a href="buck.html" class="btn btn-primary" style="background-color: #00AEEF; border-color: #00AEEF;" data-i18n="modal_btn_go_buck">Buck Converter Sayfasına Git</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="preloader"></div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="assets/vendor/aos/aos.js"></script>
+    <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/vendor/glightbox/js/glightbox.min.js"></script>
+    <script src="assets/vendor/isotope-layout/isotope.pkgd.min.js"></script>
+    <script src="assets/vendor/swiper/swiper-bundle.min.js"></script>
+    <script src="assets/vendor/typed.js/typed.min.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
+
+    <script src="assets/js/common/language.js"></script>
+    <script src="assets/js/main.js"></script>
+
+    <script src="assets/js/common/firebase_config.js"></script>
+    <script src="assets/js/common/api_service.js"></script>
+    <script src="assets/js/common/core_database.js"></script>
+    <script src="assets/js/common/magnetic_utils.js"></script>
+    <script src="assets/js/common/ui_modal.js"></script>
+    <script src="assets/js/common/smps_filter.js"></script>
+
+    <script src="assets/js/common/advanced_optimizer.js" defer="defer"></script>
+    <script src="assets/js/topologies/2-phase-boost.js" defer="defer"></script>
+</body>
+</html>

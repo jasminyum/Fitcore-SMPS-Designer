@@ -828,6 +828,188 @@
           <br>
           <div class="row">
               <div class="col-lg-6 about-img">
+                  <a href="2-phase-boost.html">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 750 320" style="width: 100%; height: auto; max-width: 750px;">
+                          <defs>
+                              <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                                  <polygon points="0 0, 8 3, 0 6" fill="#00AEEF" />
+                              </marker>
+                              <style>
+                                  .wire {
+                                      fill: none;
+                                      stroke: var(--text-main, #e0e0e0);
+                                      stroke-width: 2.5;
+                                      stroke-linecap: round;
+                                      stroke-linejoin: round;
+                                  }
+
+                                  .node {
+                                      fill: var(--text-main, #e0e0e0);
+                                  }
+
+                                  .comp-fill {
+                                      fill: var(--text-main, #e0e0e0);
+                                  }
+
+                                  .arrow-line {
+                                      fill: none;
+                                      stroke: #00AEEF;
+                                      stroke-width: 3.5;
+                                      marker-end: url(#arrowhead);
+                                  }
+
+                                  .svg-label {
+                                      fill: var(--text-main, #e0e0e0);
+                                      font-family: 'Segoe UI', Arial, sans-serif;
+                                      font-size: 16px;
+                                      font-weight: 500;
+                                  }
+
+                                  .cyan-label {
+                                      fill: #00AEEF;
+                                      font-family: 'Segoe UI', Arial, sans-serif;
+                                      font-size: 16px;
+                                      font-weight: 700;
+                                  }
+                              </style>
+                          </defs>
+
+                          <!-- Ground Wire -->
+                          <line x1="50" y1="280" x2="680" y2="280" class="wire" />
+
+                          <!-- Input Source (Vin) -->
+                          <circle cx="50" cy="175" r="25" class="wire" />
+                          <line x1="45" y1="162" x2="55" y2="162" class="wire" stroke-width="2" />
+                          <line x1="50" y1="157" x2="50" y2="167" class="wire" stroke-width="2" />
+                          <line x1="45" y1="188" x2="55" y2="188" class="wire" stroke-width="2" />
+                          <text x="30" y="210" text-anchor="end" class="cyan-label">Vin</text>
+
+                          <!-- Input Connections -->
+                          <line x1="50" y1="150" x2="50" y2="120" class="wire" />
+                          <line x1="50" y1="200" x2="50" y2="280" class="wire" />
+                          <line x1="50" y1="120" x2="100" y2="120" class="wire" />
+                          <line x1="100" y1="70" x2="100" y2="170" class="wire" />
+                          <circle cx="100" cy="120" r="4.5" class="node" />
+
+                          <!-- Branch 1 (Top) -->
+                          <line x1="100" y1="70" x2="120" y2="70" class="wire" />
+                          <polyline points="120,70 125,60 135,80 145,60 155,80 160,70" class="wire" /> <!-- rL1 -->
+                          <text x="140" y="45" text-anchor="middle" class="svg-label">rL1</text>
+
+                          <line x1="160" y1="70" x2="190" y2="70" class="wire" />
+                          <path d="M 190 70 A 12 12 0 0 1 214 70 A 12 12 0 0 1 238 70 A 12 12 0 0 1 262 70 A 12 12 0 0 1 286 70" class="wire" /> <!-- L1 -->
+                          <text x="200" y="50" text-anchor="middle" class="svg-label">L1</text>
+
+                          <line x1="286" y1="70" x2="330" y2="70" class="wire" />
+                          <circle cx="330" cy="70" r="4.5" class="node" />
+                          <line x1="330" y1="70" x2="370" y2="70" class="wire" />
+
+                          <!-- MOSFET Q1 -->
+                          <line x1="330" y1="70" x2="330" y2="95" class="wire" />
+                          <line x1="330" y1="95" x2="320" y2="95" class="wire" />
+                          <line x1="330" y1="135" x2="330" y2="280" class="wire" />
+                          <line x1="330" y1="135" x2="320" y2="135" class="wire" />
+                          <line x1="320" y1="95" x2="320" y2="135" class="wire" />
+                          <line x1="310" y1="95" x2="310" y2="135" class="wire" />
+                          <line x1="310" y1="115" x2="295" y2="115" class="wire" />
+                          <circle cx="330" cy="280" r="4.5" class="node" />
+
+                          <!-- Diode D1 -->
+                          <polygon points="370,55 370,85 400,70" class="comp-fill" />
+                          <line x1="400" y1="55" x2="400" y2="85" class="wire" stroke-width="4" />
+                          <line x1="400" y1="70" x2="520" y2="70" class="wire" />
+                          <text x="385" y="45" text-anchor="middle" class="svg-label">D1</text>
+
+                          <!-- Branch 2 (Bottom) -->
+                          <line x1="100" y1="170" x2="120" y2="170" class="wire" />
+                          <polyline points="120,170 125,160 135,180 145,160 155,180 160,170" class="wire" /> <!-- rL2 -->
+                          <text x="140" y="145" text-anchor="middle" class="svg-label">rL2</text>
+
+                          <line x1="160" y1="170" x2="190" y2="170" class="wire" />
+                          <path d="M 190 170 A 12 12 0 0 1 214 170 A 12 12 0 0 1 238 170 A 12 12 0 0 1 262 170 A 12 12 0 0 1 286 170" class="wire" /> <!-- L2 -->
+                          <text x="200" y="150" text-anchor="middle" class="svg-label">L2</text>
+
+                          <line x1="286" y1="170" x2="430" y2="170" class="wire" />
+                          <circle cx="430" cy="170" r="4.5" class="node" />
+                          <line x1="430" y1="170" x2="470" y2="170" class="wire" />
+
+                          <!-- MOSFET Q2 -->
+                          <line x1="430" y1="170" x2="430" y2="195" class="wire" />
+                          <line x1="430" y1="195" x2="420" y2="195" class="wire" />
+                          <line x1="430" y1="235" x2="430" y2="280" class="wire" />
+                          <line x1="430" y1="235" x2="420" y2="235" class="wire" />
+                          <line x1="420" y1="195" x2="420" y2="235" class="wire" />
+                          <line x1="410" y1="195" x2="410" y2="235" class="wire" />
+                          <line x1="410" y1="215" x2="395" y2="215" class="wire" />
+                          <circle cx="430" cy="280" r="4.5" class="node" />
+
+                          <!-- Diode D2 -->
+                          <polygon points="470,155 470,185 500,170" class="comp-fill" />
+                          <line x1="500" y1="155" x2="500" y2="185" class="wire" stroke-width="4" />
+                          <line x1="500" y1="170" x2="520" y2="170" class="wire" />
+                          <text x="485" y="145" text-anchor="middle" class="svg-label">D2</text>
+
+                          <!-- Common Output Line -->
+                          <line x1="520" y1="70" x2="520" y2="170" class="wire" />
+                          <line x1="520" y1="70" x2="680" y2="70" class="wire" />
+                          <circle cx="520" cy="70" r="4.5" class="node" />
+
+                          <!-- Capacitor Branch (C + rc) -->
+                          <line x1="600" y1="70" x2="600" y2="90" class="wire" />
+                          <circle cx="600" cy="70" r="4.5" class="node" />
+                          <polyline points="600,90 590,95 610,105 590,115 610,125 600,130" class="wire" />
+                          <text x="585" y="115" text-anchor="end" class="svg-label">rc</text>
+
+                          <line x1="600" y1="130" x2="600" y2="160" class="wire" />
+                          <line x1="580" y1="160" x2="620" y2="160" class="wire" stroke-width="4" />
+                          <line x1="580" y1="175" x2="620" y2="175" class="wire" stroke-width="4" />
+                          <text x="570" y="172" text-anchor="end" class="svg-label">C</text>
+
+                          <line x1="600" y1="175" x2="600" y2="280" class="wire" />
+                          <circle cx="600" cy="280" r="4.5" class="node" />
+
+                          <!-- Load Resistor Branch (Ro) -->
+                          <line x1="680" y1="70" x2="680" y2="120" class="wire" />
+                          <polyline points="680,120 670,130 690,150 670,170 690,190 680,200" class="wire" />
+                          <text x="700" y="165" text-anchor="start" class="svg-label">Ro</text>
+                          <line x1="680" y1="200" x2="680" y2="280" class="wire" />
+
+                          <!-- Cyan Analysis Arrows and Labels -->
+                          <line x1="60" y1="110" x2="90" y2="110" class="arrow-line" />
+                          <text x="77" y="95" text-anchor="middle" class="cyan-label">Iin</text>
+
+                          <line x1="223" y1="50" x2="253" y2="50" class="arrow-line" />
+                          <text x="238" y="38" text-anchor="middle" class="cyan-label">IL1</text>
+
+                          <line x1="223" y1="150" x2="253" y2="150" class="arrow-line" />
+                          <text x="238" y="138" text-anchor="middle" class="cyan-label">IL2</text>
+
+                          <line x1="540" y1="50" x2="570" y2="50" class="arrow-line" />
+                          <text x="555" y="35" text-anchor="middle" class="cyan-label">Iout</text>
+
+                          <line x1="630" y1="250" x2="630" y2="190" class="arrow-line" />
+                          <text x="635" y="235" text-anchor="start" class="cyan-label">Vout</text>
+
+                          <!-- Cyan PWM / Gate Signals -->
+                          <line x1="255" y1="115" x2="285" y2="115" class="arrow-line" />
+                          <text x="255" y="110" text-anchor="end" class="svg-label">Q1</text>
+
+                          <line x1="355" y1="215" x2="385" y2="215" class="arrow-line" />
+                          <text x="355" y="230" text-anchor="end" class="svg-label">Q2</text>
+                      </svg>
+                  </a>
+              </div>
+              <div class="col-md-6 about-content">
+                  <a href="2-phase-boost.html"><h2 class="about-title" data-i18n="card_2phase_boost_title">2-Phase Boost Converter Hesapla</h2></a>
+                  <div class="d-flex justify-content-between align-items-center">
+                      <p class="about-text mb-0" data-i18n="card_2phase_boost_desc">Giriş voltajı daha yüksek bir çıkış voltajına dönüştürülür.</p>
+                      <a href="2-phase-boost.html" class="btn btn-primary"><i style="font-size: 26px; -webkit-text-stroke: 1px #333333;" class="bi bi-link-45deg"></i></a>
+                  </div>
+              </div>
+          </div>
+          <br>
+          <div class="row">
+              <div class="col-lg-6 about-img">
                   <a href="buck-boost.html">
                       <svg xmlns:dc="http://purl.org/dc/elements/1.1/"
                            xmlns:cc="http://creativecommons.org/ns#"
