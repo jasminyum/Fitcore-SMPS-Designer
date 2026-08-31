@@ -257,6 +257,7 @@ function getEffectiveWaveformParams(topology, mode, D_switch, extra = {}) {
         case "buck": case "boost": case "buckboost":
         case "flyback": case "forward": case "pushpull":
         case "sepic": case "cuk": case "zeta":
+        case "interleaved_boost":
             if (mode === "CCM") return { D1: safeD, D2: 1 - safeD, Dz: 0, confidence: "high", note: "CCM: switch duty cycle is used directly." };
             if (mode === "DCM" || mode === "CRM") {
                 const D1 = extra.D1 ?? safeD;
@@ -478,6 +479,15 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 }
 
                 let AL = raw_AL_db || fallback_AL;
+
+                let base_AL = fallback_AL > 0 ? fallback_AL : (raw_AL_db > 0 ? raw_AL_db : 0);
+                let mu_i = 2000;
+                if (base_AL > 0 && Ae > 0 && le > 0) {
+                    mu_i = (base_AL * le) / (mu0 * Ae);
+                }
+                if (!isPowderCore && mu_i < 500) {
+                    mu_i = 2000;
+                }
 
                 if (datasheet_gap_mm > 0 && !isPowderCore) {
                     let explicit_al = 0;
@@ -927,31 +937,35 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     b => b.functionalDescription?.shape?.replace(/\s+/g, '').toUpperCase() === cleanShape
                 );
 
+                let required_gap_mm = 0;
+                if (!isPowderCore && L_H > 0 && N1_calc > 0 && componentType !== "linear_trafo") {
+                    const lg_initial_m = Math.max(0, (mu0 * Ae * Math.pow(N1_calc, 2)) / L_H - le / mu_i);
+                    let final_lg_m = lg_initial_m;
+
+                    if (lg_initial_m > 0) {
+                        const est_w_height_m = dimF > 0 ? (dimF * 2 / 1000) : (Math.sqrt(Ae) * 2);
+
+                        let lg_iter = lg_initial_m;
+                        for (let i = 0; i < 10; i++) {
+                            if (lg_iter <= 0 || !isFinite(lg_iter)) { lg_iter = 0; break; }
+                            const F = 1 + (lg_iter / Math.sqrt(Ae)) * Math.log((2 * est_w_height_m) / lg_iter);
+                            if (!isFinite(F)) { lg_iter = lg_initial_m; break; }
+                            lg_iter = Math.max(0, F * ((mu0 * Ae * Math.pow(N1_calc, 2)) / L_H - le / mu_i));
+                        }
+                        final_lg_m = lg_iter;
+                    }
+
+                    required_gap_mm = final_lg_m * 1000;
+                    if (!isFinite(required_gap_mm) || isNaN(required_gap_mm) || required_gap_mm < 0.005) required_gap_mm = 0;
+                }
+
                 let gap_mm = 0;
                 let gap_is_builtin = false;
                 if (datasheet_gap_mm > 0) {
                     gap_mm = datasheet_gap_mm;
                     gap_is_builtin = true;
-                } else if (!isPowderCore && gapRequirement !== "ungapped_only" && L_H > 0 && N1_calc > 0 && componentType !== "linear_trafo") {
-
-                    const lg_initial_m = Math.max(0, (mu0 * Ae * Math.pow(N1_calc, 2)) / L_H - le / mue);
-                    let final_lg_m = lg_initial_m;
-
-                    if (lg_initial_m > 0) {
-                        const window_length_m = w_height > 0 ? (w_height / 1000) : (Math.sqrt(Ae) * 2);
-
-                        let lg_iter = lg_initial_m;
-                        for (let i = 0; i < 10; i++) {
-                            if (lg_iter <= 0 || !isFinite(lg_iter)) { lg_iter = 0; break; }
-                            const F = 1 + (lg_iter / Math.sqrt(Ae)) * Math.log((2 * window_length_m) / lg_iter);
-                            if (!isFinite(F)) { lg_iter = lg_initial_m; break; }
-                            lg_iter = Math.max(0, F * ((mu0 * Ae * Math.pow(N1_calc, 2)) / L_H - le / mue));
-                        }
-                        final_lg_m = lg_iter;
-                    }
-
-                    gap_mm = final_lg_m * 1000;
-                    if (!isFinite(gap_mm) || isNaN(gap_mm) || gap_mm < 0.005) gap_mm = 0;
+                } else if (gapRequirement !== "ungapped_only") {
+                    gap_mm = required_gap_mm;
                 }
 
                 let n2_calc = 0;
@@ -997,6 +1011,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     dim_A: dimA, dim_B: dimB, dim_C: dimC, dim_D: dimD, dim_E: dimE, dim_F: dimF,
                     gap_mm: gap_mm,
                     gap_is_builtin: gap_is_builtin,
+                    required_gap_mm: required_gap_mm,
                     utilizationRatio: utilizationRatio,
                     windowAreaSource: "dims",
                     windowPenalty: windowPenalty,
@@ -1599,7 +1614,7 @@ async function optimizeSwitches(topology, V_op, I_peak, Irms, f_sw_hz, switchesD
                 }
 
                 let qrr_loss_W = 0;
-                const hardSwitchedTopologies = ["buck", "boost", "buckboost", "forward"];
+                const hardSwitchedTopologies = ["buck", "boost", "buckboost", "forward", "interleaved_boost"];
 
                 if (smpsMode === "CCM" && hardSwitchedTopologies.includes(currentTopo)) {
                     let qrr_nC = 0;
