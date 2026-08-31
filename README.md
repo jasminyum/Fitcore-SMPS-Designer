@@ -4,7 +4,7 @@
 
 www.ataqileriteknoloji.com
 
-A light browser-based calculation, optimization, and circuit-simulation tool for switch-mode power supply (SMPS) topologies. It includes 17 topology pages, a magnetics (coil/transformer) optimization engine running on Firebase Cloud Functions, a custom thermal-analysis simulation based on the actual selected components, and an embedded Falstad/CircuitJS circuit simulator.
+A light browser-based calculation, optimization, and circuit-simulation tool for switch-mode power supply (SMPS) topologies. It includes 18 topology pages, a magnetics (coil/transformer) optimization engine running on Firebase Cloud Functions, a custom thermal-analysis simulation based on the actual selected components, and an embedded Falstad/CircuitJS circuit simulator.
 
 ## Contents
 
@@ -22,7 +22,7 @@ A light browser-based calculation, optimization, and circuit-simulation tool for
 
 ## Features
 
-- **17 topology calculators** — separate pages for Buck, Boost, Buck-Boost, Ćuk, SEPIC, Zeta, Flyback, Forward (single/double transistor), Half-Bridge, Full-Bridge, LLC (Half/Full), DAB, PFC, transformer, and inductor design.
+- **18 topology calculators** — separate pages for Buck, Boost, Two-Phase Interleaved Boost, Buck-Boost, Ćuk, SEPIC, Zeta, Flyback, Forward (single/double transistor), Half-Bridge, Full-Bridge, LLC (Half/Full), DAB, PFC, transformer, and inductor design.
 - **Cloud-based magnetics optimization** — the `runSmpsOptimization` Cloud Function, running on Firebase Cloud Functions, picks the best combination from the core and wire database using fuzzy-weighted cost/efficiency/size targets, with per-topology duty-cycle (D1/D2) assumptions applied correctly (see [Architecture](#architecture)).
 - **Monte Carlo Tolerance Analysis** — run 1000-iteration statistical simulations to evaluate the impact of manufacturing tolerances (e.g., ±10-20% on core loss, switching loss, conduction loss, and thermal resistance) on thermal performance and magnetic saturation. Results are instantly exportable as CSV for yield and reliability analysis.
 - **3D core visualization** — a 3D render of the selected magnetic core via Three.js.
@@ -35,25 +35,28 @@ A light browser-based calculation, optimization, and circuit-simulation tool for
 
 The project is a **build-tool-free** (no Vite/Webpack) multi-page static site combined with a serverless backend:
 
+
 ```
-Browser (17 HTML pages)
-   │
-   ├─ assets/js/common/firebase_config.js   → initializes the Firebase SDK
-   ├─ assets/js/common/api_service.js       → the SINGLE entry point for all Cloud Functions calls
-   ├─ assets/js/common/advanced_optimizer.js → UI logic, 3D render, thermal test, table/export;
-   │                                           also reachable through the window.SMPSApp namespace
-   ├─ assets/js/topologies/*.js             → per-topology electrical calculation formulas
-   └─ falstad/                              → embedded circuit simulator (standalone GWT app)
-        │
-        ▼ (HTTPS Callable)
+
+Browser (18 HTML pages)
+│
+├─ assets/js/common/firebase_config.js   → initializes the Firebase SDK
+├─ assets/js/common/api_service.js       → the SINGLE entry point for all Cloud Functions calls
+├─ assets/js/common/advanced_optimizer.js → UI logic, 3D render, thermal test, table/export;
+│                                         also reachable through the window.SMPSApp namespace
+├─ assets/js/topologies/*.js             → per-topology electrical calculation formulas
+└─ falstad/                              → embedded circuit simulator (standalone GWT app)
+│
+▼ (HTTPS Callable)
 Firebase Cloud Functions (assets/js/functions/index.js)
-   └─ runSmpsOptimization  → optimizes against the core/wire data in smps_database.json,
-                              using topology-specific D1/D2 waveform assumptions for the iGSE core-loss calculation
+└─ runSmpsOptimization  → optimizes against the core/wire data in smps_database.json,
+using topology-specific D1/D2 waveform assumptions for the iGSE core-loss calculation
+
 ```
 
 ### Topology detection and D1/D2 assumptions
 
-`advanced_optimizer.js` detects which topology the page is for from the page title (`document.title`) — via `isBuck`, `isBoost`, `isBuckBoost`, `isFlyback`, `isForward`, `isPushPull`, `isBridge`, `isPfc` — and sends it to the server as a `topology` field (`"buck"`, `"boost"`, `"buckboost"`, `"flyback"`, `"forward"`, `"pushpull"`, `"bridge"`, `"llc"`, `"dab"`). On the Cloud Function side, `getEffectiveWaveformParams` uses that value to pick the D1/D2 waveform parameters and the confidence level used in the iGSE calculation — for example, Buck/Boost use the actual switching duty cycle (`D_switch`) directly, while Bridge/LLC/DAB use values computed from the symmetric or resonant operating condition. If `topology` is missing or wrong, the server falls back to `D1=D2=0.5` and flags the result as "Low Confidence" — make sure this mapping is done correctly when adding a new topology page.
+`advanced_optimizer.js` detects which topology the page is for from the page title (`document.title`) — via `isBuck`, `isBoost`, `isInterleavedBoost`, `isBuckBoost`, `isFlyback`, `isForward`, `isPushPull`, `isBridge`, `isPfc` — and sends it to the server as a `topology` field (`"buck"`, `"boost"`, `"interleavedboost"`, `"buckboost"`, `"flyback"`, `"forward"`, `"pushpull"`, `"bridge"`, `"llc"`, `"dab"`). On the Cloud Function side, `getEffectiveWaveformParams` uses that value to pick the D1/D2 waveform parameters and the confidence level used in the iGSE calculation — for example, Buck/Boost use the actual switching duty cycle (`D_switch`) directly, while Bridge/LLC/DAB use values computed from the symmetric or resonant operating condition. If `topology` is missing or wrong, the server falls back to `D1=D2=0.5` and flags the result as "Low Confidence" — make sure this mapping is done correctly when adding a new topology page.
 
 ### Why global `window.X` is used
 
@@ -61,13 +64,15 @@ Because the inline `onclick="..."` handlers on the pages depend directly on glob
 
 - Every function is still defined as `window.functionName` (for backward compatibility, so `onclick` doesn't break).
 - At the end of `advanced_optimizer.js`, a single namespace object called **`window.SMPSApp`** is created, and all the important functions/state are also collected there. Calling something like `window.SMPSApp.executeAdvancedOptimization()` in new code makes it clear which functions are considered part of the "public API."
-- A full move to ES Modules would mean converting every inline handler across the 18 HTML pages to `addEventListener`, which is a bigger separate refactor — see the roadmap below.
+- A full move to ES Modules would mean converting every inline handler across the 19 HTML pages to `addEventListener`, which is a bigger separate refactor — see the roadmap below.
 
 ## Project Structure
 
+
 ```
+
 .
-├── *.html                        # 20 pages: 17 topologies + index + filter + help
+├── *.html                       # 21 pages: 18 topologies + index + filter + help
 ├── Web.config                     # request/build settings for the IIS static file server
 ├── assets/
 │   ├── css/                      # design.css, style.css
@@ -80,7 +85,7 @@ Because the inline `onclick="..."` handlers on the pages depend directly on glob
 │   │   │   ├── language.js        # TR/EN/DE translation dictionary
 │   │   │   ├── ui_modal.js
 │   │   │   └── smps_filter.js
-│   │   ├── topologies/            # per-topology electrical calculation file (buck.js, boost.js, ...)
+│   │   ├── topologies/            # per-topology electrical calculation file (buck.js, boost.js, interleaved-boost.js ...)
 │   │   ├── filters/                # filter1.js
 │   │   └── functions/              # Firebase Cloud Functions (Node.js 22)
 │   │       ├── index.js            # runSmpsOptimization callable function, D1/D2 assumption logic
@@ -96,6 +101,7 @@ Because the inline `onclick="..."` handlers on the pages depend directly on glob
 │   ├── contact.php                 # contact-form backend using PHPMailer
 │   └── phpmailler/                 # PHPMailer library (already extracted; the zip has been removed)
 └── .gitignore                      # excludes node_modules, .env, .firebase/, .vs/, etc.
+
 ```
 
 ## Setup
@@ -113,11 +119,12 @@ Because the inline `onclick="..."` handlers on the pages depend directly on glob
 npx serve .
 # or
 python3 -m http.server 8080
+
 ```
 
 Then go to `http://localhost:8080/index.html` in your browser.
 
-> Note: the `apiKey` in `assets/js/common/firebase_config.js` is a public Firebase **web** API key — see [Security Notes](#security-notes). If you want to point this at your own Firebase project, replace the `firebaseConfig` object in that file with your own project's details.
+> Note: the `apiKey` in `assets/js/common/firebase_config.js` is a public Firebase **web** API key — see [Security Notes](https://www.google.com/search?q=%23security-notes). If you want to point this at your own Firebase project, replace the `firebaseConfig` object in that file with your own project's details.
 
 ## Running the Firebase Functions
 
@@ -126,6 +133,7 @@ For the optimization feature (core/magnetics selection) to work, the `runSmpsOpt
 ```bash
 cd assets/js/functions
 npm install
+
 ```
 
 **Test locally with the emulator:**
@@ -134,12 +142,14 @@ npm install
 npm run serve
 # or
 npm run shell
+
 ```
 
 **Deploy:**
 
 ```bash
 npm run deploy
+
 ```
 
 This deploys to the project ID defined in `.firebaserc` — to use your own project, update that file and select your project with `firebase use --add`.
@@ -148,6 +158,7 @@ To follow the function's logs:
 
 ```bash
 npm run logs
+
 ```
 
 ### Calling it through `api_service.js`
@@ -160,6 +171,7 @@ const response = await window.apiService.runSmpsOptimizationSingle(payload);
 
 // Parallel optimization for two independent coils (L1/L2)
 const [settledL1, settledL2] = await window.apiService.runSmpsOptimizationDual(payloadL1, payloadL2);
+
 ```
 
 If a new page needs to call Firebase, add `api_service.js` as a script right after `firebase_config.js` and use this API — don't call `firebase.app().functions(...)` directly.
@@ -167,9 +179,10 @@ If a new page needs to call Firebase, add `api_service.js` as a script right aft
 ## Supported Topologies
 
 | Page | Topology |
-|---|---|
+| --- | --- |
 | `buck.html` | Buck |
 | `boost.html` | Boost |
+| `interleaved-boost.html` | Two-Phase Interleaved Boost |
 | `buck-boost.html` | Buck-Boost |
 | `cuk.html` | Ćuk |
 | `sepic.html` | SEPIC |
@@ -209,23 +222,23 @@ The UI supports Turkish (`tr`), English (`en`), and German (`de`) through `asset
 
 This project has deliberately not taken on a few pieces of architectural debt yet; listed here transparently for anyone contributing:
 
-- **No ES Modules** — functions are defined globally on `window` (see [Architecture](#architecture)). This is partly tidied up by the `window.SMPSApp` namespace, but a full `import`/`export` migration is a separate, bigger refactor that requires converting every `onclick` handler across the 18 HTML pages to `addEventListener`.
-- **No build tool** — Vite/Webpack aren't used; dependencies (like Three.js) are loaded via `<script>` tags or dynamic `document.createElement('script')`. This can occasionally cause rare race-condition errors on slow connections.
-- **Inline HTML templates** — some functions, like `openAdvancedTable` and `openCustomThermalModal`, contain long template literals. Splitting these into separate `.html` files and `fetch`-ing them was deliberately avoided without a build tool, since that would break under `file://` due to CORS; breaking them into smaller `renderX()` functions is the suggested approach instead.
-- **No PLECS-XML → JSON converter** — new switching devices currently have to be converted by hand (or with your own script) into the schema used in `smps_database.json`; see [Adding Switching Devices](#adding-switching-devices-plecs-export). Automating this conversion, and automatically merging files from `dataset/switches/` into `smps_database.json`, is on the roadmap.
-- **The `falstad/` directory** — compiled with Java/GWT, it's an app independent of the rest of the project; it isn't part of the same build process as the JS/HTML tooling in this repo and needs to be maintained separately.
+* **No ES Modules** — functions are defined globally on `window` (see [Architecture](https://www.google.com/search?q=%23architecture)). This is partly tidied up by the `window.SMPSApp` namespace, but a full `import`/`export` migration is a separate, bigger refactor that requires converting every `onclick` handler across the 19 HTML pages to `addEventListener`.
+* **No build tool** — Vite/Webpack aren't used; dependencies (like Three.js) are loaded via `<script>` tags or dynamic `document.createElement('script')`. This can occasionally cause rare race-condition errors on slow connections.
+* **Inline HTML templates** — some functions, like `openAdvancedTable` and `openCustomThermalModal`, contain long template literals. Splitting these into separate `.html` files and `fetch`-ing them was deliberately avoided without a build tool, since that would break under `file://` due to CORS; breaking them into smaller `renderX()` functions is the suggested approach instead.
+* **No PLECS-XML → JSON converter** — new switching devices currently have to be converted by hand (or with your own script) into the schema used in `smps_database.json`; see [Adding Switching Devices](https://www.google.com/search?q=%23adding-switching-devices-plecs-export). Automating this conversion, and automatically merging files from `dataset/switches/` into `smps_database.json`, is on the roadmap.
+* **The `falstad/` directory** — compiled with Java/GWT, it's an app independent of the rest of the project; it isn't part of the same build process as the JS/HTML tooling in this repo and needs to be maintained separately.
 
 ## Security Notes
 
-- The `apiKey` in `assets/js/common/firebase_config.js` is a Firebase **web** API key, and it's meant to be visible in the browser — it isn't a secret. Actual access control is enforced through Firestore/Cloud Functions security rules. This is called out specifically so contributors don't panic thinking the "API key has leaked."
-- No service account JSON file or other secret key is included in the repo.
-- `.gitignore` excludes `node_modules/`, `.firebase/`, `.env`, and `.vs/` (Visual Studio local workspace state) from commits — if your local development creates files with sensitive info, make sure they stay covered by `.gitignore`.
+* The `apiKey` in `assets/js/common/firebase_config.js` is a Firebase **web** API key, and it's meant to be visible in the browser — it isn't a secret. Actual access control is enforced through Firestore/Cloud Functions security rules. This is called out specifically so contributors don't panic thinking the "API key has leaked."
+* No service account JSON file or other secret key is included in the repo.
+* `.gitignore` excludes `node_modules/`, `.firebase/`, `.env`, and `.vs/` (Visual Studio local workspace state) from commits — if your local development creates files with sensitive info, make sure they stay covered by `.gitignore`.
 
 ## Contributing
 
 1. Fork / clone this repo.
 2. When adding a new topology page or feature, follow the existing pattern: keep the calculation logic in its own file under `assets/js/topologies/`, and reuse the shared UI/optimization logic under `assets/js/common/`.
-3. When adding a new topology, don't forget to add the matching D1/D2 logic both in the `topology` detection block in `advanced_optimizer.js` and in the `getEffectiveWaveformParams` function on the backend (see [Architecture](#architecture)) — otherwise results silently fall back to the "Low Confidence" default.
+3. When adding a new topology, don't forget to add the matching D1/D2 logic both in the `topology` detection block in `advanced_optimizer.js` and in the `getEffectiveWaveformParams` function on the backend (see [Architecture](https://www.google.com/search?q=%23architecture)) — otherwise results silently fall back to the "Low Confidence" default.
 4. New code that needs a Firebase call should go through `window.apiService`, not `firebase.app().functions(...)` directly.
-5. Adding a new switching device? See [Adding Switching Devices](#adding-switching-devices-plecs-export) and drop it in `dataset/switches/`.
+5. Adding a new switching device? See [Adding Switching Devices](https://www.google.com/search?q=%23adding-switching-devices-plecs-export) and drop it in `dataset/switches/`.
 6. Open a pull request describing your changes.
