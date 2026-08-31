@@ -54,7 +54,8 @@ window.openAdvancedTable = function () {
     const isSepic = pageTitle.includes('sepic');
     const isCuk = pageTitle.includes('cuk');
     const isZeta = pageTitle.includes('zeta');
-    const isDualCoil = isSepic || isCuk || isZeta;
+    const isInterleaved = pageTitle.includes('interleaved');
+    const isDualCoil = isSepic || isCuk || isZeta || isInterleaved;
 
     let lOutputValid = false;
     let veOptValid = false;
@@ -276,8 +277,8 @@ window.showIgseModal = function (coreDataString) {
         : (bd.confidence === "medium" ? (safeGetT('igse_conf_med') || "Orta Güven")
             : (safeGetT('igse_conf_low') || "Düşük Güven"));
 
-    const tdStyleL = "padding:8px 0; color:#9e9e9e; border:none; border-bottom:1px solid #333;";
-    const tdStyleR = "text-align:right; border:none; border-bottom:1px solid #333;";
+    const tdStyleL = "padding:12px 8px; color:#9e9e9e; border:none; border-bottom:1px solid #333; font-size:13px; vertical-align:top;";
+    const tdStyleR = "padding:12px 8px; text-align:right; border:none; border-bottom:1px solid #333; font-weight: 500; font-size:13px; word-break: break-word;";
 
     const safeNote = sanitizeHTML(bd.note);
     const safeK = sanitizeHTML(bd.k);
@@ -292,30 +293,56 @@ window.showIgseModal = function (coreDataString) {
     const safeWaveForm = sanitizeHTML(bd.waveform_factor);
     const safeFinalPv = sanitizeHTML(bd.final_Pv);
 
-    const modalHtml =
-        '<div style="position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9999; display:flex; align-items:center; justify-content:center;" onclick="this.remove()">' +
-        '<div style="background:#1e1e1e; border:1px solid #333; border-radius:10px; padding:24px; max-width:500px; width:90%; box-sizing:border-box; overflow:hidden;" onclick="event.stopPropagation()">' +
-        '<h3 style="color:#ffb74d; margin-top:0;">' + sanitizeHTML(safeGetT('igse_modal_title') || 'iGSE Nüve Kaybı Hesaplama Detayı') + '</h3>' +
-        '<div style="background:' + confColor + '22; border-left:3px solid ' + confColor + '; padding:8px 12px; margin-bottom:14px; border-radius:4px;">' +
-        '<b style="color:' + confColor + ';">' + sanitizeHTML(confLabel) + '</b>' +
-        '<p style="font-size:12px; color:#ccc; margin:4px 0 0 0;">' + safeNote + '</p>' +
-        '</div>' +
-        '<table style="width:100%; min-width:auto; font-size:13px; color:#e0e0e0; border-collapse:collapse; margin:0; border:none;">' +
-        '<tr><td style="' + tdStyleL + '">' + sanitizeHTML(safeGetT('igse_mat_steinmetz') || 'Malzeme Steinmetz') + '</td><td style="' + tdStyleR + '">' + safeK + ', ' + safeAlpha + ', ' + safeBeta + '</td></tr>' +
-        '<tr><td style="' + tdStyleL + '">' + sanitizeHTML(safeGetT('igse_temp_coef') || 'Sıcaklık Katsayısı') + '</td><td style="' + tdStyleR + '">' + safeKt + '</td></tr>' +
-        '<tr><td style="' + tdStyleL + '">' + sanitizeHTML(safeGetT('igse_num_integral') || 'Nümerik İntegral') + '</td><td style="' + tdStyleR + '">' + safeIa + '</td></tr>' +
-        '<tr><td style="' + tdStyleL + '">' + sanitizeHTML(safeGetT('igse_ki_const') || 'k_i Sabiti') + '</td><td style="' + tdStyleR + '">' + safeKi + '</td></tr>' +
-        '<tr><td style="' + tdStyleL + '">' + sanitizeHTML(safeGetT('igse_delta_b') || 'ΔB (T)') + '</td><td style="' + tdStyleR + '">' + safeDeltaB + '</td></tr>' +
-        '<tr><td style="' + tdStyleL + '">' + sanitizeHTML(safeGetT('igse_freq') || 'Frekans (kHz)') + '</td><td style="' + tdStyleR + '">' + safeFkhz + '</td></tr>' +
-        '<tr><td style="' + tdStyleL + '">' + sanitizeHTML(safeGetT('igse_duty_used') || 'Duty Cycle (D)') + '</td><td style="' + tdStyleR + '">' + safeDUsed + '</td></tr>' +
-        '<tr><td style="' + tdStyleL + '">' + sanitizeHTML(safeGetT('igse_waveform_factor') || 'Dalga Çarpanı') + '</td><td style="' + tdStyleR + '">' + safeWaveForm + '</td></tr>' +
-        '<tr><td style="padding:12px 0 0 0; color:#81c784; font-weight:bold; border:none;">' + sanitizeHTML(safeGetT('igse_result_pv') || 'Sonuç (Pv)') + '</td><td style="text-align:right; padding-top:12px; color:#81c784; font-weight:bold; border:none;">' + safeFinalPv + ' mW/cm³</td></tr>' +
-        '</table>' +
-        '<p style="font-size:11px; color:#777; margin-top:16px; border-top:1px dashed #444; padding-top:10px;">' +
-        sanitizeHTML(safeGetT('igse_validation_note') || 'Doğrulama: Prototipte nüve yüzey sıcaklığını termal kamera/termokupl ile ölçün...') +
-        '</p>' +
-        '</div>' +
-        '</div>';
+    const existingModal = document.getElementById('igseOverlayModal');
+    if (existingModal) existingModal.remove();
+
+    const modalHtml = `
+        <div id="igseOverlayModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:9999; display:flex; align-items:center; justify-content:center; padding:15px; backdrop-filter: blur(4px);" onclick="this.remove()">
+            
+            <div style="background:#1e1e1e; border:1px solid #444; border-radius:12px; max-width:550px; width:100%; max-height:85vh; display:flex; flex-direction:column; box-shadow: 0 10px 40px rgba(0,0,0,0.6);" onclick="event.stopPropagation()">
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; padding: 16px 20px; border-bottom: 1px solid #333; background: rgba(255,255,255,0.02); border-radius: 12px 12px 0 0;">
+                    <h4 style="color:#ffb74d; margin:0; font-size: 16px; font-weight: 600;">
+                        ${sanitizeHTML(safeGetT('igse_modal_title') || 'iGSE Core Loss Calculation Details')}
+                    </h4>
+                    <button onclick="document.getElementById('igseOverlayModal').remove()" style="background:transparent; border:none; color:#888; font-size:24px; cursor:pointer; line-height:1; padding:0 5px; margin:0; transition: color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#888'" title="Kapat">&times;</button>
+                </div>
+
+                <div style="padding: 20px; overflow-y: auto; flex: 1;">
+                    
+                    <div style="background:${confColor}1A; border-left:4px solid ${confColor}; padding:12px 16px; margin-bottom:20px; border-radius:6px;">
+                        <b style="color:${confColor}; font-size: 14px;">${sanitizeHTML(confLabel)}</b>
+                        <p style="font-size:13px; color:#d0d0d0; margin:8px 0 0 0; line-height: 1.5;">${safeNote}</p>
+                    </div>
+                    
+                    <div style="overflow-x: auto; margin-bottom: 20px;">
+                        <table style="width:100%; min-width:300px; color:#e0e0e0; border-collapse:collapse; margin:0;">
+                            <tr><td style="${tdStyleL}">${sanitizeHTML(safeGetT('igse_mat_steinmetz') || 'Material Steinmetz (k, α, β)')}</td><td style="${tdStyleR}">${safeK},<br>${safeAlpha},<br>${safeBeta}</td></tr>
+                            <tr><td style="${tdStyleL}">${sanitizeHTML(safeGetT('igse_temp_coef') || 'Temperature Coefficient (K_t)')}</td><td style="${tdStyleR}">${safeKt}</td></tr>
+                            <tr><td style="${tdStyleL}">${sanitizeHTML(safeGetT('igse_num_integral') || 'Numerical Integral (I_α)')}</td><td style="${tdStyleR}">${safeIa}</td></tr>
+                            <tr><td style="${tdStyleL}">${sanitizeHTML(safeGetT('igse_ki_const') || 'Derived k_i Constant')}</td><td style="${tdStyleR}">${safeKi}</td></tr>
+                            <tr><td style="${tdStyleL}">${sanitizeHTML(safeGetT('igse_delta_b') || 'ΔB (Peak-to-Peak, T)')}</td><td style="${tdStyleR}">${safeDeltaB}</td></tr>
+                            <tr><td style="${tdStyleL}">${sanitizeHTML(safeGetT('igse_freq') || 'Frequency (kHz)')}</td><td style="${tdStyleR}">${safeFkhz}</td></tr>
+                            <tr><td style="${tdStyleL}">${sanitizeHTML(safeGetT('igse_duty_used') || 'Used Duty Cycle (D)')}</td><td style="${tdStyleR}">${safeDUsed}</td></tr>
+                            <tr><td style="${tdStyleL}">${sanitizeHTML(safeGetT('igse_waveform_factor') || 'Waveform Factor')}</td><td style="${tdStyleR}">${safeWaveForm}</td></tr>
+                            <tr>
+                                <td style="padding:16px 8px 10px 8px; color:#81c784; font-weight:bold; border:none; font-size: 14px;">${sanitizeHTML(safeGetT('igse_result_pv') || 'Result (Pv)')}</td>
+                                <td style="text-align:right; padding:16px 8px 10px 8px; color:#81c784; font-weight:bold; border:none; font-size: 15px;">${safeFinalPv} mW/cm³</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div style="padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px dashed #555;">
+                        <p style="font-size:12px; color:#999; margin:0; line-height: 1.5;">
+                            ${sanitizeHTML(safeGetT('igse_validation_note') || 'Validation: Measure the core surface temperature on the prototype with a thermal camera or thermocouple...')}
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    `;
+
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 };
 
@@ -376,7 +403,12 @@ window.render3DCore = async function (coreDataString) {
 
     let gapHTML = '';
     if (coreData.gap_mm > 0) {
-        gapHTML = '<p style="margin:3px 0; color:#00AEEF;">🟦 <b>' + sanitizeHTML(gapLabel) + ': ' + sanitizeHTML(gapVal) + ' mm</b></p>';
+        let extraGapInfo = "";
+        if (coreData.gap_is_builtin && coreData.required_gap_mm > 0) {
+            extraGapInfo = ` <span style="color:#aaa; font-size:11px; font-weight:normal;">(Required: ${coreData.required_gap_mm.toFixed(3)} mm)</span>`;
+        }
+
+        gapHTML = '<p style="margin:3px 0; color:#00AEEF;">🟦 <b>' + sanitizeHTML(gapLabel) + ': ' + sanitizeHTML(gapVal) + ' mm</b>' + extraGapInfo + '</p>';
     }
 
     const advMeasTitle = sanitizeHTML(_tr("adv_meas_title", "Ölçüm Araçları"));
@@ -926,7 +958,8 @@ window.executeAdvancedOptimization = async function () {
         const isSepic = pageTitle.includes('sepic');
         const isCuk = pageTitle.includes('cuk');
         const isZeta = pageTitle.includes('zeta');
-        const isDualCoil = isSepic || isCuk || isZeta;
+        const isInterleaved = pageTitle.includes('interleaved');
+        const isDualCoil = isSepic || isCuk || isZeta || isInterleaved;
 
         let veOptEl = document.getElementById('VeOpt');
         let nOutputEl = document.getElementById('nOutput');
@@ -952,14 +985,22 @@ window.executeAdvancedOptimization = async function () {
         let estD = 0.5;
         let sw_Irms = 1;
         let sw_Vmax = vinMax;
-
         let topology = "unknown";
-        if (isSepic || isCuk || isZeta) topology = "buckboost";
 
-        estD = Math.min(0.95, Math.max(0.05, voutVal / (vinNom + voutVal)));
-        const I_in_est = (voutVal * ioutVal) / (vinNom * eff);
-        sw_Irms = (I_in_est + ioutVal) * Math.sqrt(estD);
-        sw_Vmax = vinMax + voutVal;
+        if (isSepic || isCuk || isZeta) topology = "buckboost";
+        else if (isInterleaved) topology = "interleaved_boost";
+
+        if (isInterleaved) {
+            estD = Math.max(0.05, 1 - (vinNom / Math.max(voutVal, vinNom + 1)));
+            const I_in_est = (voutVal * ioutVal) / (vinNom * eff);
+            sw_Irms = (I_in_est / 2) * Math.sqrt(estD);
+            sw_Vmax = voutVal;
+        } else {
+            estD = Math.min(0.95, Math.max(0.05, voutVal / (vinNom + voutVal)));
+            const I_in_est = (voutVal * ioutVal) / (vinNom * eff);
+            sw_Irms = (I_in_est + ioutVal) * Math.sqrt(estD);
+            sw_Vmax = vinMax + voutVal;
+        }
 
         const isTopology = true;
 
@@ -1209,7 +1250,9 @@ window.executeAdvancedOptimization = async function () {
                 topology = "pushpull";
             } else if (isBridge && !pageTitle.includes('llc') && !pageTitle.includes('dab')) {
                 topology = "bridge";
-            }
+            } else if (isInterleaved) {
+                topology = "interleaved_boost";
+            } 
 
             if (isBuck && !isBuckBoost) {
                 estD = Math.min(0.95, Math.max(0.05, voutVal / vinNom));
@@ -1442,7 +1485,17 @@ window.filterResultsByManufacturer = function () {
 
     const P_out = voutVal * ioutVal;
 
-    const bestSwitchLoss = (filteredResults.switches && filteredResults.switches.length > 0) ? (filteredResults.switches[0].p_tot_W || 0) : 0;
+    let defaultSwitchQty = 1;
+    if (pageTitle.includes('interleaved') || pageTitle.includes('push-pull') || pageTitle.includes('half-bridge') || pageTitle.includes('half bridge')) {
+        defaultSwitchQty = 2;
+    } else if (pageTitle.includes('full-bridge') || pageTitle.includes('full bridge') || pageTitle.includes('dab')) {
+        defaultSwitchQty = 4;
+    }
+
+    let bestSwitchLoss = (filteredResults.switches && filteredResults.switches.length > 0) ? (filteredResults.switches[0].p_tot_W || 0) : 0;
+
+    bestSwitchLoss *= defaultSwitchQty;
+
     let bestCoreLoss = 0;
     let bestCopperLoss = 0;
 
@@ -1740,13 +1793,21 @@ function renderAdvancedResults(res, skinDepthD, states) {
             const safeDistributor = sanitizeHTML(item.distributor);
             const safeUrl = sanitizeURL(item.url);
 
+            const n1_val = item.n1_calc || "-";
+            const n2_val = item.n2_calc > 0 ? ` / N2: ${item.n2_calc}` : "";
+            const turnsDisplay = `<br><span style="font-size:11px; color:#ffb74d; background: rgba(255,183,77,0.1); padding: 2px 4px; border-radius: 3px; display:inline-block; margin-top:3px;">N1: ${n1_val}${n2_val}</span>`;
+
             const coreDataJson = encodeURIComponent(JSON.stringify(item)).replace(/'/g, "%27");
             t += `<tr ${index === 0 ? "class='row-best-opt'" : ""} 
           style="cursor:pointer;" title="3D Görüntülemek İçin Tıklayın"
           onclick="window.render3DCore('${coreDataJson}')">
                 <td><strong>#${index + 1}</strong><span style="color:#81c784;font-size:11px;">
                     ${index === 0 ? "<br>" + sanitizeHTML(safeGetT('adv_best') || 'En İyi') : ""}</span></td>
-                <td style="text-align:left; color:#00AEEF; font-weight:bold;">${safeName} <br><span style="font-size:10px;color:#888;">(${sanitizeHTML(safeGetT('adv_show_3d') || '3D Göster')})</span></td>
+                <td style="text-align:left; color:#00AEEF; font-weight:bold;">
+                    ${safeName} <br>
+                    <span style="font-size:10px;color:#888;">(${sanitizeHTML(safeGetT('adv_show_3d') || '3D Göster')})</span>
+                    ${turnsDisplay}
+                </td>
                 <td><strong>${safeMaterial}</strong></td>
                 <td>${safeBobbin}</td>
                 <td style="color:#00AEEF;">${sanitizeHTML(parseFloat(item.bmax).toFixed(2))}</td>
@@ -2385,6 +2446,12 @@ window.openCustomThermalModal = function () {
     let switchHtml = '';
     if (states.calculateSwitches !== false && res.switches && res.switches.length > 0) {
         let opts = res.switches.map((s, i) => `<option value="${i}">${s.name} (${s.type}) - P_tot: ${s.p_tot_W.toFixed(2)}W</option>`).join('');
+
+        let defaultQty = 1;
+        const pt = (document.title || "").toLowerCase();
+        if (pt.includes('interleaved') || pt.includes('push-pull') || pt.includes('half-bridge') || pt.includes('half bridge')) defaultQty = 2;
+        else if (pt.includes('full-bridge') || pt.includes('full bridge') || pt.includes('dab')) defaultQty = 4;
+
         switchHtml = `
             <div class="mb-2">
                 <label class="form-label fw-bold" style="font-size:12px; color:var(--color-yellow);">${safeGetT('adv_thermal_select_switch') || 'Anahtarlama Elemanı (MOSFET/Diyot)'}</label>
@@ -2394,7 +2461,8 @@ window.openCustomThermalModal = function () {
             </div>
             <div class="mb-3">
                 <label class="form-label fw-bold" style="font-size:12px; color:var(--color-yellow);">${safeGetT('adv_thermal_switch_qty') || 'Paralel Adet'}</label>
-                <input type="number" id="selSwitchQty" class="form-control form-control-sm bg-dark text-light border-secondary" value="1" min="1" max="10">
+                <!-- value="1" yerine value="${defaultQty}" yazıldı -->
+                <input type="number" id="selSwitchQty" class="form-control form-control-sm bg-dark text-light border-secondary" value="${defaultQty}" min="1" max="10">
             </div>
             <div class="mb-3 form-check" title="${sanitizeHTML(safeGetT('adv_thermal_gate_scale_tooltip') || 'İşaretliyse: paralel MOSFET sayısı arttıkça sürücünün de güçlendirildiği varsayılır, anahtarlama kaybı toplamda sabit kalır. İşaretli değilse: sürücü gücü sabit kabul edilir, toplam gate yükü arttığı için anahtarlama kaybı adet ile orantılı büyür (kötümser / güvenli taraf).')}">
                 <input type="checkbox" id="selSwitchGateScales" class="form-check-input">

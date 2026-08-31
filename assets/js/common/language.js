@@ -3,6 +3,12 @@
 
 const translations = {
     tr: {
+        "card_interleaved_title": "2-Phase Interleaved Boost Converter",
+        card_2phase_boost_title: "2-Phase Interleaved Boost Converter Hesapla",
+        help_list_2phase_boost: "- 2-Phase Interleaved Boost Converter, giriş voltajını daha yüksek bir çıkış voltajına dönüştüren bir güç dönüştürücüdür. Program, giriş ve çıkış voltajlarına göre akım ve gerilim değerlerini hesaplar ve grafiksel olarak gösterir.",
+        card_2phase_boost_desc: "2-Phase Interleaved Boost Converter, giriş voltajını girişe göre daha yüksek bir pozitif çıkış voltajına dönüştürür.",
+        "interleaved_breadcrumb": "Interleaved Boost",
+        "2phaseboost_breadcrumb": "2-Phase Boost",
         adv_monte_carlo_switch: "Monte Carlo Analizi (1#)",
         adv_mc_no_data: "Lütfen önce standart termal testi çalıştırın.",
 		adv_only_known_stock: "Sadece Stok Bilinenler",
@@ -805,7 +811,7 @@ const translations = {
         res_tdead: "Max. Ölü Zaman",
         res_skin: "Max. Tel Çapı (Skin Depth)",
         table_header: "Tablo",
-        col_time: "Zaman",
+        col_time: "Zaman [µs]",
         col_v1: "V1",
         col_v3: "V3 (V2*N1/N2)",
         col_iin: "Iin",
@@ -827,6 +833,13 @@ const translations = {
         chart_4_exp: "İlk iki grafiğin üst üste bindirilmiş halidir. Mavi kare dalga ile kırmızı kesik çizgili kare dalga arasındaki kayma miktarı, sistemin ne kadar güç aktaracağını belirlemektedir."
     },
     en: {
+        help_list_2phase_boost: "- 2-Phase Interleaved Boost Converter is a power converter that converts an input voltage into a higher output voltage. The program calculates and displays current and voltage values ​​based on the input and output voltages.",
+        card_2phase_boost_title: "Calculate 2-Phase Interleaved Boost Converter",
+        card_2phase_boost_desc: "A 2-Phase Interleaved Boost Converter converts the input voltage into a positive output voltage that is higher than the input voltage.",
+        "card_interleaved_title": "2-Phase Interleaved Boost Converter",
+        "interleaved_breadcrumb": "Interleaved Boost",
+        "card_2phaseboost_title": "2-Phase Boost Converter",
+        "2phaseboost_breadcrumb": "2-Phase Boost",
         adv_monte_carlo_switch: "Monte Carlo Analysis (1#)",
         adv_mc_no_data: "Please run the standard thermal test first.",
 		adv_only_known_stock: "Only Known Stocks",
@@ -1627,7 +1640,7 @@ const translations = {
         res_tdead: "Max. Dead-Time",
         res_skin: "Max. Wire Dia. (Skin Depth)",
         table_header: "Table",
-        col_time: "Time",
+        col_time: "Time [µs]",
         col_v1: "V1",
         col_v3: "V3 (V2*N1/N2)",
         col_iin: "Iin",
@@ -1649,6 +1662,13 @@ const translations = {
         chart_4_exp: "A superimposed version of the first two charts. The shift between the blue square wave and the red dashed square wave determines the amount of power to be transferred."
     },
     de: {
+        help_list_2phase_boost: "- Der 2-Phasen-Interleaved-Boost-Konverter ist ein Leistungswandler, der eine Eingangsspannung in eine höhere Ausgangsspannung umwandelt. Das Programm berechnet und zeigt Strom- und Spannungswerte basierend auf den Eingangs- und Ausgangsspannungen an.",
+        card_2phase_boost_title: "Berechnung eines zweiphasigen verschachtelten Aufwärtswandlers",
+        card_2phase_boost_desc: "Ein zweiphasiger verschachtelter Aufwärtswandler wandelt die Eingangsspannung in eine positive Ausgangsspannung um, die höher als die Eingangsspannung ist.",
+        "card_interleaved_title": "2-Phase Interleaved Boost Converter",
+        "interleaved_breadcrumb": "Interleaved Boost",
+        "card_2phaseboost_title": "2-Phase Boost Converter",
+        "2phaseboost_breadcrumb": "2-Phase Boost",
         adv_monte_carlo_switch: "Monte Carlo Analyse (1#)",
         adv_mc_no_data: "Bitte führen Sie zuerst den standardisierten thermischen Test durch.",
 		adv_only_known_stock: "Nur bekannte Aktien",
@@ -2450,7 +2470,7 @@ const translations = {
         res_tdead: "Max. Totzeit",
         res_skin: "Max. Drahtdurchmesser",
         table_header: "Tabelle",
-        col_time: "Zeit",
+        col_time: "Zeit [µs]",
         col_v1: "V1",
         col_v3: "V3 (V2*N1/N2)",
         col_iin: "Iin",

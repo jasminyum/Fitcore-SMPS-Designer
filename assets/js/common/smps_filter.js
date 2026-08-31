@@ -32,7 +32,7 @@ class SMPSFilterCalculator {
 
     calculateInputFilter(topology, Vin, Vout, Pout, f_sw_khz, efficiency = 0.85) {
         Vin = Vin > 0 ? Vin : 1;
-        const f_sw_hz = (f_sw_khz > 0 ? f_sw_khz : 50) * 1000;
+        let f_sw_hz = (f_sw_khz > 0 ? f_sw_khz : 50) * 1000;
         const Pin = Pout / (efficiency > 0 ? efficiency : 0.85);
         const Iin_avg = Pin / Vin;
         const Rin_psu = Vin / (Iin_avg > 0 ? Iin_avg : 1);
@@ -51,10 +51,11 @@ class SMPSFilterCalculator {
         if (topo.includes('sepic') || topo.includes('cuk')) {
             D = (Vout_mag + Uf) / (Vin + Vout_mag + Uf);
             isPulsedInput = false;
+        } else if (topo.includes('interleaved')) {
+            D = (Vout_mag + Uf - Vin) / (Vout_mag + Uf);
+            isPulsedInput = false;
+            f_sw_hz = f_sw_hz * 2;
         } else if (topo.includes('buck') && !topo.includes('boost')) {
-            D = (Vout_mag + Uf) / (Vin + Uf);
-            isPulsedInput = true;
-        } else if (topo.includes('boost') && !topo.includes('buck')) {
             D = (Vout_mag + Uf - Vin) / (Vout_mag + Uf);
             isPulsedInput = false;
         } else if (topo.includes('buck-boost') || topo.includes('inverting') || topo.includes('zeta')) {
@@ -232,6 +233,7 @@ window.openFilterDesign = function (topologyOverride = null) {
         else if (pageTitle.includes('cuk')) topology = 'cuk';
         else if (pageTitle.includes('zeta')) topology = 'zeta';
         else if (pageTitle.includes('buck-boost')) topology = 'buck-boost';
+        else if (pageTitle.includes('interleaved')) topology = 'interleaved_boost';
         else if (pageTitle.includes('buck')) topology = 'buck';
         else if (pageTitle.includes('boost')) topology = 'boost';
         else if (pageTitle.includes('flyback')) topology = 'flyback';
