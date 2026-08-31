@@ -3,6 +3,7 @@
 
 const translations = {
     tr: {
+        too_small: "Karkasa sığmaz!",
         "card_interleaved_title": "2-Phase Interleaved Boost Converter",
         card_2phase_boost_title: "2-Phase Interleaved Boost Converter Hesapla",
         help_list_2phase_boost: "- 2-Phase Interleaved Boost Converter, giriş voltajını daha yüksek bir çıkış voltajına dönüştüren bir güç dönüştürücüdür. Program, giriş ve çıkış voltajlarına göre akım ve gerilim değerlerini hesaplar ve grafiksel olarak gösterir.",
@@ -833,6 +834,7 @@ const translations = {
         chart_4_exp: "İlk iki grafiğin üst üste bindirilmiş halidir. Mavi kare dalga ile kırmızı kesik çizgili kare dalga arasındaki kayma miktarı, sistemin ne kadar güç aktaracağını belirlemektedir."
     },
     en: {
+        too_small: "It won't fit in the frame!",
         help_list_2phase_boost: "- 2-Phase Interleaved Boost Converter is a power converter that converts an input voltage into a higher output voltage. The program calculates and displays current and voltage values ​​based on the input and output voltages.",
         card_2phase_boost_title: "Calculate 2-Phase Interleaved Boost Converter",
         card_2phase_boost_desc: "A 2-Phase Interleaved Boost Converter converts the input voltage into a positive output voltage that is higher than the input voltage.",
@@ -1662,6 +1664,7 @@ const translations = {
         chart_4_exp: "A superimposed version of the first two charts. The shift between the blue square wave and the red dashed square wave determines the amount of power to be transferred."
     },
     de: {
+        too_small: "Es passt nicht in den Rahmen!",
         help_list_2phase_boost: "- Der 2-Phasen-Interleaved-Boost-Konverter ist ein Leistungswandler, der eine Eingangsspannung in eine höhere Ausgangsspannung umwandelt. Das Programm berechnet und zeigt Strom- und Spannungswerte basierend auf den Eingangs- und Ausgangsspannungen an.",
         card_2phase_boost_title: "Berechnung eines zweiphasigen verschachtelten Aufwärtswandlers",
         card_2phase_boost_desc: "Ein zweiphasiger verschachtelter Aufwärtswandler wandelt die Eingangsspannung in eine positive Ausgangsspannung um, die höher als die Eingangsspannung ist.",
