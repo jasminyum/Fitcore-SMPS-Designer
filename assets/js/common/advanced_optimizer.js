@@ -1797,29 +1797,40 @@ function renderAdvancedResults(res, skinDepthD, states) {
             const n2_val = item.n2_calc > 0 ? ` / N2: ${item.n2_calc}` : "";
             const turnsDisplay = `<br><span style="font-size:11px; color:#ffb74d; background: rgba(255,183,77,0.1); padding: 2px 4px; border-radius: 3px; display:inline-block; margin-top:3px;">N1: ${n1_val}${n2_val}</span>`;
 
+            let rowStyling = index === 0 ? "class='row-best-opt'" : "";
+            if (item.windowExceeded) {
+                rowStyling = `style="background-color: rgba(229, 57, 53, 0.15); border-left: 4px solid #e53935;"`;
+            }
+
+            const fitWarningBadge = item.windowExceeded
+                ? `<br><span style="font-size:11px; color:#fff; background:#e53935; padding:2px 5px; border-radius:3px; display:inline-block; margin-top:4px;">${safeGetT('too_small')}</span>`
+                : "";
+
             const coreDataJson = encodeURIComponent(JSON.stringify(item)).replace(/'/g, "%27");
-            t += `<tr ${index === 0 ? "class='row-best-opt'" : ""} 
-          style="cursor:pointer;" title="3D Görüntülemek İçin Tıklayın"
-          onclick="window.render3DCore('${coreDataJson}')">
-                <td><strong>#${index + 1}</strong><span style="color:#81c784;font-size:11px;">
-                    ${index === 0 ? "<br>" + sanitizeHTML(safeGetT('adv_best') || 'En İyi') : ""}</span></td>
-                <td style="text-align:left; color:#00AEEF; font-weight:bold;">
-                    ${safeName} <br>
-                    <span style="font-size:10px;color:#888;">(${sanitizeHTML(safeGetT('adv_show_3d') || '3D Göster')})</span>
-                    ${turnsDisplay}
-                </td>
-                <td><strong>${safeMaterial}</strong></td>
-                <td>${safeBobbin}</td>
-                <td style="color:#00AEEF;">${sanitizeHTML(parseFloat(item.bmax).toFixed(2))}</td>
-                <td style="color:${lossColor};"><b>${sanitizeHTML(formattedLossW)}</b><br>
-                    <span style="font-size:11px;opacity:0.8;">${sanitizeHTML(formattedPv)} mW/cm³</span>
-                    <span onclick="event.stopPropagation(); window.showIgseModal('${coreDataJson}')" style="cursor:pointer;color:#00AEEF;margin-left:5px;" title="${sanitizeHTML(safeGetT('igse_tooltip_detail') || 'Hesaplama Detayı')}">ⓘ</span>
-                </td>
-                <td>${safeDistributor}<br>${costDisplay}
-                    ${item.url !== "#" ? `<a href="${safeUrl}" target="_blank" style="margin-left:5px;" onclick="event.stopPropagation();">(${sanitizeHTML(safeGetT('adv_link') || 'Link')})</a>` : ''}</td>
-                <td><b>${sanitizeHTML(item.fuzzyScore.toFixed(1))}</b>
-                <span style="font-size:11px; color:var(--text-muted);">/100</span></td>
-            </tr>`;
+
+            t += `<tr ${rowStyling} 
+      style="cursor:pointer;" title="Click for 3D view!"
+      onclick="window.render3DCore('${coreDataJson}')">
+            <td><strong>#${index + 1}</strong><span style="color:#81c784;font-size:11px;">
+                ${index === 0 && !item.windowExceeded ? "<br>" + sanitizeHTML(safeGetT('adv_best') || 'En İyi') : ""}</span></td>
+            <td style="text-align:left; color:#00AEEF; font-weight:bold;">
+                ${safeName} <br>
+                <span style="font-size:10px;color:#888;">(${sanitizeHTML(safeGetT('adv_show_3d') || '3D Göster')})</span>
+                ${turnsDisplay}
+                ${fitWarningBadge}
+            </td>
+            <!-- Diğer td elemanları aynı kalacak -->
+            <td><strong>${safeMaterial}</strong></td>
+            <td>${safeBobbin}</td>
+            <td style="color:#00AEEF;">${sanitizeHTML(parseFloat(item.bmax).toFixed(2))}</td>
+            <td style="color:${lossColor};"><b>${sanitizeHTML(formattedLossW)}</b><br>
+                <span style="font-size:11px;opacity:0.8;">${sanitizeHTML(formattedPv)} mW/cm³</span>
+                <span onclick="event.stopPropagation(); window.showIgseModal('${coreDataJson}')" style="cursor:pointer;color:#00AEEF;margin-left:5px;">ⓘ</span>
+            </td>
+            <td>${safeDistributor}<br>${costDisplay}</td>
+            <td><b>${sanitizeHTML(item.fuzzyScore.toFixed(1))}</b>
+            <span style="font-size:11px; color:var(--text-muted);">/100</span></td>
+        </tr>`;
         });
         return t + `</tbody></table></div>`;
     };
