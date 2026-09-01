@@ -783,6 +783,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 let copper_loss_W = 0;
                 let windowPenalty = 1.0;
                 let windowExceeded = false;
+                let fillRatio = 0;
 
                 if (isValid) {
                     let Aw_mm2 = 0, w_width = 0, w_height = 0;
@@ -846,9 +847,11 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                         Ku_limit = 0.30;
                     }
 
-                    if (total_Cu_mm2 > (Aw_mm2 * Ku_limit)) {
+                    fillRatio = (Aw_mm2 > 0 && Ku_limit > 0) ? (total_Cu_mm2 / (Aw_mm2 * Ku_limit)) : 0;
+
+                    if (fillRatio > 1.0) {
                         windowExceeded = true;
-                        windowPenalty = Math.max(1.5, Math.pow(total_Cu_mm2 / (Aw_mm2 * Ku_limit), 2.5));
+                        windowPenalty = Math.max(1.5, Math.pow(fillRatio, 2.5));
                     }
 
                     const Ae_mm2_est = Ae * 1e6;
@@ -1016,6 +1019,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     windowAreaSource: "dims",
                     windowPenalty: windowPenalty,
                     windowExceeded: windowExceeded,
+                    fillRatio: fillRatio,
                     overLossPenalty: overLossPenalty,
                     l_target_H: (type === "energy" && L_H > 0) ? L_H : null,
                     l_actual_H: l_actual_H > 0 ? l_actual_H : null,
