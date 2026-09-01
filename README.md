@@ -190,8 +190,8 @@ If a new page needs to call Firebase, add `api_service.js` as a script right aft
 | `flyback.html` | Flyback |
 | `single.html` | Single-Transistor Forward |
 | `two-transistor.html` | Two-Transistor Forward |
-| `half-bridge.html` | Half-Bridge |
-| `full-bridge.html` | Full-Bridge |
+| `half-bridge.html` | Half-Bridge Push-Pull |
+| `full-bridge.html` | Full-Bridge Push-Pull |
 | `llc-half.html` | LLC Half-Bridge Resonant |
 | `llc-full.html` | LLC Full-Bridge Resonant |
 | `dab.html` | Dual Active Bridge (DAB) |
