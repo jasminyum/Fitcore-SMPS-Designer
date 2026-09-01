@@ -665,18 +665,43 @@ window.openFalstadInterleavedSimulation = function () {
     var c_val = sim_c_uF * 1e-6;
 
     var Vf = 0.2;
-
+    var nUa = vout + Vf;
     var Iout_est = vout / r_val;
-    var duty_cycle = 1 - (vin_nom / (vout + Vf));
+
+    var Pin_nom = (vout * Iout_est) / 0.9;
+    var Iin_nom_total = Pin_nom / vin_nom;
+    var Ie_nom = Iin_nom_total / 2;
+    var actual_deltaIL = (nUa - vin_nom) * vin_nom / (nUa * freq_hz * l_val);
+
+    var epsilon = 0.02;
+    var actualMode = "continuous"; // CCM
+    if (actual_deltaIL > (2 * Ie_nom) + epsilon) {
+        actualMode = "discontinuous"; // DCM
+    } else if (Math.abs(actual_deltaIL - (2 * Ie_nom)) <= epsilon) {
+        actualMode = "critical"; // CRM
+    }
+
+    var duty_cycle;
+    var Vin_eff = vin_nom;
+
     for (var iter = 0; iter < 6; iter++) {
+        if (actualMode === "discontinuous") {
+            // DCM
+            var ratio = nUa / (nUa - Vin_eff) - 1;
+            var t1_s = Math.sqrt(2 * l_val * (Iout_est / 2) / (freq_hz * Vin_eff * ratio));
+            duty_cycle = t1_s * freq_hz;
+        } else {
+            duty_cycle = 1 - (Vin_eff / nUa);
+        }
+
         var D = duty_cycle;
         var Iin_est = Iout_est / (1 - D);
         var Iphase_est = Iin_est / 2;
         var Vdrop = Iphase_est * (dcr_val + D * ron_val);
-        var Vin_eff = vin_nom - Vdrop;
-        duty_cycle = 1 - (Vin_eff / (vout + Vf));
+        Vin_eff = Math.max(vin_nom - Vdrop, 1.0);
     }
-    if (duty_cycle < 0.05) duty_cycle = 0.05;
+
+    if (duty_cycle < 0.01) duty_cycle = 0.01;
     if (duty_cycle > 0.95) duty_cycle = 0.95;
 
     var sim_timestep = 1.0 / (freq_hz * 100);
