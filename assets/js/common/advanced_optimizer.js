@@ -1802,8 +1802,10 @@ function renderAdvancedResults(res, skinDepthD, states) {
                 rowStyling = `style="background-color: rgba(229, 57, 53, 0.15); border-left: 4px solid #e53935;"`;
             }
 
+            const fillPct = item.fillRatio ? ` (%${(item.fillRatio * 100).toFixed(0)})` : "";
+
             const fitWarningBadge = item.windowExceeded
-                ? `<br><span style="font-size:11px; color:#fff; background:#e53935; padding:2px 5px; border-radius:3px; display:inline-block; margin-top:4px;">${safeGetT('too_small')}</span>`
+                ? `<br><span style="font-size:11px; color:#fff; background:#e53935; padding:2px 5px; border-radius:3px; display:inline-block; margin-top:4px;">${safeGetT('too_small')} ${fillPct}</span>`
                 : "";
 
             const coreDataJson = encodeURIComponent(JSON.stringify(item)).replace(/'/g, "%27");
