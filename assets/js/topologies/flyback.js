@@ -160,9 +160,10 @@ function updateChartsAndTable() {
         modeWarnEl.style.border = '1px solid #b8daff';
         modeWarnEl.style.backgroundColor = '#cce5ff';
 
-        var t1_crm_info = (lOutput_H * (2 * ILs_nom)) / Ue;
-        var t2_crm_info = (lOutput_H * (2 * ILs_nom)) / ((vout + Uf) * nOutput);
+        var t1_crm_info = (lOutput_H * I_critical) / Ue;
+        var t2_crm_info = (lOutput_H * I_critical) / ((vout + Uf) * nOutput);
         var f_crm_info = 1.0 / (t1_crm_info + t2_crm_info);
+
         modeWarnEl.textContent = (window.getT ? window.getT('info_crm_mode') : "Bilgi: CRM modu aktif ve parametreler kusursuz uyumlu. Nominal yükte ideal çalışma frekansı ") + (f_crm_info / 1000).toFixed(1) + " kHz.";
     } else {
         modeWarnEl.style.display = 'none';
