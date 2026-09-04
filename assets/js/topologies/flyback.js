@@ -201,12 +201,12 @@ function updateChartsAndTable() {
     if (actualMode === "continuous") {
         var D = (vout + Uf) * nOutput / ((vout + Uf) * nOutput + Ue);
         t1 = D / f_hz;
-        dIL = actual_deltaIL;
 
+        dIL = (1 / f_hz) * (1 / lOutput_H) * (vout + Uf) * nOutput * Ue / ((vout + Uf) * nOutput + Ue);
         var I_center = ILs_nom / D;
         Imax = I_center + 0.5 * dIL;
-
         Imin = Math.max(0, Imax - dIL);
+
         D1 = D; D2 = 1 - D;
 
         i1_rms_calc = Math.sqrt(D1 * (Imin * Imin + Imin * Imax + Imax * Imax) / 3);
