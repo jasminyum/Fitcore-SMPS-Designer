@@ -98,8 +98,21 @@ function updateChartsAndTable() {
     var f_hz = f_khz * 1000;
     var Uem = (vin_min + vin_max) / 2;
 
-    var nOutput = Uem / (vout + Uf);
-    var lOutput_H = (Uem * Uem) / (8 * (vout + Uf) * ilout * f_hz);
+    // 1. Kullanıcıdan opsiyonel oranı al
+    var customRatioEl = document.getElementById('custom_nRatio');
+    var userRatio = customRatioEl ? parseFloat(customRatioEl.value) : 0;
+
+    var nOutput;
+    if (userRatio > 0) {
+        nOutput = userRatio;
+    } else {
+        var Dmax = 0.45;
+        nOutput = (vin_min * Dmax) / ((vout + Uf) * (1 - Dmax));
+    }
+
+    var D_nom = ((vout + Uf) * nOutput) / (((vout + Uf) * nOutput) + vin_nom);
+
+    var lOutput_H = (vin_nom * vin_nom * D_nom * D_nom) / (2 * (vout + Uf) * ilout * f_hz);
     var lOutput = lOutput_H * 1e6;
 
     var Ue = vin_nom;
