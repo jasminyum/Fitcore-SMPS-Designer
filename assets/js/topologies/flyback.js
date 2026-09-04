@@ -872,11 +872,12 @@ window.openSelectedTable = function () {
     };
 
     if (mode === "advanced") {
-        if (typeof window.openAdvancedTable === "function") {
-            window.openAdvancedTable();
+        if (typeof window.openAdvancedPreCheck === "function") {
+            window.openAdvancedPreCheck();
         } else {
             alert("Advanced modül yüklenemedi.");
         }
+        return;
     } else {
         if (typeof UIModal !== 'undefined' && UIModal.openFlybackModal) {
             UIModal.openFlybackModal(params);
