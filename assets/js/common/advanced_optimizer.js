@@ -1272,6 +1272,11 @@ window.executeAdvancedOptimization = async function () {
                 estD = Math.min(0.95, Math.max(0.05, (voutVal * nOut) / (vinNom + voutVal * nOut)));
                 sw_Vmax = vinMax + (voutVal * nOut);
                 sw_Irms = pri_Irms;
+
+                if (smpsMode === "DCM" || smpsMode === "CRM") {
+                    extraModeParams.D1 = estD;
+                    extraModeParams.D2 = (vinNom / (voutVal * nOut)) * estD;
+                }
             } else if (isForward || isPushPull) {
                 sw_Vmax = vinMax * 2;
                 sw_Irms = pri_Irms;
@@ -1280,8 +1285,23 @@ window.executeAdvancedOptimization = async function () {
                 sw_Irms = pri_Irms / Math.SQRT2;
             }
 
-            if (!uiMode && deltaILEl && parseFloat(deltaILEl.innerText) > (ioutVal * 2)) {
-                smpsMode = "DCM";
+            if (!uiMode && deltaILEl) {
+                let dIL = parseFloat(deltaILEl.innerText) || 0;
+                if (isFlyback) {
+                    let nOut = parseFloat(nOutputEl?.innerText) || 1;
+                    let D_flyback = Math.min(0.95, Math.max(0.05, (voutVal * nOut) / (vinNom + voutVal * nOut)));
+                    let I_in = (voutVal * ioutVal) / (vinNom * eff);
+                    let critical_dIL = (2 * I_in) / D_flyback;
+
+                    if (Math.abs(dIL - critical_dIL) < (0.05 * critical_dIL)) smpsMode = "CRM";
+                    else if (dIL > critical_dIL) smpsMode = "DCM";
+                    else smpsMode = "CCM";
+                } else if (isBuck && !isBuckBoost) {
+                    if (dIL > (ioutVal * 2)) smpsMode = "DCM";
+                } else if (isBoost || isBuckBoost) {
+                    let I_in = (voutVal * ioutVal) / (vinNom * eff);
+                    if (dIL > (I_in * 2)) smpsMode = "DCM";
+                }
             }
             if (isPfc) {
                 extraModeParams.D1 = estD;
@@ -1890,7 +1910,7 @@ function renderAdvancedResults(res, skinDepthD, states) {
             </tr></thead><tbody>`;
 
         if (!data || data.length === 0)
-            return t + `<tr><td colspan="8" style="color:#ef5350;padding:15px;">Bu voltaj seviyesi için uygun anahtarlama elemanı bulunamadı.</td></tr></tbody></table></div>`;
+            return t + `<tr><td colspan="8" style="color:#ef5350;padding:15px;">A suitable switching element could not be found for this voltage level.</td></tr></tbody></table></div>`;
 
         data.forEach((item, index) => {
             let techColor = item.type.includes("GaN") ? "#b388ff" : (item.type.includes("SiC") ? "#8c9eff" : "#ffcc80");
