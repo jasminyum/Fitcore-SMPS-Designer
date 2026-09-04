@@ -1992,7 +1992,7 @@ function renderAdvancedResults(res, skinDepthD, states) {
         <td><b>${sanitizeHTML(item.fuzzyScore.toFixed(1))}</b>
         <span style="font-size:11px; color:var(--text-muted);">/100</span></td>
         <td>
-            <a href="${safeUrl}" target="_blank" onclick="event.stopPropagation();" class="btn btn-sm btn-outline-info" style="padding:2px 5px; font-size:11px;">PDF</a>
+            <a href="${safeUrl}" target="_blank" onclick="event.stopPropagation();" class="btn btn-sm btn-outline-info" style="padding:2px 5px; font-size:11px;">🔗</a>
         </td>
     </tr>`;
         });
