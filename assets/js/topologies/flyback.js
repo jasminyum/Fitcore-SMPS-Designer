@@ -98,7 +98,6 @@ function updateChartsAndTable() {
     var f_hz = f_khz * 1000;
     var Uem = (vin_min + vin_max) / 2;
 
-    // 1. Kullanıcıdan opsiyonel oranı al
     var customRatioEl = document.getElementById('custom_nRatio');
     var userRatio = customRatioEl ? parseFloat(customRatioEl.value) : 0;
 
@@ -112,7 +111,16 @@ function updateChartsAndTable() {
 
     var D_nom = ((vout + Uf) * nOutput) / (((vout + Uf) * nOutput) + vin_nom);
 
-    var lOutput_H = (vin_nom * vin_nom * D_nom * D_nom) / (2 * (vout + Uf) * ilout * f_hz);
+    var K_r;
+    if (userMode === "continuous") {
+        K_r = 0.4;
+    } else if (userMode === "discontinuous") {
+        K_r = 2.5;
+    } else {
+        K_r = 2.0;
+    }
+
+    var lOutput_H = (vin_nom * vin_nom * D_nom * D_nom) / (K_r * (vout + Uf) * ilout * f_hz);
     var lOutput = lOutput_H * 1e6;
 
     var Ue = vin_nom;
