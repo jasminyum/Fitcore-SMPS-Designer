@@ -607,20 +607,37 @@ window.render3DCore = async function (coreDataString) {
     dirLight.position.set(20, 50, 40);
     scene.add(ambientLight, dirLight);
 
+    // --- YENİ: AİLE (FAMILY) TESPİTİNİ DAHA GÜÇLÜ HALE GETİRME ---
+    let family = coreData.family || "E";
+    const cName = (coreData.name || "").toUpperCase();
+    if (cName.includes("EQ")) family = "EQ";
+    else if (cName.includes("ER")) family = "ER";
+    else if (cName.includes("ETD")) family = "ETD";
+    else if (cName.includes("PQ")) family = "PQ";
+    else if (cName.includes("RM")) family = "RM";
+    else if (cName.includes("PM")) family = "PM";
+
+    const isRoundCenter = ["ETD", "RM", "PQ", "PM", "ER", "EP", "EQ"].includes(family);
+    const isRoundOuter = ["RM", "PQ", "PM", "EQ", "ER", "EP"].includes(family);
+
     let A = coreData.dim_A || 42;
     let B = coreData.dim_B || 21;
     let C = coreData.dim_C || 15;
     let D = coreData.dim_D || 11;
     let E = coreData.dim_E || 29;
     let F = coreData.dim_F || 0;
-    if (A < 1) { A *= 1000; B *= 1000; C *= 1000; D *= 1000; E *= 1000; F *= 1000; }
+    if (A < 1 && A > 0) { A *= 1000; B *= 1000; C *= 1000; D *= 1000; E *= 1000; F *= 1000; }
 
-    const family = coreData.family || "E";
+    // --- YENİ: TAŞMAYI ENGELLEYEN MANTIKSAL SINIRLAMALAR (CLAMPING) ---
+    // Kullanıcı iç çapı (D) çok büyük girerse, dış genişliğe göre sınırla
+    if (D >= A * 0.8) D = A * 0.4;
+
+    // Kullanıcı pencere genişliğini (E), iç çaptan (D) daha küçük girerse bobin sığmaz. Düzelt:
+    if (E <= D) E = (A + D) / 2;
+    if (E >= A) E = A * 0.9;
+
     const coreMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6, metalness: 0.5 });
     const coreGroup = new THREE.Group();
-
-    if (E >= A) E = A * 0.8;
-    if (D >= E) D = E * 0.5;
 
     let legHeight = F > 0 ? F : (B - D / 2);
 
@@ -632,7 +649,7 @@ window.render3DCore = async function (coreDataString) {
     }
 
     const backPlateThick = B - legHeight;
-    const outerLegThick = (A - E) / 2;
+    const outerLegThick = Math.max(0.5, (A - E) / 2);
 
     const gap_mm = coreData.gap_mm || 0;
     const visualGap = gap_mm > 0 ? Math.max(gap_mm, legHeight * 0.05) : 0;
@@ -644,7 +661,7 @@ window.render3DCore = async function (coreDataString) {
         const dir = isTop ? 1 : -1;
 
         let backGeom;
-        if (family === "RM" || family === "PQ" || family === "PM") {
+        if (isRoundOuter) {
             backGeom = new THREE.CylinderGeometry(A / 2, A / 2, backPlateThick, 32);
         } else {
             backGeom = new THREE.BoxGeometry(A, backPlateThick, C);
@@ -654,7 +671,7 @@ window.render3DCore = async function (coreDataString) {
         halfGroup.add(backMesh);
 
         let centerLegGeom;
-        if (family === "ETD" || family === "RM" || family === "PQ" || family === "PM" || family === "ER" || family === "EP") {
+        if (isRoundCenter) {
             centerLegGeom = new THREE.CylinderGeometry(D / 2, D / 2, activeLegHeight, 32);
         } else {
             centerLegGeom = new THREE.BoxGeometry(D, activeLegHeight, C);
@@ -666,8 +683,8 @@ window.render3DCore = async function (coreDataString) {
         const outerLegH = isDistributedGap ? activeLegHeight : legHeight;
         const outerLegY = isDistributedGap ? (legHeight - activeLegHeight / 2) : (legHeight / 2);
 
-        if (family === "RM" || family === "PQ" || family === "PM") {
-            const outerLegGeom = new THREE.BoxGeometry(outerLegThick, outerLegH, A * 0.7);
+        if (isRoundOuter) {
+            const outerLegGeom = new THREE.BoxGeometry(outerLegThick, outerLegH, A * 0.8);
             const leftLeg = new THREE.Mesh(outerLegGeom, coreMat);
             leftLeg.position.set(-(A / 2 - outerLegThick / 2), dir * outerLegY, 0);
             const rightLeg = new THREE.Mesh(outerLegGeom, coreMat);
@@ -701,9 +718,12 @@ window.render3DCore = async function (coreDataString) {
     }
 
     const n1 = coreData.n1_calc || coreData.n1 || 20;
-    const innerRadius = (D / 2) + 0.5;
-    const maxCoilRadius = (E / 2) - 0.5;
-    const availableRadialSpace = Math.max(0.3, maxCoilRadius - innerRadius);
+
+    // --- YENİ: SARGININ TAŞMASINI ENGELLEYEN YARIÇAP HESAPLARI ---
+    const innerRadius = (D / 2) + 0.2;
+    const maxCoilRadius = (E / 2) - 0.2;
+    let availableRadialSpace = maxCoilRadius - innerRadius;
+    if (availableRadialSpace < 0.5) availableRadialSpace = 0.5; // Karkasın dışına çıkmaması için min tolerans
 
     const windowHeight = legHeight * 2 - visualGap;
     const topBottomMargin = 0.5;
@@ -818,20 +838,20 @@ window.render3DCore = async function (coreDataString) {
 
     let coreMaterialVolMm3 = 0;
 
-    if (family === "RM" || family === "PQ" || family === "PM") {
+    if (isRoundOuter) {
         coreMaterialVolMm3 += 2 * (Math.PI * (Math.pow(A / 2, 2) - Math.pow(E / 2, 2) + Math.pow(D / 2, 2)) * backPlateThick);
     } else {
         coreMaterialVolMm3 += 2 * (A * backPlateThick * C);
     }
 
-    if (family === "ETD" || family === "RM" || family === "PQ" || family === "PM" || family === "ER") {
+    if (isRoundCenter) {
         coreMaterialVolMm3 += 2 * (Math.PI * Math.pow(D / 2, 2) * activeLegHeight);
     } else {
         coreMaterialVolMm3 += 2 * (D * activeLegHeight * C);
     }
 
     const coreOuterLegH = isDistributedGap ? activeLegHeight : legHeight;
-    if (family === "RM" || family === "PQ" || family === "PM") {
+    if (isRoundOuter) {
         coreMaterialVolMm3 += 2 * (Math.PI * (Math.pow(A / 2, 2) - Math.pow(E / 2, 2)) * coreOuterLegH);
     } else {
         coreMaterialVolMm3 += 4 * (outerLegThick * coreOuterLegH * C);
@@ -1811,12 +1831,28 @@ window.filterResultsByManufacturer = function () {
 
             let MLT_m = MLT_mm / 1000;
             let n1 = bestCoilCore.n1_calc || bestCoilCore.n1 || 10;
+            let n2 = bestCoilCore.n2_calc || Math.max(4, Math.floor(n1 / 2));
 
-            let targetWire = coilWire || priWire;
-            if (targetWire) {
-                let A_wire = parseFloat(targetWire.totalArea) || 0.5;
-                let dcr = rho * ((n1 * MLT_mm) / 1000) / (A_wire * 1e-6);
-                bestCopperLoss += dcr * Math.pow(coilIrmsEst, 2);
+            const isFlybackTopo = document.getElementById('wmax1') && document.getElementById('nOutput') && !document.getElementById('VeOpt');
+
+            if (isFlybackTopo) {
+                if (priWire && priWire.totalArea) {
+                    let A_wire = parseFloat(priWire.totalArea) || 0.5;
+                    let dcr = rho * (n1 * MLT_m) / (A_wire * 1e-6);
+                    bestCopperLoss += dcr * Math.pow(priIrmsEst, 2);
+                }
+                if (secWire && secWire.totalArea && secIrmsEst > 0) {
+                    let A_wire = parseFloat(secWire.totalArea) || 0.5;
+                    let dcr = rho * (n2 * MLT_m) / (A_wire * 1e-6);
+                    bestCopperLoss += dcr * Math.pow(secIrmsEst, 2);
+                }
+            } else {
+                let targetWire = coilWire || priWire;
+                if (targetWire) {
+                    let A_wire = parseFloat(targetWire.totalArea) || 0.5;
+                    let dcr = rho * ((n1 * MLT_mm) / 1000) / (A_wire * 1e-6);
+                    bestCopperLoss += dcr * Math.pow(coilIrmsEst, 2);
+                }
             }
         }
     }
@@ -2334,17 +2370,34 @@ function renderAdvancedResults(res, skinDepthD, states) {
 
             if (A < 1 && A > 0) { A *= 1000; B *= 1000; C *= 1000; D *= 1000; E *= 1000; }
 
-            const family = core.family || "E";
+            let family = core.family || "E";
+            const cName = (core.name || "").toUpperCase();
+            if (cName.includes("EQ")) family = "EQ";
+            else if (cName.includes("ER")) family = "ER";
+            else if (cName.includes("ETD")) family = "ETD";
+            else if (cName.includes("PQ")) family = "PQ";
+            else if (cName.includes("RM")) family = "RM";
+            else if (cName.includes("PM")) family = "PM";
+            else if (cName.includes("EP")) family = "EP";
 
-            const innerRadius = (D / 2) + 0.5;
-            const maxCoilRadius = (E / 2) - 0.5;
-            const availableRadialSpace = Math.max(0.3, maxCoilRadius - innerRadius);
+            const isRoundOuter = ["RM", "PQ", "PM", "EQ", "ER", "EP"].includes(family);
+
+            if (D >= A * 0.8) D = A * 0.4;
+            if (E <= D) E = (A + D) / 2;
+            if (E >= A) E = A * 0.9;
+
+            const innerRadius = (D / 2) + 0.2;
+            const maxCoilRadius = (E / 2) - 0.2;
+            let availableRadialSpace = maxCoilRadius - innerRadius;
+            if (availableRadialSpace < 0.5) availableRadialSpace = 0.5;
+
             const flangeOuter = innerRadius + availableRadialSpace + 0.5;
             const coilDiameter = flangeOuter * 2;
 
             let sizeX = A;
             let sizeY = B * 2;
-            let sizeZ = (family === "RM" || family === "PQ" || family === "PM") ? A : C;
+
+            let sizeZ = isRoundOuter ? A : C;
 
             if (coilDiameter > sizeX) sizeX = coilDiameter;
             if (coilDiameter > sizeZ) sizeZ = coilDiameter;
