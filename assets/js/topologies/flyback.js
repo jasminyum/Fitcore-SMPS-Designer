@@ -568,7 +568,7 @@ function drawCharts(wf, ilout, vin_min, vin_max, Uem, effData) {
 
     mk('vinChart', [
         { label: 'V_L1 (Primer)', data: wf.vl1, borderColor: 'rgba(100, 181, 246, 1)', borderWidth: 2, fill: false },
-        { label: 'Vin (ort.)', data: Array(N).fill(Uem), borderColor: refLineColor, borderWidth: 1.5, borderDash: [6, 3], fill: false, pointRadius: 0 }
+        { label: 'Vin (avg.)', data: Array(N).fill(Uem), borderColor: refLineColor, borderWidth: 1.5, borderDash: [6, 3], fill: false, pointRadius: 0 }
     ], 'Voltage (V)');
 
     mk('vdsChart', [
