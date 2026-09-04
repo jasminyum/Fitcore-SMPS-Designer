@@ -1911,17 +1911,18 @@ function renderAdvancedResults(res, skinDepthD, states) {
                 ${(data && data.length > 0) ? `<button class="btn btn-sm btn-outline-info fw-bold" onclick="window.runMonteCarloCore('${bestCoreJson}')">${sanitizeHTML(safeGetT('adv_monte_carlo_switch') || 'Monte Carlo Analizi (1#)')}</button>` : ''}
             </div>
             <div class="table-responsive"><table class="adv-table">
-            <thead><tr>
-                <th>${sanitizeHTML(safeGetT('adv_tbl_rank') || 'Sıra')}</th><th>${sanitizeHTML(safeGetT('adv_tbl_core_name') || 'Nüve')}</th>
-                <th>${sanitizeHTML(safeGetT('adv_tbl_material') || 'Malzeme')}</th><th>${sanitizeHTML(safeGetT('adv_tbl_bobbin') || 'Karkas')}</th>
-                <th>${sanitizeHTML(safeGetT('adv_tbl_bmax') || 'Bm (AC Genlik mT)')}</th>
-                <th>
-                    ${sanitizeHTML(safeGetT('adv_tbl_core_loss') || 'Nüve Kaybı')}
-                    <span class="info-icon" onclick="event.stopPropagation(); window.showIgseModal('${bestCoreJson}')" title="${sanitizeHTML(safeGetT('igse_tooltip_how') || 'Nasıl hesaplandı?')}" style="cursor:pointer;color:#00AEEF;font-size:14px;margin-left:4px;">ⓘ</span><br>
-                    <span style="font-size:10px;color:#aaa;">(Pv = mW/cm³)</span>
-                </th>
-                <th>${sanitizeHTML(safeGetT('adv_tbl_vendor_cost') || 'Maliyet / Satıcı')}</th><th>${sanitizeHTML(safeGetT('adv_tbl_score') || 'Skor')}</th>
-            </tr></thead><tbody>`;
+        <thead><tr>
+            <th>${sanitizeHTML(safeGetT('adv_tbl_rank') || 'Sıra')}</th><th>${sanitizeHTML(safeGetT('adv_tbl_core_name') || 'Nüve')}</th>
+            <th>${sanitizeHTML(safeGetT('adv_tbl_material') || 'Malzeme')}</th><th>${sanitizeHTML(safeGetT('adv_tbl_bobbin') || 'Karkas')}</th>
+            <th>${sanitizeHTML(safeGetT('adv_tbl_bmax') || 'Bm (AC Genlik mT)')}</th>
+            <th>
+                ${sanitizeHTML(safeGetT('adv_tbl_core_loss') || 'Nüve Kaybı')}
+                <span class="info-icon" onclick="event.stopPropagation(); window.showIgseModal('${bestCoreJson}')" title="${sanitizeHTML(safeGetT('igse_tooltip_how') || 'Nasıl hesaplandı?')}" style="cursor:pointer;color:#00AEEF;font-size:14px;margin-left:4px;">ⓘ</span><br>
+                <span style="font-size:10px;color:#aaa;">(Pv = mW/cm³)</span>
+            </th>
+            <th>${sanitizeHTML(safeGetT('adv_tbl_vendor_cost') || 'Maliyet / Satıcı')}</th><th>${sanitizeHTML(safeGetT('adv_tbl_score') || 'Skor')}</th>
+            <th>Link</th>
+        </tr></thead><tbody>`;
 
         if (!data || data.length === 0)
             return t + `<tr><td colspan="8" style="color:#ef5350;padding:15px;">${sanitizeHTML(safeGetT('adv_no_core_found') || 'Uygun nüve bulunamadı.')}</td></tr></tbody></table></div>`;
@@ -1987,10 +1988,13 @@ function renderAdvancedResults(res, skinDepthD, states) {
                 <span style="font-size:11px;opacity:0.8;">${sanitizeHTML(formattedPv)} mW/cm³</span>
                 <span onclick="event.stopPropagation(); window.showIgseModal('${coreDataJson}')" style="cursor:pointer;color:#00AEEF;margin-left:5px;">ⓘ</span>
             </td>
-            <td>${safeDistributor}<br>${costDisplay}</td>
-            <td><b>${sanitizeHTML(item.fuzzyScore.toFixed(1))}</b>
-            <span style="font-size:11px; color:var(--text-muted);">/100</span></td>
-        </tr>`;
+        <td>${safeDistributor}<br>${costDisplay}</td>
+        <td><b>${sanitizeHTML(item.fuzzyScore.toFixed(1))}</b>
+        <span style="font-size:11px; color:var(--text-muted);">/100</span></td>
+        <td>
+            <a href="${safeUrl}" target="_blank" onclick="event.stopPropagation();" class="btn btn-sm btn-outline-info" style="padding:2px 5px; font-size:11px;">PDF</a>
+        </td>
+    </tr>`;
         });
         return t + `</tbody></table></div>`;
     };
@@ -2044,7 +2048,7 @@ function renderAdvancedResults(res, skinDepthD, states) {
                 <th>${sanitizeHTML(safeGetT('adv_tbl_semi_pcond') || 'İletim Kaybı (W)')}</th>
                 <th>${sanitizeHTML(safeGetT('adv_tbl_semi_psw') || 'Anahtarlama Kaybı (W)')}</th>
                 <th>${sanitizeHTML(safeGetT('adv_tbl_semi_ptot') || 'Tahmini Toplam Kayıp (W)')}</th>
-                <th>Datasheet</th>
+                <th>Link</th>
             </tr></thead><tbody>`;
 
         if (!data || data.length === 0)
