@@ -645,18 +645,14 @@ function embedFalstadSimulation(circuitString) {
 }
 
 // ================================================================
-// CIRCUITJS (FALSTAD) FLYBACK CONVERTER ENTEGRASYONU
+// CIRCUITJS (FALSTAD) FLYBACK CONVERTER ENTEGRASYONU (DÜZELTİLDİ)
 // ================================================================
 function openFalstadFlybackSimulation() {
-    var vin_nom = parseFloat(document.getElementById('vin_nom').value) || 305;
-    var vout = parseFloat(document.getElementById('vout').value) || 200;
-    var ilout = parseFloat(document.getElementById('ilout').value) || 0.25;
-    var f_khz = parseFloat(document.getElementById('f_khz').value) || 50;
-
-    var l_uH = parseFloat(document.getElementById('lOutput').innerText) || 1000;
-    var c_uF = parseFloat(document.getElementById('cOutput').innerText) || 10;
-    var r_load = parseFloat(document.getElementById('rOutput').innerText) || 800;
-    var nOutput = parseFloat(document.getElementById('nOutput').innerText) || 1.5;
+    var vin_nom = parseFloat(document.getElementById('vin_nom')?.value) || 36.0;
+    var vin_min = parseFloat(document.getElementById('vin_min')?.value) || 9.0;
+    var vout = parseFloat(document.getElementById('vout')?.value) || 24.0;
+    var ilout = parseFloat(document.getElementById('ilout')?.value) || 3.125;
+    var f_khz = parseFloat(document.getElementById('f_khz')?.value) || 200.0;
 
     document.getElementById("simulationContainer").style.display = "block";
     document.getElementById("liveDataBox").style.display = "block";
@@ -668,18 +664,51 @@ function openFalstadFlybackSimulation() {
 
     var Uf = 0.7;
     var freq_hz = f_khz * 1000;
+
+    var l_uH = parseFloat(document.getElementById('lOutput')?.innerText) || 100.0;
     var l_henry = l_uH * 1e-6;
+
+    var c_uF = parseFloat(document.getElementById('cOutput')?.innerText) || 10.0;
     var c_farad = c_uF * 1e-6;
+    var r_load = vout / ilout;
 
-    var sim_timestep = 1.0 / (freq_hz * 50);
-    var timestep_str = sim_timestep.toExponential(2).toUpperCase();
-
-    var ratio = -(1 / nOutput);
+    var customRatioEl = document.getElementById('custom_nRatio');
+    var userRatio = customRatioEl ? parseFloat(customRatioEl.value) : 0;
+    var nOutput = (userRatio > 0) ? userRatio : ((vin_min * 0.45) / ((vout + Uf) * 0.55));
+    var ratio = 1 / nOutput;
 
     var v_f = (vout + Uf) * nOutput;
-    var ILs_nom = ilout * (1.0 / nOutput) * (vin_nom + v_f) / vin_nom;
-    var actual_deltaIL = (1 / freq_hz) * (1 / l_henry) * (v_f * vin_nom) / (v_f + vin_nom);
-    var Imax = ILs_nom + 0.5 * actual_deltaIL;
+    var D_ccm = v_f / (v_f + vin_nom);
+    var ILs_nom = ilout * (vout + Uf) / vin_nom;
+
+    var delta_I = (vin_nom * D_ccm) / (l_henry * freq_hz);
+    var I_critical = (2 * ILs_nom) / D_ccm;
+    var tolerance = 0.03 * ILs_nom;
+
+    var actualMode;
+    if (Math.abs(delta_I - I_critical) <= tolerance) {
+        actualMode = "critical";
+    } else if (delta_I > I_critical) {
+        actualMode = "discontinuous";
+    } else {
+        actualMode = "continuous";
+    }
+
+    var duty_cycle;
+    if (actualMode === "continuous" || actualMode === "critical") {
+        duty_cycle = D_ccm;
+    } else {
+        var P_sec = (vout + Uf) * ilout;
+        duty_cycle = Math.sqrt((2 * P_sec * l_henry * freq_hz)) / vin_nom;
+    }
+
+    if (duty_cycle > 0.90) duty_cycle = 0.90;
+    if (duty_cycle < 0.02) duty_cycle = 0.02;
+
+    var Pout = (vout + Uf) * ilout;
+    var I_in_avg = Pout / vin_nom;
+    var I_center = I_in_avg / D_ccm;
+    var Imax = (actualMode === "discontinuous") ? (vin_nom * duty_cycle / (l_henry * freq_hz)) : (I_center + 0.5 * delta_I);
 
     var leakage_ratio = 0.025;
     var coupling = Math.sqrt(1 - leakage_ratio).toFixed(4);
@@ -687,48 +716,30 @@ function openFalstadFlybackSimulation() {
 
     var v_x = 0.2 * v_f;
     var v_clamp = v_f + v_x;
-
     var p_leak = 0.5 * L_leakage * Imax * Imax * freq_hz;
-    var r_snub = (v_clamp * v_clamp) / (p_leak * 2);
+    var r_snub = (v_clamp * v_clamp) / Math.max(p_leak * 2, 0.001);
     if (r_snub > 100000) r_snub = 100000;
-
-    // YENİ DÜZELTME: Snubber alt sınırı 1000 Ohm'dan 10 Ohm'a düşürüldü.
-    // Düşük voltaj/yüksek akım tasarımlarında snubber deşarj olabilsin.
     if (r_snub < 10) r_snub = 10;
 
     var c_snub = 100e-9;
 
-    var c_oss = (Imax * 1.0e-6) / v_x;
-    if (c_oss > 10e-9) c_oss = 10e-9;
-    if (c_oss < 1e-9) c_oss = 1e-9;
+    var c_oss = 150e-12;
 
-    var v_or = (vout + Uf) * nOutput;
-    var duty_cycle_ratio = v_or / (v_or + vin_nom);
-
-    if (duty_cycle_ratio > 0.95) duty_cycle_ratio = 0.95;
-    if (duty_cycle_ratio < 0.05) duty_cycle_ratio = 0.05;
-
-    // YENİ DÜZELTME: Falstad'da nokta/virgül sorunu yaşanmaması için yuvarlama
-    var duty_cycle = Math.round(duty_cycle_ratio * 100);
-
-    // YENİ DÜZELTME: Dinamik MOSFET Beta Ayarı (Sabit 3.7 Ohm düşüm sorununu çözer)
     var Vgs_on = 15;
     var Vt_mos = 1.5;
-    var target_Vdrop_frac = 0.005; // Vin'in ~%0.5'i kadar kabul edilebilir düşü
-    var Ron_target = (target_Vdrop_frac * vin_nom) / Math.max(Imax, 0.01);
-    var beta_dyn = 1 / (Ron_target * (Vgs_on - Vt_mos));
-    beta_dyn = Math.min(Math.max(beta_dyn, 0.02), 50); // makul sınırlar
+    var Ron_target = (0.005 * vin_nom) / Math.max(Imax, 0.01);
+    var beta_dyn = Math.min(Math.max(1 / (Ron_target * (Vgs_on - Vt_mos)), 0.02), 200);
 
     var v_gate_max = 15;
     var v_amp = v_gate_max / 2;
     var v_offset = v_amp;
 
-    var v_init = vout;
+    var sim_timestep = 1.0 / (freq_hz * 50);
+    var timestep_str = sim_timestep.toExponential(2).toUpperCase();
+
     var vscale_in = Math.max(50, Math.ceil(vin_nom / 50) * 50);
     var vscale_out = Math.max(50, Math.ceil(vout / 50) * 50);
-    var input_current_approx = (vout * ilout) / vin_nom;
-    var iscale = Math.max(0.5, Math.ceil((input_current_approx + ilout) / 2) * 0.5);
-
+    var iscale = Math.max(0.5, Math.ceil((I_in_avg + ilout) / 2) * 0.5);
     var expected_vds = vin_nom + v_clamp;
     var vscale_ds = Math.max(50, Math.ceil((expected_vds + 50) / 50) * 50);
     var iscale_out = Math.max(0.1, Math.ceil(ilout * 1.5 * 10) / 10);
@@ -738,7 +749,11 @@ $ 1 {TIMESTEP} 10.0 50 5.0 50
 v 80 320 80 192 0 0 40 {VIN} 0 0 0.5
 f 176 288 224 288 32 {VT_MOS} {BETA_MOS}
 T 224 224 352 272 0 {L_PRI} {RATIO} {COUPLING} 48
-d 352 208 464 208 1 {UF}
+w 352 224 352 304 0
+w 352 272 384 272 0
+w 384 272 384 208 0
+w 384 208 400 208 0
+d 400 208 464 208 1 {UF}
 r 528 208 528 304 0 {R_VAL}
 c 464 208 464 304 0 {C_VAL} {V_INIT}
 g 528 304 528 320 0
@@ -751,8 +766,6 @@ r 192 240 192 192 0 {R_SNUB}
 w 464 208 528 208 0
 w 464 304 528 304 0
 w 464 304 352 304 0
-w 352 208 352 224 0
-w 352 272 352 304 0
 w 224 224 224 192 0
 w 224 192 80 192 0
 w 80 320 224 320 0
@@ -777,21 +790,21 @@ o 4 1 0 33 {ISCALE_OUT} 0.1 5 -1
         .replace('{VIN}', vin_nom)
         .replace('{UF}', Uf)
         .replace('{L_PRI}', l_henry)
-        .replace('{RATIO}', ratio)
+        .replace('{RATIO}', ratio.toFixed(4))
         .replace('{COUPLING}', coupling)
         .replace('{C_SNUB}', c_snub)
-        .replace('{R_SNUB}', r_snub)
+        .replace('{R_SNUB}', r_snub.toFixed(2))
         .replace('{C_OSS}', c_oss)
         .replace('{C_VAL}', c_farad)
-        .replace('{R_VAL}', r_load)
+        .replace('{R_VAL}', r_load.toFixed(4))
         .replace('{FREQ}', freq_hz)
         .replace('{VT_MOS}', Vt_mos)
         .replace('{BETA_MOS}', beta_dyn.toFixed(5))
         .replace(/{V_AMP}/g, v_amp)
         .replace(/{V_OFFSET}/g, v_offset)
-        .replace('{DUTY}', duty_cycle)
-        .replace('{V_INIT}', v_init)
-        .replace('{V_CLAMP}', v_clamp)
+        .replace('{DUTY}', duty_cycle.toFixed(4))
+        .replace('{V_INIT}', vout)
+        .replace('{V_CLAMP}', v_clamp.toFixed(2))
         .replace(/{VSCALE_IN}/g, vscale_in)
         .replace(/{VSCALE_OUT}/g, vscale_out)
         .replace(/{VSCALE_DS}/g, vscale_ds)
