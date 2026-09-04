@@ -39,23 +39,23 @@ function checkUserInput() {
     var f_khz = parseFloat(document.getElementById('f_khz').value);
     var verim = parseFloat(document.getElementById('verim').value);
 
-    if (isNaN(vin_min) || vin_min <= 0) vin_min = 250.0;
-    if (isNaN(vin_max) || vin_max <= 0) vin_max = 360.0;
-    if (isNaN(vout) || vout <= 0) vout = 200.0;
-    if (isNaN(ilout) || ilout <= 0) ilout = 0.25;
-    if (isNaN(f_khz) || f_khz <= 0) f_khz = 50.0;
-    if (isNaN(verim) || verim <= 0) verim = 80.0;
+    if (isNaN(vin_min) || vin_min <= 0) vin_min = 9.0;
+    if (isNaN(vin_max) || vin_max <= 0) vin_max = 75.0;
+    if (isNaN(vout) || vout <= 0) vout = 24.0;
+    if (isNaN(ilout) || ilout <= 0) ilout = 3.125;
+    if (isNaN(f_khz) || f_khz <= 0) f_khz = 200.0;
+    if (isNaN(verim) || verim <= 0) verim = 85.0;
 
     if (vin_min > vin_max) vin_max = vin_min;
 
     var Uem = (vin_min + vin_max) / 2;
     if (isNaN(vin_nom) || vin_nom <= 0 || vin_nom < vin_min || vin_nom > vin_max) {
-        vin_nom = Uem;
+        vin_nom = 36.0;
     }
 
-    if (f_khz < 0.1 || f_khz > 1000) {
-        alert(window.getT ? window.getT('alert_freq_warning') : "Uyarı: Anahtarlama frekansı 100 Hz ile 1 MHz arasında olmalıdır!");
-        f_khz = 50.0;
+    if (f_khz < 0.1 || f_khz > 2000) {
+        alert(window.getT ? window.getT('alert_freq_warning') : "Uyarı: Anahtarlama frekansı 100 Hz ile 2 MHz arasında olmalıdır!");
+        f_khz = 200.0;
     }
 
     document.getElementById('vin_min').value = vin_min;
@@ -70,13 +70,38 @@ function checkUserInput() {
 }
 
 function setDefaultValues() {
-    document.getElementById('vin_min').value = 250;
-    document.getElementById('vin_max').value = 360;
-    document.getElementById('vin_nom').value = 305;
-    document.getElementById('vout').value = 200;
-    document.getElementById('ilout').value = 0.25;
-    document.getElementById('f_khz').value = 50;
-    document.getElementById('verim').value = 80;
+
+    if (document.getElementById('vin_min')) document.getElementById('vin_min').value = 9;
+    if (document.getElementById('vin_max')) document.getElementById('vin_max').value = 75;
+    if (document.getElementById('vin_nom')) document.getElementById('vin_nom').value = 36;
+    if (document.getElementById('vout')) document.getElementById('vout').value = 24;
+    if (document.getElementById('ilout')) document.getElementById('ilout').value = 3.125;
+    if (document.getElementById('f_khz')) document.getElementById('f_khz').value = 200;
+    if (document.getElementById('verim')) document.getElementById('verim').value = 85;
+    if (document.getElementById('custom_nRatio')) document.getElementById('custom_nRatio').value = 0.5;
+
+    if (document.getElementById('mode')) document.getElementById('mode').value = "continuous";
+    if (document.getElementById('effMode')) {
+        document.getElementById('effMode').value = "real";
+        toggleEffMode();
+    }
+
+    if (document.getElementById('p_ron_h')) document.getElementById('p_ron_h').value = 0.033;
+    if (document.getElementById('p_coss_h')) document.getElementById('p_coss_h').value = 140;
+    if (document.getElementById('p_qg_h')) document.getElementById('p_qg_h').value = 10.6;
+    if (document.getElementById('p_vgs')) document.getElementById('p_vgs').value = 10.0;
+
+    if (document.getElementById('p_tr_h')) document.getElementById('p_tr_h').value = 5.8;
+    if (document.getElementById('p_tf_h')) document.getElementById('p_tf_h').value = 5.1;
+    if (document.getElementById('p_vd')) document.getElementById('p_vd').value = 1.1;
+    if (document.getElementById('p_trr')) document.getElementById('p_trr').value = 15;
+    if (document.getElementById('p_irr')) document.getElementById('p_irr').value = 1.3;
+
+    if (document.getElementById('p_dcr')) document.getElementById('p_dcr').value = 0.04;
+    if (document.getElementById('p_dcr_sec')) document.getElementById('p_dcr_sec').value = 0.13;
+    if (document.getElementById('p_icc')) document.getElementById('p_icc').value = 6.0;
+    if (document.getElementById('p_esrcin')) document.getElementById('p_esrcin').value = 0.005;
+    if (document.getElementById('p_esrcout')) document.getElementById('p_esrcout').value = 0.004;
 }
 
 // ================================================================
@@ -288,18 +313,18 @@ function getRealParams() {
     };
 
     return {
-        Ron_H: getVal('p_ron_h', 0.250),
-        tr_H: getVal('p_tr_h', 15) * 1e-9,
-        tf_H: getVal('p_tf_h', 15) * 1e-9,
-        Coss_H: getVal('p_coss_h', 80) * 1e-12,
-        Qg_H: getVal('p_qg_h', 15) * 1e-9,
+        Ron_H: getVal('p_ron_h', 0.033),
+        tr_H: getVal('p_tr_h', 5.8) * 1e-9,
+        tf_H: getVal('p_tf_h', 5.1) * 1e-9,
+        Coss_H: getVal('p_coss_h', 140) * 1e-12,
+        Qg_H: getVal('p_qg_h', 10.6) * 1e-9,
         Vgs: getVal('p_vgs', 10.0),
-        Vd: getVal('p_vd', 0.8),
-        trr: getVal('p_trr', 35) * 1e-9,
-        Irr: getVal('p_irr', 0.8),
-        DCR_pri: getVal('p_dcr', 0.150),
-        DCR_sec: getVal('p_dcr_sec', 0.050),
-        Icc: getVal('p_icc', 3.0) * 1e-3,
+        Vd: getVal('p_vd', 1.1),
+        trr: getVal('p_trr', 15) * 1e-9,
+        Irr: getVal('p_irr', 1.3),
+        DCR_pri: getVal('p_dcr', 0.04),
+        DCR_sec: getVal('p_dcr_sec', 0.13),
+        Icc: getVal('p_icc', 6.0) * 1e-3,
         ESR_Cin: getVal('p_esrcin', 0.005),
         ESR_Cout: getVal('p_esrcout', 0.004)
     };
