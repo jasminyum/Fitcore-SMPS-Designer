@@ -1116,9 +1116,11 @@ window.executeAdvancedOptimization = async function () {
             let _A2_req = 0; try { if (window.A2_req > 0) _A2_req = window.A2_req; } catch (e) { }
 
             const hasWmax = wmax1El && wmax1El.innerText !== "-" && wmax1El.innerText !== "" && !isNaN(parseFloat(wmax1El.innerText));
-            const isFlyback = hasWmax && hasNOutput && !hasVeOpt;
-            const isTransformerWithCoil = hasVeOpt && hasWmax;
-            let isCoilOnly = hasWmax && !hasVeOpt && !hasNOutput;
+            const isPageFlyback = pageTitle.includes('flyback') || (window._pageType || "").toLowerCase().includes('flyback');
+
+            const isFlyback = isPageFlyback || (hasWmax && hasNOutput && !hasVeOpt);
+            const isTransformerWithCoil = hasVeOpt && hasWmax && !isPageFlyback;
+            let isCoilOnly = hasWmax && !hasVeOpt && !hasNOutput && !isPageFlyback;
 
             let L_H_value = hasWmax && lOutputEl ? (parseFloat(lOutputEl.innerText) * 1e-6) : 0;
             let coilWire_Irms = 0, pri_Irms = 0, sec_Irms = 0;
@@ -1217,7 +1219,7 @@ window.executeAdvancedOptimization = async function () {
                 trafoGapReq = "ungapped_only";
             } else if (pageTitle.includes('flyback')) {
                 const nOutFly = parseFloat(nOutputEl?.innerText) || 1;
-                const D_flyback = Math.min(0.95, Math.max(0.05, (voutVal * nOutFly) / (vinNom + voutVal * nOutFly)));
+                const D_flyback = Math.min(0.95, Math.max(0.05, ((voutVal + 0.7) * nOutFly) / (vinNom + (voutVal + 0.7) * nOutFly)));
                 volt_sec = vinNom * (D_flyback / f_sw);
                 trafoGapReq = "gapped_only";
             } else if (isLinear) {
@@ -1269,13 +1271,23 @@ window.executeAdvancedOptimization = async function () {
                 sw_Vmax = vinMax + voutVal;
             } else if (isFlyback) {
                 const nOut = parseFloat(nOutputEl?.innerText) || 1;
-                estD = Math.min(0.95, Math.max(0.05, (voutVal * nOut) / (vinNom + voutVal * nOut)));
-                sw_Vmax = vinMax + (voutVal * nOut);
+                estD = Math.min(0.95, Math.max(0.05, ((voutVal + 0.7) * nOut) / (vinNom + (voutVal + 0.7) * nOut)));
+                sw_Vmax = vinMax + ((voutVal + 0.7) * nOut);
                 sw_Irms = pri_Irms;
 
                 if (smpsMode === "DCM" || smpsMode === "CRM") {
-                    extraModeParams.D1 = estD;
-                    extraModeParams.D2 = (vinNom / (voutVal * nOut)) * estD;
+                    let dIL = parseFloat(deltaILEl?.innerText) || 0;
+                    let actual_d1 = (L_H_value * dIL * f_sw) / vinNom;
+                    let actual_d2 = (L_H_value * dIL * f_sw) / ((voutVal + 0.7) * nOut);
+
+                    if (actual_d1 > 0 && actual_d2 > 0) {
+                        extraModeParams.D1 = Math.min(0.95, actual_d1);
+                        extraModeParams.D2 = Math.min(0.95, actual_d2);
+                    } else {
+                        // Fallback
+                        extraModeParams.D1 = estD;
+                        extraModeParams.D2 = (vinNom / ((voutVal + 0.7) * nOut)) * estD;
+                    }
                 }
             } else if (isForward || isPushPull) {
                 sw_Vmax = vinMax * 2;
