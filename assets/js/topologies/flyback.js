@@ -102,6 +102,7 @@ function setDefaultValues() {
     if (document.getElementById('p_icc')) document.getElementById('p_icc').value = 6.0;
     if (document.getElementById('p_esrcin')) document.getElementById('p_esrcin').value = 0.005;
     if (document.getElementById('p_esrcout')) document.getElementById('p_esrcout').value = 0.004;
+    if (document.getElementById('custom_L_uH')) document.getElementById('custom_L_uH').value = "";
 }
 
 // ================================================================
@@ -145,7 +146,16 @@ function updateChartsAndTable() {
         K_r = 2.0;
     }
 
-    var lOutput_H = (vin_nom * vin_nom * D_nom * D_nom) / (K_r * (vout + Uf) * ilout * f_hz);
+    var customLEl = document.getElementById('custom_L_uH');
+    var userL_uH = customLEl ? parseFloat(customLEl.value) : 0;
+
+    var lOutput_H;
+    if (userL_uH > 0) {
+        lOutput_H = userL_uH * 1e-6;
+    } else {
+        lOutput_H = (vin_nom * vin_nom * D_nom * D_nom) / (K_r * (vout + Uf) * ilout * f_hz);
+    }
+
     var lOutput = lOutput_H * 1e6;
 
     var Ue = vin_nom;
