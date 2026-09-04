@@ -691,7 +691,10 @@ function openFalstadFlybackSimulation() {
     var p_leak = 0.5 * L_leakage * Imax * Imax * freq_hz;
     var r_snub = (v_clamp * v_clamp) / (p_leak * 2);
     if (r_snub > 100000) r_snub = 100000;
-    if (r_snub < 1000) r_snub = 1000;
+
+    // YENİ DÜZELTME: Snubber alt sınırı 1000 Ohm'dan 10 Ohm'a düşürüldü.
+    // Düşük voltaj/yüksek akım tasarımlarında snubber deşarj olabilsin.
+    if (r_snub < 10) r_snub = 10;
 
     var c_snub = 100e-9;
 
@@ -699,9 +702,22 @@ function openFalstadFlybackSimulation() {
     if (c_oss > 10e-9) c_oss = 10e-9;
     if (c_oss < 1e-9) c_oss = 1e-9;
 
-    var duty_cycle = ((vout + Uf) * nOutput) / (((vout + Uf) * nOutput) + vin_nom);
-    if (duty_cycle > 0.95) duty_cycle = 0.95;
-    if (duty_cycle < 0.05) duty_cycle = 0.05;
+    var v_or = (vout + Uf) * nOutput;
+    var duty_cycle_ratio = v_or / (v_or + vin_nom);
+
+    if (duty_cycle_ratio > 0.95) duty_cycle_ratio = 0.95;
+    if (duty_cycle_ratio < 0.05) duty_cycle_ratio = 0.05;
+
+    // YENİ DÜZELTME: Falstad'da nokta/virgül sorunu yaşanmaması için yuvarlama
+    var duty_cycle = Math.round(duty_cycle_ratio * 100);
+
+    // YENİ DÜZELTME: Dinamik MOSFET Beta Ayarı (Sabit 3.7 Ohm düşüm sorununu çözer)
+    var Vgs_on = 15;
+    var Vt_mos = 1.5;
+    var target_Vdrop_frac = 0.005; // Vin'in ~%0.5'i kadar kabul edilebilir düşü
+    var Ron_target = (target_Vdrop_frac * vin_nom) / Math.max(Imax, 0.01);
+    var beta_dyn = 1 / (Ron_target * (Vgs_on - Vt_mos));
+    beta_dyn = Math.min(Math.max(beta_dyn, 0.02), 50); // makul sınırlar
 
     var v_gate_max = 15;
     var v_amp = v_gate_max / 2;
@@ -720,7 +736,7 @@ function openFalstadFlybackSimulation() {
     var falstadTemplate = `
 $ 1 {TIMESTEP} 10.0 50 5.0 50
 v 80 320 80 192 0 0 40 {VIN} 0 0 0.5
-f 176 288 224 288 32 1.5 0.02
+f 176 288 224 288 32 {VT_MOS} {BETA_MOS}
 T 224 224 352 272 0 {L_PRI} {RATIO} {COUPLING} 48
 d 352 208 464 208 1 {UF}
 r 528 208 528 304 0 {R_VAL}
@@ -769,6 +785,8 @@ o 4 1 0 33 {ISCALE_OUT} 0.1 5 -1
         .replace('{C_VAL}', c_farad)
         .replace('{R_VAL}', r_load)
         .replace('{FREQ}', freq_hz)
+        .replace('{VT_MOS}', Vt_mos)
+        .replace('{BETA_MOS}', beta_dyn.toFixed(5))
         .replace(/{V_AMP}/g, v_amp)
         .replace(/{V_OFFSET}/g, v_offset)
         .replace('{DUTY}', duty_cycle)
