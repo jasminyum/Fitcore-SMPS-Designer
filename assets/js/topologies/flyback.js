@@ -177,7 +177,10 @@ function updateChartsAndTable() {
         var D = (vout + Uf) * nOutput / ((vout + Uf) * nOutput + Ue);
         t1 = D / f_hz;
         dIL = actual_deltaIL;
-        Imax = ILs_nom + 0.5 * dIL;
+
+        var I_center = ILs_nom / D;
+        Imax = I_center + 0.5 * dIL;
+
         Imin = Math.max(0, Imax - dIL);
         D1 = D; D2 = 1 - D;
 
