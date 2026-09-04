@@ -108,11 +108,14 @@ function updateChartsAndTable() {
 
     var actualMode;
     var tolerance = 0.03 * ILs_nom;
-    var currentDiff = actual_deltaIL - 2 * ILs_nom;
+
+    var D = (vout + Uf) * nOutput / ((vout + Uf) * nOutput + Ue);
+    var I_critical = (2 * ILs_nom) / D;
+    var currentDiff = actual_deltaIL - I_critical;
 
     if (Math.abs(currentDiff) <= tolerance) {
         actualMode = "critical";
-    } else if (actual_deltaIL > 2 * ILs_nom) {
+    } else if (actual_deltaIL > I_critical) {
         actualMode = "discontinuous";
     } else {
         actualMode = "continuous";
@@ -120,7 +123,7 @@ function updateChartsAndTable() {
 
     var modeWarnEl = document.getElementById('modeWarning');
     var modeNames = { "continuous": "CCM", "discontinuous": "DCM", "critical": "CRM" };
-    var condition = (actualMode === "discontinuous") ? " (ΔIL > 2*IL_primer)" : (actualMode === "critical" ? " (ΔIL = 2*IL_primer)" : " (ΔIL < 2*IL_primer)");
+    var condition = (actualMode === "discontinuous") ? " (ΔIL > I_Critical)" : (actualMode === "critical" ? " (ΔIL = I_Critical)" : " (ΔIL < I_Critical)");
 
     if (userMode !== actualMode) {
         modeWarnEl.style.display = 'block';
