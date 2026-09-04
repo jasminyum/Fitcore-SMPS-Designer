@@ -151,7 +151,7 @@ function optimizeWires(Irms, targetCMA, maxStrandD, wiresData, f_sw_hz = 0) {
 
     const reqArea_mm2 = (Irms * safeCMA) / 1973.525;
 
-    const practicalMaxParallelCables = 6;
+    const practicalMaxParallelCables = 25;
 
     wiresData.forEach(wire => {
         let d_mm = 0;
@@ -480,6 +480,10 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
 
                 let AL = raw_AL_db || fallback_AL;
 
+                if (core.isCustom && core.AL > 0) {
+                    AL = core.AL * 1e-9;
+                }
+
                 let base_AL = fallback_AL > 0 ? fallback_AL : (raw_AL_db > 0 ? raw_AL_db : 0);
                 let mu_i = 2000;
                 if (base_AL > 0 && Ae > 0 && le > 0) {
@@ -672,25 +676,28 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 if (componentType === "linear_trafo") {
                     const Ve_mm3 = Aele * 1e9;
                     actualReqVal = reqVal;
-                    if (Ve_mm3 >= reqVal) {
+                    if (Ve_mm3 >= reqVal || core.isCustom) {
                         N1_calc = Math.max(1, Math.ceil(Math.sqrt(L_H / AL)));
                         const I1_peak = pri_Irms * Math.SQRT2;
                         Bmax_calc_mT = ((AL * N1_calc * I1_peak) / Ae) * 1000;
 
                         delta_B_mT = Bmax_calc_mT * 2;
 
-                        if (Bmax_calc_mT <= (dynamic_B_sat_T * 1000)) isValid = true;
+                        if (Bmax_calc_mT <= (dynamic_B_sat_T * 1000) || core.isCustom) isValid = true;
                     }
                 } else if (type === "energy") {
                     const safe_Ipeak = Math.max(pri_Irms, 0.1) * 1.5;
                     actualReqVal = reqVal > 0 ? reqVal : (0.5 * L_H * Math.pow(safe_Ipeak, 2));
 
-                    if (Wmax_core_J >= actualReqVal && L_H > 0) {
+                    if ((Wmax_core_J >= actualReqVal || core.isCustom) && L_H > 0) {
                         const I_peak_est = Math.sqrt((actualReqVal * 2) / L_H);
                         const B_design_limit_T = dynamic_B_sat_T * 0.85;
                         const N1_sat = Math.ceil((L_H * I_peak_est) / (B_design_limit_T * Amin));
 
-                        if (datasheet_gap_mm > 0) {
+                        if (core.isCustom && AL > 0) {
+                            N1_calc = Math.max(1, Math.round(Math.sqrt(L_H / AL)));
+                        }
+                        else if (datasheet_gap_mm > 0) {
                             const N1_al = Math.round(Math.sqrt(L_H / AL));
                             N1_calc = Math.max(1, N1_al, N1_sat);
                         } else {
@@ -707,7 +714,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                             delta_B_mT = B_peak_T * 1000;
                             Bmax_calc_mT = B_peak_T * 500;
                         }
-                        if (B_peak_T <= dynamic_B_sat_T) isValid = true;
+                        if (B_peak_T <= dynamic_B_sat_T || core.isCustom) isValid = true;
                     }
                 } else if (type === "volume") {
                     const Ve_mm3 = Aele * 1e9;
@@ -785,6 +792,10 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 let windowExceeded = false;
                 let fillRatio = 0;
 
+                if (core.isCustom) {
+                    isValid = true;
+                }
+
                 if (isValid) {
                     let Aw_mm2 = 0, w_width = 0, w_height = 0;
                     if (familyType === "RM" || familyType === "PQ" || familyType === "PM") {
@@ -813,7 +824,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     }
 
                     if (w_width > 0 && w_height > 0) Aw_mm2 = w_width * w_height;
-                    else return;
+                    else if (!core.isCustom) return;
 
                     let J_target = getCurrentDensity(f_kHz);
 
@@ -891,7 +902,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 const lossFactor = core_loss_W;
                 const totalLossW = core_loss_W + copper_loss_W;
 
-                if (Pv_mW_cm3 > 1200 || totalLossW > 150) {
+                if (!core.isCustom && (Pv_mW_cm3 > 1200 || totalLossW > 150 || !isFinite(totalLossW))) {
                     return;
                 }
 
@@ -982,8 +993,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     if (Math.abs(l_deviation_pct) > 3 && igseResult.breakdown) {
                         igseResult.breakdown.note = (igseResult.breakdown.note || "") +
                             ` Achieved inductance ${(l_actual_H * 1e6).toFixed(2)}uH vs target ${(L_H * 1e6).toFixed(2)}uH ` +
-                            `(${l_deviation_pct > 0 ? '+' : ''}${l_deviation_pct.toFixed(1)}%) — N1 was raised above the AL-based turn ` +
-                            `count to respect the saturation limit.`;
+                            `(${l_deviation_pct > 0 ? '+' : ''}${l_deviation_pct.toFixed(1)}%) — Note: N1 and N2 turns are rounded to integers to match the turns-ratio and prevent saturation, which shifts the final inductance.`;
                     }
                 }
 
@@ -1050,7 +1060,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
     const BASE_LOSS_W = 0.1;
     const weights = getFuzzyWeights(mode);
 
-    const validCandidates = candidates.filter(c => !c.windowExceeded);
+    const validCandidates = candidates.filter(c => !c.windowExceeded || c.mfgName === "Custom" || c.name.toLowerCase().includes("gapped"));
 
     const refCandidates = validCandidates.length > 0 ? validCandidates : candidates;
 
@@ -1340,6 +1350,9 @@ function extractEnergyCurve(iRaw, eRaw) {
 }
 
 function estimateConductionDrop(sw, T_op, I_op) {
+    if (sw.isCustom) {
+        return { type: "mosfet", r_ds_on: sw.r_ds_on || 0.01 };
+    }
     const typeStr = (sw.type || "").toUpperCase();
     const nameStr = (sw.name || "").toUpperCase();
     const isDiode = typeStr.includes("DIODE") || nameStr.includes("DIODE");
@@ -1533,13 +1546,18 @@ async function optimizeSwitches(topology, V_op, I_peak, Irms, f_sw_hz, switchesD
         const chunk = switchesData.slice(i, i + CHUNK_SIZE);
 
         chunk.forEach(sw => {
-            if (!sw.v_abs_max || sw.v_abs_max < V_op * V_MARGIN_MIN) return;
-            const voltageRatio = sw.v_abs_max / V_op;
-            if (voltageRatio > 4.0) return;
+            const isCustom = sw.isCustom === true;
+            let voltageRatio = 1.0;
+
+            if (!isCustom) {
+                if (!sw.v_abs_max || sw.v_abs_max < V_op * V_MARGIN_MIN) return;
+                voltageRatio = sw.v_abs_max / V_op;
+                if (voltageRatio > 4.0) return;
+            }
 
             let safe_i_max = sw.i_cont || sw.i_abs_max || 0;
 
-            if (safe_i_max === 0) {
+            if (safe_i_max === 0 && !isCustom) {
                 let max_i = 0;
                 const checkMaxI = (data) => {
                     const arr = parseCurve(data);
@@ -1565,7 +1583,7 @@ async function optimizeSwitches(topology, V_op, I_peak, Irms, f_sw_hz, switchesD
                 safe_i_max = max_i > 0 ? max_i : 9999;
             }
 
-            if (safe_i_max < I_peak * 1.05) return;
+            if (!isCustom && safe_i_max < I_peak * 1.05) return;
 
             const housingStr = (sw.housing_type || "").toLowerCase();
             const commentStr = (sw.comment || "").toLowerCase();
@@ -1633,6 +1651,11 @@ async function optimizeSwitches(topology, V_op, I_peak, Irms, f_sw_hz, switchesD
 
                 p_sw_W = ((sw_e.e_on_J * onFactor * e_on_multiplier) + (sw_e.e_off_J * offFactor * e_off_multiplier)) * f_sw_hz + qrr_loss_W;
 
+                if (sw.coss_pf > 0) {
+                    const coss_loss_W = 0.5 * (sw.coss_pf * 1e-12) * Math.pow(V_op, 2) * f_sw_hz;
+                    p_sw_W += coss_loss_W;
+                }
+
             } catch (e) {
                 if (e instanceof TypeError || e instanceof ReferenceError) {
                     throw e;
@@ -1647,7 +1670,7 @@ async function optimizeSwitches(topology, V_op, I_peak, Irms, f_sw_hz, switchesD
             }
 
             const p_tot_W = p_cond_W + p_sw_W;
-            if (p_tot_W > 75.0) return;
+            if (!isCustom && p_tot_W > 75.0) return;
 
             let techPenalty = 1.0;
             if (typeUp.includes("SIC") || typeUp.includes("GAN")) {
@@ -1661,16 +1684,18 @@ async function optimizeSwitches(topology, V_op, I_peak, Irms, f_sw_hz, switchesD
                 if (P_est > 2000) techPenalty = 4.0;
             }
 
-            const currentRatio = safe_i_max / Math.max(I_peak, 1);
             let currentPenalty = 1.0;
-            if (currentRatio > 5.0) {
-                currentPenalty = Math.max(1, Math.pow(currentRatio / 5.0, 1.3));
+            if (!isCustom) {
+                const currentRatio = safe_i_max / Math.max(I_peak, 1);
+                if (currentRatio > 5.0) {
+                    currentPenalty = Math.max(1, Math.pow(currentRatio / 5.0, 1.3));
+                }
             }
 
             const overratingPenalty = Math.max(1, Math.pow(voltageRatio, 1.5)) * currentPenalty;
             const finalRankScore = p_tot_W * overratingPenalty * techPenalty;
 
-            if (isNaN(p_cond_W) || isNaN(p_sw_W) || isNaN(p_tot_W) || isNaN(finalRankScore)) return;
+            if (!isCustom && (isNaN(p_cond_W) || isNaN(p_sw_W) || isNaN(p_tot_W) || isNaN(finalRankScore))) return;
 
             candidates.push({
                 name: sw.name || "-", manufacturer: sw.manufacturer || "Unknown", type: sw.type || "Unknown",
@@ -1713,9 +1738,53 @@ exports.runSmpsOptimization = onCall({
     } = data;
 
     try {
-        const dbData = staticDbData;
+        const dbData = { ...staticDbData };
+        let active_CMA = CMA_target;
+
+        if (data.customCore) {
+            if (data.customCore.customCMA && data.customCore.customCMA > 0) {
+                active_CMA = data.customCore.customCMA;
+            } else {
+                active_CMA = 150;
+            }
+            data.customCore.isCustom = true;
+            dbData.cores = [data.customCore];
+
+            let dims = data.customCore.customDimensions || { A: 30, B: 15, C: 15, D: 10, E: 22, F: 10 };
+
+            if (dims.D > dims.E && dims.E > 0) {
+                let temp = dims.D;
+                dims.D = dims.E;
+                dims.E = temp;
+            }
+
+            if (!dbData.coreShapes) dbData.coreShapes = [];
+            dbData.coreShapes.push({
+                name: data.customCore.name.replace(/ gapped/i, "").trim().toUpperCase(),
+                dimensions: {
+                    A: { nominal: dims.A }, B: { nominal: dims.B }, C: { nominal: dims.C },
+                    D: { nominal: dims.D }, E: { nominal: dims.E }, F: { nominal: dims.F }
+                }
+            });
+
+            data.customCore.functionalDescription = data.customCore.functionalDescription || {};
+            data.customCore.functionalDescription.shape = data.customCore.name.replace(/ gapped/i, "").trim();
+
+            if (data.customCore.customGap > 0) {
+                data.customCore.functionalDescription.gapping = [{
+                    type: "spacer",
+                    value: data.customCore.customGap,
+                    alValue: data.customCore.AL ? data.customCore.AL : undefined
+                }];
+            }
+        }
+        if (data.customSwitch) {
+            data.customSwitch.isCustom = true;
+            dbData.switches = [data.customSwitch];
+        }
 
         let result = { trafoCores: [], coilCores: [], priWires: [], secWires: [], coilWires: [], biasWires: [], switches: [] };
+
         const f_sw = f_sw_khz * 1000;
         const v_in = parseFloat(vin_nom) || 24;
 
@@ -1746,8 +1815,8 @@ exports.runSmpsOptimization = onCall({
             const trafoType = isLinearTrafo ? "linear_trafo" : "trafo";
             result.trafoCores = await optimizeCores(veOpt, optMode, "volume", L_H, f_sw, T_op, 0, volt_sec, trafoGapReq, trafoType, dbData, staticDbsPayload, pri_Irms, turnsRatio, topology, smpsMode, D_switch, extraModeParams);
 
-            result.priWires = optimizeWires(pri_Irms, CMA_target, maxStrandD, dbData.wires, f_sw);
-            result.secWires = optimizeWires(sec_Irms, CMA_target, maxStrandD, dbData.wires, f_sw);
+            result.priWires = optimizeWires(pri_Irms, active_CMA, maxStrandD, dbData.wires, f_sw);
+            result.secWires = optimizeWires(sec_Irms, active_CMA, maxStrandD, dbData.wires, f_sw);
         }
 
         if (hasWmax) {
@@ -1761,11 +1830,11 @@ exports.runSmpsOptimization = onCall({
             );
 
             if (isFlyback) {
-                result.priWires = optimizeWires(pri_Irms, CMA_target, maxStrandD, dbData.wires, f_sw);
-                result.secWires = optimizeWires(sec_Irms, CMA_target, maxStrandD, dbData.wires, f_sw);
-                if (hasBias && biasWire_Irms > 0) result.biasWires = optimizeWires(biasWire_Irms, CMA_target, maxStrandD, dbData.wires, f_sw);
+                result.priWires = optimizeWires(pri_Irms, active_CMA, maxStrandD, dbData.wires, f_sw);
+                result.secWires = optimizeWires(sec_Irms, active_CMA, maxStrandD, dbData.wires, f_sw);
+                if (hasBias && biasWire_Irms > 0) result.biasWires = optimizeWires(biasWire_Irms, active_CMA, maxStrandD, dbData.wires, f_sw);
             } else {
-                result.coilWires = optimizeWires(coilWire_Irms, CMA_target, maxStrandD, dbData.wires, f_sw);
+                result.coilWires = optimizeWires(coilWire_Irms, active_CMA, maxStrandD, dbData.wires, f_sw);
             }
         }
         return sanitizeForJSON(result);
