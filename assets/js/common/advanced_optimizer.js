@@ -49,6 +49,129 @@ window.loadThreeJS = function () {
 // ================================================================
 // Table Window (Injected Into the Modal)
 // ================================================================
+window.openAdvancedPreCheck = function () {
+    const preCheckHtml = `
+<div class="modal fade" id="preCheckModal" tabindex="-1" aria-hidden="true">
+        <!-- 'modal-dialog-scrollable' sınıfı eklendi: -->
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content bg-dark text-light border-secondary">
+                <div class="modal-header">
+                    <h5 class="modal-title text-warning">${sanitizeHTML(safeGetT('adv_custom_component_title') || 'Özel Bileşen Seçimi')}</h5>
+                </div>
+                <div class="modal-body">
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="hasCustomCore" onchange="document.getElementById('customCoreParams').style.display = this.checked ? 'block' : 'none'">
+                        <label class="form-check-label">${sanitizeHTML(safeGetT('adv_custom_core_checkbox') || 'Trafoyu/Nüveyi kendim seçtim (Özel Parametre Gireceğim)')}</label>
+                    </div>
+                    <div id="customCoreParams" style="display:none;" class="mb-3 p-2 border border-secondary rounded">
+                        <input type="text" id="custCoreName" class="form-control form-control-sm mb-1 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_core_name') || 'Nüve Adı (örn: EQ20)')}">
+                        <input type="number" id="custAe" class="form-control form-control-sm mb-1 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_ae') || 'Ae (mm²)')}">
+                        <input type="number" id="custLe" class="form-control form-control-sm mb-1 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_le') || 'le (mm)')}">
+                        
+                        <!-- YENİ EKLENEN AIR GAP VE AL GİRDİLERİ -->
+                        <div class="row g-1 mb-1">
+                            <div class="col-6"><input type="number" id="custAL" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_al') || 'AL (nH)')}"></div>
+                            <div class="col-6"><input type="number" id="custGap" step="0.01" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_gap') || 'Air Gap (mm)')}"></div>
+                        </div>
+
+                        <input type="text" id="custMaterial" class="form-control form-control-sm mb-3 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_material') || 'Materyal (örn: 3C95)')}">
+                        
+                        <label class="form-label mb-1" style="font-size:12px; color:#ffb74d;">${sanitizeHTML(safeGetT('cust_dim_label') || 'Fiziksel Dış Boyutlar (mm):')}</label>
+                        <div class="row g-1 mb-1">
+                            <div class="col-4"><input type="number" id="custDimA" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_dim_a') || 'A (Genişlik)')}"></div>
+                            <div class="col-4"><input type="number" id="custDimB" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_dim_b') || 'B (Yükseklik)')}"></div>
+                            <div class="col-4"><input type="number" id="custDimC" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_dim_c') || 'C (Derinlik)')}"></div>
+                        </div>
+                        <div class="row g-1 mb-3">
+                            <div class="col-4"><input type="number" id="custDimD" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_dim_d') || 'D (İç Çap)')}"></div>
+                            <div class="col-4"><input type="number" id="custDimE" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_dim_e') || 'E (Pencere)')}"></div>
+                            <div class="col-4"><input type="number" id="custDimF" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_dim_f') || 'F (Opsiyonel)')}"></div>
+                        </div>
+
+                        <label class="form-label mb-1" style="font-size:12px; color:#81c784;">${sanitizeHTML(safeGetT('cust_cma_label') || 'Tel Kalınlığı Hedefi (İsteğe Bağlı):')}</label>
+                        <input type="number" id="custCMA" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_cma') || 'Özel CMA (örn: 150 - İnce tel için)')}">
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="hasCustomSwitch" onchange="document.getElementById('customSwitchParams').style.display = this.checked ? 'block' : 'none'">
+                        <label class="form-check-label">${sanitizeHTML(safeGetT('adv_custom_switch_checkbox') || 'Anahtarlama Elemanını kendim seçtim')}</label>
+                    </div>
+                    <div id="customSwitchParams" style="display:none;" class="mb-3 p-2 border border-secondary rounded">
+                        <input type="text" id="custSwName" class="form-control form-control-sm mb-1 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_sw_name') || 'Mosfet Adı')}">
+                        
+                        <div class="row g-1 mb-1">
+                            <div class="col-6"><input type="number" id="custVdsMax" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_vds_max') || 'Vds Max (V)')}"></div>
+                            <div class="col-6"><input type="number" id="custIdMax" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_id_max') || 'Id Max (A)')}"></div>
+                        </div>
+
+                        <input type="number" id="custRds" class="form-control form-control-sm mb-1 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_rds') || 'Rds(on) (ohm)')}">
+                        <input type="number" id="custTr" class="form-control form-control-sm mb-1 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_tr') || 'tr (ns)')}">
+                        <input type="number" id="custTf" class="form-control form-control-sm mb-1 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_tf') || 'tf (ns)')}">
+                        <input type="number" id="custCoss" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_coss') || 'Coss (pF)')}">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" onclick="window.proceedToAdvancedTable()">${sanitizeHTML(safeGetT('btn_continue') || 'Devam Et')}</button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+
+    document.body.insertAdjacentHTML('beforeend', preCheckHtml);
+    new bootstrap.Modal(document.getElementById('preCheckModal')).show();
+};
+
+window.proceedToAdvancedTable = function () {
+    window.customSelections = { core: null, switch: null };
+
+    if (document.getElementById('hasCustomCore').checked) {
+        let coreName = document.getElementById('custCoreName').value;
+
+        if (!coreName.toLowerCase().includes("gapped")) {
+            coreName += " Gapped";
+        }
+
+        window.customSelections.core = {
+            name: coreName,
+            Ae: parseFloat(document.getElementById('custAe').value),
+            Amin: parseFloat(document.getElementById('custAe').value),
+            le: parseFloat(document.getElementById('custLe').value),
+            AL: parseFloat(document.getElementById('custAL').value),
+            customGap: parseFloat(document.getElementById('custGap').value) || 0,
+            material: document.getElementById('custMaterial').value,
+            functionalDescription: { material: document.getElementById('custMaterial').value },
+            distributorsInfo: [{ name: "Custom", cost: "Unknown", link: "#" }],
+            customDimensions: {
+                A: parseFloat(document.getElementById('custDimA').value) || 0,
+                B: parseFloat(document.getElementById('custDimB').value) || 0,
+                C: parseFloat(document.getElementById('custDimC').value) || 0,
+                D: parseFloat(document.getElementById('custDimD').value) || 0,
+                E: parseFloat(document.getElementById('custDimE').value) || 0,
+                F: parseFloat(document.getElementById('custDimF').value) || 0
+            },
+            customCMA: parseFloat(document.getElementById('custCMA').value) || null
+        };
+    }
+
+    if (document.getElementById('hasCustomSwitch').checked) {
+        window.customSelections.switch = {
+            name: document.getElementById('custSwName').value || "Custom MOSFET",
+            type: "MOSFET",
+            v_abs_max: parseFloat(document.getElementById('custVdsMax').value) || 9999,
+            i_cont: parseFloat(document.getElementById('custIdMax').value) || 9999,
+            r_ds_on: parseFloat(document.getElementById('custRds').value) || 0,
+            coss_pf: parseFloat(document.getElementById('custCoss').value) || 0,
+            switching_times_reference: {
+                tr_ns: parseFloat(document.getElementById('custTr').value) || 0,
+                tf_ns: parseFloat(document.getElementById('custTf').value) || 0
+            }
+        };
+    }
+
+    bootstrap.Modal.getInstance(document.getElementById('preCheckModal')).hide();
+    window.openAdvancedTable();
+};
+
 window.openAdvancedTable = function () {
     const pageTitle = (document.title || "").toLowerCase();
     const isSepic = pageTitle.includes('sepic');
@@ -1382,6 +1505,9 @@ window.executeAdvancedOptimization = async function () {
                 biasWire_Irms: biasWire_Irms,
                 isLinearTrafo: isLinear,
                 turnsRatio: turnsRatio,
+
+                customCore: window.customSelections?.core || null,
+                customSwitch: window.customSelections?.switch || null,
 
                 topology: topology,
                 smpsMode: smpsMode,
