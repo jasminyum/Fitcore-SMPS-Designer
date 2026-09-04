@@ -810,7 +810,9 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                         else if (dimB > 0 && dimD > 0) w_height = (dimB - dimD / 2) * 2;
                     }
 
-                    const bobbin_margin_mm = 1.0;
+                    let isPlanar = core.name.toUpperCase().includes("EQ") || core.name.toUpperCase().includes("PLANAR");
+
+                    let bobbin_margin_mm = (core.isCustom || isPlanar) ? 0.2 : 1.0;
 
                     if (w_width > bobbin_margin_mm) w_width -= bobbin_margin_mm;
                     else w_width = 0;
@@ -830,6 +832,10 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
 
                     if (volume_cm3 < 3.0) J_target *= 1.25;
                     else if (volume_cm3 > 15.0) J_target *= 0.85;
+
+                    if (core.isCustom || isPlanar) {
+                        J_target *= 1.50;
+                    }
 
                     let N2_calc = turnsRatio > 0 ? Math.round(N1_calc / turnsRatio) : 0;
 
@@ -856,6 +862,10 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     let Ku_limit = 0.40;
                     if (familyType === "RM" || familyType === "PQ" || familyType === "PM" || familyType === "EP") {
                         Ku_limit = 0.30;
+                    }
+
+                    if (core.isCustom || isPlanar) {
+                        Ku_limit = 0.65;
                     }
 
                     fillRatio = (Aw_mm2 > 0 && Ku_limit > 0) ? (total_Cu_mm2 / (Aw_mm2 * Ku_limit)) : 0;
