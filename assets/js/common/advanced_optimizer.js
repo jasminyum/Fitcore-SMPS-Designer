@@ -618,7 +618,6 @@ window.render3DCore = async function (coreDataString) {
     dirLight.position.set(20, 50, 40);
     scene.add(ambientLight, dirLight);
 
-    // --- YENİ: AİLE (FAMILY) TESPİTİNİ DAHA GÜÇLÜ HALE GETİRME ---
     let family = coreData.family || "E";
     const cName = (coreData.name || "").toUpperCase();
     if (cName.includes("EQ")) family = "EQ";
@@ -639,11 +638,8 @@ window.render3DCore = async function (coreDataString) {
     let F = coreData.dim_F || 0;
     if (A < 1 && A > 0) { A *= 1000; B *= 1000; C *= 1000; D *= 1000; E *= 1000; F *= 1000; }
 
-    // --- YENİ: TAŞMAYI ENGELLEYEN MANTIKSAL SINIRLAMALAR (CLAMPING) ---
-    // Kullanıcı iç çapı (D) çok büyük girerse, dış genişliğe göre sınırla
     if (D >= A * 0.8) D = A * 0.4;
 
-    // Kullanıcı pencere genişliğini (E), iç çaptan (D) daha küçük girerse bobin sığmaz. Düzelt:
     if (E <= D) E = (A + D) / 2;
     if (E >= A) E = A * 0.9;
 
@@ -730,11 +726,10 @@ window.render3DCore = async function (coreDataString) {
 
     const n1 = coreData.n1_calc || coreData.n1 || 20;
 
-    // --- YENİ: SARGININ TAŞMASINI ENGELLEYEN YARIÇAP HESAPLARI ---
     const innerRadius = (D / 2) + 0.2;
     const maxCoilRadius = (E / 2) - 0.2;
     let availableRadialSpace = maxCoilRadius - innerRadius;
-    if (availableRadialSpace < 0.5) availableRadialSpace = 0.5; // Karkasın dışına çıkmaması için min tolerans
+    if (availableRadialSpace < 0.5) availableRadialSpace = 0.5;
 
     const windowHeight = legHeight * 2 - visualGap;
     const topBottomMargin = 0.5;
@@ -1683,7 +1678,6 @@ window.filterResultsByManufacturer = function () {
     let bestCoreLoss = 0;
     let bestCopperLoss = 0;
 
-    // --- DİREKT BACKEND SONUÇLARINI KULLANMA (TAM UYUM İÇİN) ---
     if (currents.isDualCoil) {
         const bestCoil1 = (filteredResults.coil1Cores && filteredResults.coil1Cores.length > 0) ? filteredResults.coil1Cores[0] : null;
         const bestCoil2 = (filteredResults.coil2Cores && filteredResults.coil2Cores.length > 0) ? filteredResults.coil2Cores[0] : null;
