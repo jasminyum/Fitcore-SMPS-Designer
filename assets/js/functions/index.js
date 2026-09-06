@@ -28,6 +28,15 @@
 * cause (nonzero loss at zero flux swing) is instead handled by a dedicated delta_B<=0 early return, so the
 * additive form does not need to be distorted into a multiplicative one to stay physically consistent.
 *
+* 5. Solid and Litz Wire AC Resistance (Dowell & Geng et al.):
+* - Classical Dowell 1D approach is used for solid round wires.
+* - For litz wire, the resistance factor is calculated using the accurate approximation derived by Geng et al., capturing both skin and internal proximity effects.
+* - 2D limitations of classical Dowell (especially orthogonal fields at winding edges) are accounted for as described by Robert et al.
+*
+* 6. Gapped-Core Proximity Correction (Holguin et al.):
+* - The classical Dowell's method fails for gapped magnetic components due to 2D fringing fields.
+* - A correction factor based on the local magnetic field and geometric winding parameters (Holguin et al.) is applied to adjust the proximity effect for gapped cores.
+*
 *
 * REFERENCES:
 * [1] Mühlethaler, J., Biela, J., Kolar, J. W., & Ecklebe, A. (2012). "Improved 
@@ -45,20 +54,29 @@
 *     IEEE Transactions on Magnetics.
 * [6] Bin, C. (2019). "Design optimisation of an inductor-integrated MF transformer 
 *     for a high-power isolated dual-active-bridge DC-DC converter." 
-*     IET Power Electronics[cite: 15].
+*     IET Power Electronics.
 * [7] Zhang, Z., & Andersen, M. A. E. (2016). "High Frequency AC Inductor Analysis 
 *     and Design for Dual Active Bridge (DAB) Converters." 
-*     Proceedings of IEEE Applied Power Electronics Conference[cite: 16].
+*     Proceedings of IEEE Applied Power Electronics Conference.
 * [8] Zengin, S., & Boztepe, M. "Trapezoid Current Modulated DCM AC/DC DAB Converter 
 *     for Two-Stage Solid State Transformer." 
-*     Ege University[cite: 17].
+*     Ege University.
 * [9] Janghorban, S., Teixeira, C., Holmes, D. G., & McGoldrick, P. "Magnetics Design 
 *     for a 2.5-kW Battery Charger." 
-*     RMIT University & Creative Power Technologies[cite: 18].
+*     RMIT University & Creative Power Technologies.
 * [10] Shimizu, T. (2023). "Loss Evaluation of Magnetic Devices Used in Power Converters." 
-*      IEEJ Transactions on Electrical and Electronic Engineering[cite: 19].
+*      IEEJ Transactions on Electrical and Electronic Engineering.
 * [11] Gao, S., & Zhao, Z. (2020). "Magnetic Integrated LLC Resonant Converter Based 
-*      on Independent Inductance Winding." IEEE Access[cite: 20].
+*      on Independent Inductance Winding." IEEE Access.
+* [12] Geng, S., Lu, H., Chu, M., Wang, W., Wan, P., Li, P., & Peng, X. (2021). 
+*      "Modelling and optimization of winding resistance for litz wire inductors." 
+*      IET Power Electronics.
+* [13] Holguín, F. A., Asensi, R., Prieto, R., & Cobos, J. A. (2014). 
+*      "Simple analytical approach for the calculation of winding resistance in gapped 
+*      magnetic components." IEEE.
+* [14] Robert, F., Mathys, P., & Schauwers, J. P. (1998). 
+*      "Ohmic losses calculation in SMPS transformers: numerical study of Dowell's 
+*      approach accuracy." IEEE Transactions on Magnetics.
 * ============================================================================
 */
 
