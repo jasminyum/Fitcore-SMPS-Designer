@@ -116,6 +116,84 @@ function getCurrentDensity(fsw_khz) {
     return Math.round(result * 1000) / 1000;
 }
 
+function getDowellRacFactor(f_Hz, wire_d_mm, layers, isLitz, strand_d_mm, gap_mm, rho_T, porosity, geom = {}) {
+    const mu0 = 4 * Math.PI * 1e-7;
+    const rho = (Number.isFinite(rho_T) && rho_T > 0) ? rho_T : 1.68e-8;
+    const skinDepth_mm = Math.sqrt(rho / (Math.PI * f_Hz * mu0)) * 1000;
+
+    const n = Math.max(1, Math.round(layers));
+
+    if (isLitz && strand_d_mm > 0) {
+        const d_equiv_strand = strand_d_mm * (Math.sqrt(Math.PI) / 2);
+        const X_strand = d_equiv_strand / skinDepth_mm;
+
+        const sinhX = Math.sinh(X_strand);
+        const sinX = Math.sin(X_strand);
+        const coshX = Math.cosh(X_strand);
+        const cosX = Math.cos(X_strand);
+
+        const F_skin = (X_strand / 2) * ((sinhX + sinX) / (coshX - cosX));
+        const F_prox = (X_strand / 2) * ((sinhX - sinX) / (coshX + cosX));
+
+        const N_strands = geom.totalStrands || 1;
+
+        const Fr_litz = F_skin + F_prox * (Math.pow(n, 2) * N_strands - 1) / 3;
+        return (Number.isFinite(Fr_litz) && Fr_litz > 1.0) ? Fr_litz : 1.0;
+    }
+
+    const active_d = wire_d_mm;
+    const d_equiv = active_d * (Math.sqrt(Math.PI) / 2);
+    const eta = (Number.isFinite(porosity) && porosity > 0 && porosity <= 1) ? porosity : 0.8;
+
+    const X = (d_equiv / skinDepth_mm) * Math.sqrt(eta);
+
+    const sinhX = Math.sinh(X);
+    const sinX = Math.sin(X);
+    const coshX = Math.cosh(X);
+    const cosX = Math.cos(X);
+
+    const term1 = (sinhX + sinX) / (coshX - cosX);   // F_skin
+    const term2 = (sinhX - sinX) / (coshX + cosX);   // F_prox
+
+    const haveGeom = Number.isFinite(geom.dt_mm) && Number.isFinite(geom.dl_mm) && geom.dt_mm > 0;
+    const D_mm = active_d;
+    const dt_mm = geom.dt_mm;
+    const dl_mm = Math.max(0, geom.dl_mm);
+    const inValidityRange = D_mm >= 0.1 && D_mm <= 1.0 && dt_mm >= 0.09 && dt_mm <= 3.0 && dl_mm >= 0.1 && dl_mm <= 2.0;
+
+    if (haveGeom && inValidityRange && gap_mm === 0) {
+        let total_prox_contribution = 0;
+
+        for (let m = 1; m <= n; m++) {
+            const a1_m = 1.045 * (1 + dt_mm / (m * D_mm));
+            const b1 = (dl_mm * dt_mm) / (D_mm * D_mm) + 0.13;
+            const b2 = -0.037;
+            const a0 = -1.171;
+            const b0 = 0.12;
+
+            const a_m = a1_m * m + a0;
+            const b_m = b2 * m * m + b1 * m + b0;
+
+            const F_X_m = a_m * Math.pow(X, b_m);
+
+            if (Number.isFinite(F_X_m)) {
+                total_prox_contribution += F_X_m * (Math.pow(m, 2) - Math.pow(m - 1, 2));
+            }
+        }
+
+        const Fr = (X / 2) * (term1 + (total_prox_contribution / n) * term2);
+        return (Number.isFinite(Fr) && Fr > 1.0) ? Fr : 1.0;
+    }
+
+    let gap_multiplier = 1.0;
+    if (gap_mm > 0) {
+        gap_multiplier = 1.0 + (gap_mm * (f_Hz / 100000));
+    }
+
+    const Fr = X * (term1 + gap_multiplier * ((n * n - 1) / 3) * term2);
+    return (Number.isFinite(Fr) && Fr > 1.0) ? Fr : 1.0;
+}
+
 function sanitizeForJSON(value) {
     if (typeof value === 'number') {
         return Number.isFinite(value) ? value : null;
@@ -407,7 +485,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 const coreName = (core.name || "").toLowerCase();
                 const materialLower = (core.functionalDescription?.material || "").toLowerCase();
 
-                const isPowderCore = /kool|sendust|iron|powder|mpp|flux|edge|mix\s*\d+|ms\s*\d+|\bms\b|fs\s*\d+|\bfs\b|hf\s*\d+|\bhf\b|cs\s*\d+|\bcs\b|hs\s*\d+|\bhs\b|permalloy|carbonyl|optilloy/i.test(materialLower) ||
+                const isPowderCore = core.customStructure === "powder" || /kool|sendust|iron|powder|mpp|flux|edge|mix\s*\d+|ms\s*\d+|\bms\b|fs\s*\d+|\bfs\b|hf\s*\d+|\bhf\b|cs\s*\d+|\bcs\b|hs\s*\d+|\bhs\b|permalloy|carbonyl|optilloy/i.test(materialLower) ||
                     /kool|sendust|iron|powder|mpp|flux|edge|mix\s*\d+|ms\s*\d+|\bms\b|fs\s*\d+|\bfs\b|hf\s*\d+|\bhf\b|cs\s*\d+|\bcs\b|hs\s*\d+|\bhs\b|permalloy|carbonyl|optilloy/i.test(coreName);
 
                 const isEmiFerrite = /\bj\b|\bw\b|\bt38\b|\bn30\b|h5k|h7k|h10k/i.test(materialLower) ||
@@ -797,52 +875,52 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 }
 
                 if (isValid) {
+                    // STRUCTURE DETECTION
+                    let isPlanar = core.customStructure === "planar" || coreName.includes("EQ") || coreName.includes("PLANAR");
+                    let isToroid = core.customStructure === "toroid" || core.customStructure === "powder" || coreName.includes("TOROID") || coreName.includes("RING");
+
                     let Aw_mm2 = 0, w_width = 0, w_height = 0;
-                    if (familyType === "RM" || familyType === "PQ" || familyType === "PM") {
-                        if (dimA > 0 && dimD > 0) w_width = (dimA - dimD) / 3;
-                        else if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
-                        if (dimF > 0) w_height = dimF;
-                        else if (dimB > 0 && dimD > 0) w_height = (dimB - dimD / 2);
-                    } else {
-                        if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
-                        else if (dimA > 0 && dimD > 0) w_width = (dimA - 2 * dimD) / 2;
-                        if (dimF > 0) w_height = dimF * 2;
-                        else if (dimB > 0 && dimD > 0) w_height = (dimB - dimD / 2) * 2;
-                    }
-
-                    let isPlanar = core.name.toUpperCase().includes("EQ") || core.name.toUpperCase().includes("PLANAR");
-
                     let bobbin_margin_mm = (core.isCustom || isPlanar) ? 0.2 : 1.0;
+                    if (isToroid) bobbin_margin_mm = 0.5; // Toroid epoxy coating margin
 
-                    if (w_width > bobbin_margin_mm) w_width -= bobbin_margin_mm;
-                    else w_width = 0;
-
-                    if (w_height > bobbin_margin_mm) w_height -= bobbin_margin_mm;
-                    else w_height = 0;
-
-                    if (w_width > 0 && w_height > 0) Aw_mm2 = w_width * w_height;
-                    else {
-                        isValid = false;
+                    // 1. WINDOW AREA CALCULATION
+                    if (isToroid) {
+                        let r_inner = dimD > 0 ? (dimD / 2) : (Math.sqrt(Amin || Ae) * 0.8);
+                        if (r_inner > bobbin_margin_mm) r_inner -= bobbin_margin_mm;
+                        Aw_mm2 = Math.PI * Math.pow(r_inner, 2);
+                        w_width = r_inner;
+                        w_height = r_inner;
+                    } else {
+                        if (familyType === "RM" || familyType === "PQ" || familyType === "PM") {
+                            if (dimA > 0 && dimD > 0) w_width = (dimA - dimD) / 3;
+                            else if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
+                            if (dimF > 0) w_height = dimF;
+                            else if (dimB > 0 && dimD > 0) w_height = (dimB - dimD / 2);
+                        } else {
+                            if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
+                            else if (dimA > 0 && dimD > 0) w_width = (dimA - 2 * dimD) / 2;
+                            if (dimF > 0) w_height = dimF * 2;
+                            else if (dimB > 0 && dimD > 0) w_height = (dimB - dimD / 2) * 2;
+                        }
+                        if (w_width > bobbin_margin_mm) w_width -= bobbin_margin_mm; else w_width = 0;
+                        if (w_height > bobbin_margin_mm) w_height -= bobbin_margin_mm; else w_height = 0;
+                        if (w_width > 0 && w_height > 0) Aw_mm2 = w_width * w_height;
                     }
 
-                    if (w_width > 0 && w_height > 0) Aw_mm2 = w_width * w_height;
-                    else if (!core.isCustom) return;
+                    if (Aw_mm2 <= 0 && !core.isCustom) return;
 
+                    // 2. J and Cu area calculations
                     let J_target = getCurrentDensity(f_kHz);
-
                     if (volume_cm3 < 3.0) J_target *= 1.25;
                     else if (volume_cm3 > 15.0) J_target *= 0.85;
 
                     if (core.isCustom || isPlanar) {
-                        J_target *= 1.50;
+                        J_target *= 1.50; // Planar heat dissipation and custom cores can handle higher current density
                     }
 
                     let N2_calc = turnsRatio > 0 ? Math.round(N1_calc / turnsRatio) : 0;
-
                     if (turnsRatio > 0) {
-                        if (N2_calc < 1) {
-                            N2_calc = 1;
-                        }
+                        if (N2_calc < 1) N2_calc = 1;
                         N1_calc = Math.round(N2_calc * turnsRatio);
                     }
 
@@ -859,14 +937,11 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                         total_Cu_mm2 = N1_calc * (safe_pri_Irms / J_target) * packing_and_insulation_factor;
                     }
 
+                    // 3. FILL FACTOR - Ku
                     let Ku_limit = 0.40;
-                    if (familyType === "RM" || familyType === "PQ" || familyType === "PM" || familyType === "EP") {
-                        Ku_limit = 0.30;
-                    }
-
-                    if (core.isCustom || isPlanar) {
-                        Ku_limit = 0.65;
-                    }
+                    if (familyType === "RM" || familyType === "PQ" || familyType === "PM" || familyType === "EP") Ku_limit = 0.30;
+                    if (isToroid) Ku_limit = 0.35;
+                    if (isPlanar) Ku_limit = 0.65;
 
                     fillRatio = (Aw_mm2 > 0 && Ku_limit > 0) ? (total_Cu_mm2 / (Aw_mm2 * Ku_limit)) : 0;
 
@@ -875,21 +950,95 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                         windowPenalty = Math.max(1.5, Math.pow(fillRatio, 2.5));
                     }
 
-                    const Ae_mm2_est = Ae * 1e6;
-                    const legPerimeter_mm = 4 * Math.sqrt(Ae_mm2_est);
-                    const MLT_mm = legPerimeter_mm + Math.PI * w_width;
-                    const MLT_m = MLT_mm / 1000;
+                    // 4. MLT (Mean Length of Turn and COPPER LOSS)
+                    let MLT_m = 0;
+                    if (isToroid) {
+                        let h = dimB > 0 ? dimB : Math.sqrt(Ae) * 2;
+                        let outerD = dimA > 0 ? dimA : dimD + Math.sqrt(Ae) * 2;
+                        let innerD = dimD > 0 ? dimD : outerD - Math.sqrt(Ae) * 2;
+                        let thickness = (outerD - innerD) / 2;
+                        let MLT_mm = (h * 2) + (thickness * 2) + (Math.PI * w_width * 0.5);
+                        MLT_m = MLT_mm / 1000;
+                    } else {
+                        const Ae_mm2_est = Ae * 1e6;
+                        const legPerimeter_mm = 4 * Math.sqrt(Ae_mm2_est);
+                        let MLT_mm = legPerimeter_mm + Math.PI * w_width;
+                        if (w_width === 0) MLT_mm = 4.5 * Math.sqrt(Ae_mm2_est);
+                        MLT_m = MLT_mm / 1000;
+                    }
 
-                    const RHO_CU_20C = 1.68e-8; // ohm*m, 20°C cu 
-                    const ALPHA_CU = 0.00393;   // 1/°C
+                    // 4. MLT and AC/DC COPPER LOSS
+                    const RHO_CU_20C = 1.68e-8;
+                    const ALPHA_CU = 0.00393;
                     const rho_cu_T = RHO_CU_20C * (1 + ALPHA_CU * (T_op - 20));
 
-                    copper_loss_W = (N1_calc * safe_pri_Irms * rho_cu_T * MLT_m) * (J_target * 1e6);
+                    const dl_assumed_mm = 0.1;
+
+                    // Per-turn effective wire diameter (NOT sqrt of the total winding copper area!
+                    const wire_d_pri_mm = Math.sqrt(primary_Cu_mm2 / N1_calc);
+
+                    // Estimate physical layers dynamically based on window height and wire cross-section
+                    const est_layers = Math.max(1, Math.ceil(N1_calc / (w_height / wire_d_pri_mm)));
+
+                    const isLitz = (f_kHz >= 20);
+                    let strand_d_mm = 0;
+                    let est_total_strands_pri = 1;
+
+                    if (isLitz) {
+                        const skinDepth_mm = 66 / Math.sqrt(f_sw_hz);
+                        strand_d_mm = (skinDepth_mm * 2 < 0.1) ? 0.05 : 0.1;
+
+                        const single_strand_area_mm2 = Math.PI * Math.pow(strand_d_mm / 2, 2);
+                        const required_single_turn_cu_mm2 = primary_Cu_mm2 / N1_calc;
+                        est_total_strands_pri = Math.max(1, Math.ceil(required_single_turn_cu_mm2 / single_strand_area_mm2));
+                    }
+
+                    // Real porosity factor eta = d/(d+s) from the actual turns-per-layer and window
+                    const turns_per_layer_pri = Math.max(1, N1_calc / est_layers);
+                    const pitch_pri_mm = w_height / turns_per_layer_pri;
+                    const d_equiv_pri_mm = wire_d_pri_mm * (Math.sqrt(Math.PI) / 2);
+                    const eta_pri = isLitz ? 0.8 : Math.min(1, pitch_pri_mm > 0 ? (d_equiv_pri_mm / pitch_pri_mm) : 0.8);
+
+                    const dt_pri_mm = Math.max(0, pitch_pri_mm - wire_d_pri_mm);
+                    const geom_pri = {
+                        dt_mm: dt_pri_mm,
+                        dl_mm: dl_assumed_mm,
+                        totalStrands: isLitz ? est_total_strands_pri : 1
+                    };
+
+                    const Fr_pri = getDowellRacFactor(f_sw_hz, wire_d_pri_mm, est_layers, isLitz, strand_d_mm, datasheet_gap_mm, rho_cu_T, eta_pri, geom_pri);
+
+                    copper_loss_W = Fr_pri * (N1_calc * safe_pri_Irms * rho_cu_T * MLT_m) * (J_target * 1e6);
 
                     if ((componentType.includes("trafo") || componentType.includes("flyback")) && turnsRatio > 0) {
                         const n2_est = Math.max(1, Math.round(N1_calc / turnsRatio));
                         const sec_Irms_est = safe_pri_Irms * turnsRatio;
-                        copper_loss_W += n2_est * sec_Irms_est * rho_cu_T * MLT_m * J_target * 1e6;
+
+                        const wire_d_sec_mm = Math.sqrt(secondary_Cu_mm2 / n2_est);
+                        const est_layers_sec = Math.max(1, Math.ceil(n2_est / (w_height / wire_d_sec_mm)));
+
+                        let est_total_strands_sec = 1;
+                        if (isLitz && strand_d_mm > 0) {
+                            const single_strand_area_mm2 = Math.PI * Math.pow(strand_d_mm / 2, 2);
+                            const required_single_turn_sec_cu_mm2 = secondary_Cu_mm2 / n2_est;
+                            est_total_strands_sec = Math.max(1, Math.ceil(required_single_turn_sec_cu_mm2 / single_strand_area_mm2));
+                        }
+
+                        const turns_per_layer_sec = Math.max(1, n2_est / est_layers_sec);
+                        const pitch_sec_mm = w_height / turns_per_layer_sec;
+                        const d_equiv_sec_mm = wire_d_sec_mm * (Math.sqrt(Math.PI) / 2);
+                        const eta_sec = isLitz ? 0.8 : Math.min(1, pitch_sec_mm > 0 ? (d_equiv_sec_mm / pitch_sec_mm) : 0.8);
+
+                        const dt_sec_mm = Math.max(0, pitch_sec_mm - wire_d_sec_mm);
+                        const geom_sec = {
+                            dt_mm: dt_sec_mm,
+                            dl_mm: dl_assumed_mm,
+                            totalStrands: isLitz ? est_total_strands_sec : 1
+                        };
+
+                        const Fr_sec = getDowellRacFactor(f_sw_hz, wire_d_sec_mm, est_layers_sec, isLitz, strand_d_mm, datasheet_gap_mm, rho_cu_T, eta_sec, geom_sec);
+
+                        copper_loss_W += Fr_sec * (n2_est * sec_Irms_est * rho_cu_T * MLT_m * J_target * 1e6);
                     }
 
                     if (!Number.isFinite(copper_loss_W) || copper_loss_W < 0) copper_loss_W = 0;
@@ -1009,6 +1158,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
 
                 candidates.push({
                     name: core.name || shapeName,
+                    isCustom: core.isCustom === true,
                     mfgName: core.manufacturerInfo?.name || core.manufacturer || core.brand || "Unknown",
                     componentType: componentType,
                     material: materialName,
@@ -1070,7 +1220,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
     const BASE_LOSS_W = 0.1;
     const weights = getFuzzyWeights(mode);
 
-    const validCandidates = candidates.filter(c => !c.windowExceeded || c.mfgName === "Custom" || c.name.toLowerCase().includes("gapped"));
+    const validCandidates = candidates.filter(c => !c.windowExceeded || c.isCustom);
 
     const refCandidates = validCandidates.length > 0 ? validCandidates : candidates;
 
@@ -1111,7 +1261,9 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
         }
 
         const scoreEff = Math.min(1.0, (robustMinLoss + BASE_LOSS_W) / (c.totalLossW + BASE_LOSS_W));
-        const scoreSize = Math.min(1.0, robustMinVol / c.volume);
+
+        const sizeRatio = robustMinVol / c.volume;
+        const scoreSize = Math.pow(Math.min(1.0, sizeRatio), 1.5);
 
         let overSizePenalty = 1.0;
         if (c.utilizationRatio < 0.4) {
@@ -1120,7 +1272,6 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
 
         let matSuitability = 1.0;
         let matNote = "";
-
         const f_Hz = f_sw_hz;
 
         if (f_Hz < c.matAbsMinFreq) {
@@ -1145,19 +1296,36 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
             c.igseBreakdown.note += ` Loss Distribution: Core ${c.coreLossW.toFixed(3)}W + Copper ${c.copperLossW.toFixed(3)}W = Total ${c.totalLossW.toFixed(3)}W.`;
         }
 
-        const effectiveScoreEff = Math.min(1.0, scoreEff * matSuitability);
+        let internalWindowModifier = 1.0;
+        if (c.windowExceeded) {
+            internalWindowModifier = Math.max(0.1, 1.0 / (c.windowPenalty || 1.5));
+        }
 
-        let rawFuzzyScore = ((weights.cost * scoreCost) + (weights.size * scoreSize) + (weights.eff * effectiveScoreEff)) * 100;
-        c.fuzzyScore = Math.min(100, (rawFuzzyScore * overSizePenalty * (c.overLossPenalty || 1.0)) / (c.windowPenalty || 1.0));
+        const internalOversizeModifier = overSizePenalty;
+        const internalLossModifier = c.overLossPenalty || 1.0;
+
+        const fCost = scoreCost;
+        const fEff = Math.min(1.0, scoreEff * matSuitability) * internalWindowModifier * internalLossModifier;
+        const fSize = scoreSize * internalOversizeModifier * internalWindowModifier;
+
+        // [0.01 - 100]
+        let rawFuzzyScore = ((weights.cost * fCost) + (weights.size * fSize) + (weights.eff * fEff)) * 100;
+        c.fuzzyScore = Math.max(0.01, Math.min(100, rawFuzzyScore));
     });
 
-    candidates.sort((a, b) => b.fuzzyScore - a.fuzzyScore);
+    let finalCandidates = candidates.filter(c => !c.windowExceeded || c.isCustom);
+
+    if (finalCandidates.length === 0) {
+        finalCandidates = candidates;
+    }
+
+    finalCandidates.sort((a, b) => b.fuzzyScore - a.fuzzyScore);
 
     const KNOWN_STOCK_GUARANTEE = 30;
     const OVERALL_LIMIT = 30;
 
-    const topOverall = candidates.slice(0, OVERALL_LIMIT);
-    const topKnownStock = candidates
+    const topOverall = finalCandidates.slice(0, OVERALL_LIMIT);
+    const topKnownStock = finalCandidates
         .filter(c => !!c.distributor && c.distributor !== "Unknown Stock")
         .slice(0, KNOWN_STOCK_GUARANTEE);
 
