@@ -116,82 +116,127 @@ function getCurrentDensity(fsw_khz) {
     return Math.round(result * 1000) / 1000;
 }
 
-function getDowellRacFactor(f_Hz, wire_d_mm, layers, isLitz, strand_d_mm, gap_mm, rho_T, porosity, geom = {}) {
+function getCopperResistivity(T_C) {
+    const rho20 = 1.68e-8;
+    const alpha = 0.00393;
+    const T_safe = (Number.isFinite(T_C) && T_C > 0) ? T_C : 80;
+    return rho20 * (1 + alpha * (T_safe - 20));
+}
+
+function getDowellRacFactor(
+    f_Hz,
+    wire_d_mm,
+    layers,
+    isLitz,
+    strand_d_mm,
+    gap_mm,
+    rho_T,
+    porosity,
+    geom = {}
+) {
     const mu0 = 4 * Math.PI * 1e-7;
-    const rho = (Number.isFinite(rho_T) && rho_T > 0) ? rho_T : 1.68e-8;
-    const skinDepth_mm = Math.sqrt(rho / (Math.PI * f_Hz * mu0)) * 1000;
 
-    const n = Math.max(1, Math.round(layers));
+    if (!Number.isFinite(f_Hz) || f_Hz <= 0) return 1.0;
 
-    if (isLitz && strand_d_mm > 0) {
-        const d_equiv_strand = strand_d_mm * (Math.sqrt(Math.PI) / 2);
-        const X_strand = d_equiv_strand / skinDepth_mm;
+    const rho = getCopperResistivity(rho_T);
+    const n = Number.isFinite(layers) && layers > 0 ? Math.max(1, Math.round(layers)) : 1;
+    const delta_mm = Math.sqrt(rho / (Math.PI * f_Hz * mu0)) * 1000;
 
-        const sinhX = Math.sinh(X_strand);
-        const sinX = Math.sin(X_strand);
-        const coshX = Math.cosh(X_strand);
-        const cosX = Math.cos(X_strand);
+    // =========================================================
+    // LITZ-WIRE MODEL (Geng et al.)
+    // =========================================================
+    if (isLitz && Number.isFinite(strand_d_mm) && strand_d_mm > 0) {
+        const eta = (Number.isFinite(porosity) && porosity > 0 && porosity <= 1) ? porosity : 0.8;
+        const k = Number.isFinite(geom.strandsPerCable) && geom.strandsPerCable > 0 ? geom.strandsPerCable : 1;
 
-        const F_skin = (X_strand / 2) * ((sinhX + sinX) / (coshX - cosX));
-        const F_prox = (X_strand / 2) * ((sinhX - sinX) / (coshX + cosX));
+        const A = Math.pow(Math.PI / 4, 0.75) * Math.sqrt(eta) * strand_d_mm / delta_mm;
+        if (!Number.isFinite(A) || A <= 0) return 1.0;
 
-        const N_strands = geom.totalStrands || 1;
+        const sinhA = Math.sinh(A);
+        const sinA = Math.sin(A);
+        const coshA = Math.cosh(A);
+        const cosA = Math.cos(A);
+        const sinh2A = Math.sinh(2 * A);
+        const sin2A = Math.sin(2 * A);
+        const cosh2A = Math.cosh(2 * A);
+        const cos2A = Math.cos(2 * A);
 
-        const Fr_litz = F_skin + F_prox * (Math.pow(n, 2) * N_strands - 1) / 3;
-        return (Number.isFinite(Fr_litz) && Fr_litz > 1.0) ? Fr_litz : 1.0;
+        const denominatorSkin = cosh2A - cos2A;
+        const denominatorProx = coshA + cosA;
+
+        if (Math.abs(denominatorSkin) < 1e-15 || Math.abs(denominatorProx) < 1e-15) return 1.0;
+
+        const F_skin = A * (sinh2A + sin2A) / denominatorSkin;
+        const F_prox = A * (2 * (k * n * n - 1) / 3) * (sinhA - sinA) / denominatorProx;
+
+        const Fr = F_skin + F_prox;
+        return (Number.isFinite(Fr) && Fr >= 1 ? Fr : 1.0);
     }
 
-    const active_d = wire_d_mm;
-    const d_equiv = active_d * (Math.sqrt(Math.PI) / 2);
-    const eta = (Number.isFinite(porosity) && porosity > 0 && porosity <= 1) ? porosity : 0.8;
+    // =========================================================
+    // SOLID ROUND WIRE (Classical Dowell)
+    // =========================================================
+    if (!Number.isFinite(wire_d_mm) || wire_d_mm <= 0) return 1.0;
 
-    const X = (d_equiv / skinDepth_mm) * Math.sqrt(eta);
+    const D = wire_d_mm;
+    const d_eq = D * Math.sqrt(Math.PI) / 2;
+    const eta = (Number.isFinite(porosity) && porosity > 0 && porosity <= 1) ? porosity : 0.8;
+    const X = (d_eq / delta_mm) * Math.sqrt(eta);
+
+    if (!Number.isFinite(X) || X <= 0) return 1.0;
 
     const sinhX = Math.sinh(X);
     const sinX = Math.sin(X);
     const coshX = Math.cosh(X);
     const cosX = Math.cos(X);
 
-    const term1 = (sinhX + sinX) / (coshX - cosX);   // F_skin
-    const term2 = (sinhX - sinX) / (coshX + cosX);   // F_prox
+    const denominatorSkin = coshX - cosX;
+    const denominatorProx = coshX + cosX;
 
-    const haveGeom = Number.isFinite(geom.dt_mm) && Number.isFinite(geom.dl_mm) && geom.dt_mm > 0;
-    const D_mm = active_d;
+    if (Math.abs(denominatorSkin) < 1e-15 || Math.abs(denominatorProx) < 1e-15) return 1.0;
+
+    const F_skin = (X / 2) * (sinhX + sinX) / denominatorSkin;
+    const F_prox = (X / 2) * (2 * (n * n - 1) / 3) * (sinhX - sinX) / denominatorProx;
+    let Fr_classic = F_skin + F_prox;
+
+    // =================================================================
+    // MODIFIED ROUND-WIRE MODEL (Holguin et al. Gapped Core Correction)
+    // =================================================================
+    const haveGeometry = Number.isFinite(geom.dt_mm) && Number.isFinite(geom.dl_mm) && geom.dt_mm > 0 && geom.dl_mm >= 0;
     const dt_mm = geom.dt_mm;
     const dl_mm = Math.max(0, geom.dl_mm);
-    const inValidityRange = D_mm >= 0.1 && D_mm <= 1.0 && dt_mm >= 0.09 && dt_mm <= 3.0 && dl_mm >= 0.1 && dl_mm <= 2.0;
 
-    if (haveGeom && inValidityRange && gap_mm === 0) {
-        let total_prox_contribution = 0;
+    const validGeometry = haveGeometry && D >= 0.1 && D <= 1.0 && dt_mm >= 0.09 && dt_mm <= 3.0 && dl_mm >= 0.1 && dl_mm <= 2.0;
 
-        for (let m = 1; m <= n; m++) {
-            const a1_m = 1.045 * (1 + dt_mm / (m * D_mm));
-            const b1 = (dl_mm * dt_mm) / (D_mm * D_mm) + 0.13;
-            const b2 = -0.037;
-            const a0 = -1.171;
-            const b0 = 0.12;
+    if (!validGeometry || gap_mm <= 0) {
+        return (Number.isFinite(Fr_classic) && Fr_classic >= 1 ? Fr_classic : 1.0);
+    }
 
-            const a_m = a1_m * m + a0;
-            const b_m = b2 * m * m + b1 * m + b0;
+    const H_factor = dl_mm / gap_mm;
+    const x_dist = dl_mm / 2;
+    const K_d = 0.0048 * Math.pow(D / x_dist, -2.586) + 0.195;
 
-            const F_X_m = a_m * Math.pow(X, b_m);
+    let totalProximity = 0;
+    for (let m = 1; m <= n; m++) {
+        const a1 = 1.045 * (1 + dt_mm / (m * D));
+        const b1 = (dl_mm * dt_mm) / (D * D) + 0.13;
+        const b2 = -0.037;
 
-            if (Number.isFinite(F_X_m)) {
-                total_prox_contribution += F_X_m * (Math.pow(m, 2) - Math.pow(m - 1, 2));
-            }
+        const a0 = ((13.31 + 1.4 * m) + 0.69 * n - 70.9 * K_d) * ((n - (m - 1)) / 1.5);
+        const b0 = K_d * Math.log(H_factor);
+
+        const a_m = a1 * m + a0;
+        const b_m = b2 * m * m + b1 * m + b0;
+
+        const F_X_m = a_m * Math.pow(X, b_m);
+
+        if (Number.isFinite(F_X_m)) {
+            totalProximity += F_X_m;
         }
-
-        const Fr = (X / 2) * (term1 + (total_prox_contribution / n) * term2);
-        return (Number.isFinite(Fr) && Fr > 1.0) ? Fr : 1.0;
     }
 
-    let gap_multiplier = 1.0;
-    if (gap_mm > 0) {
-        gap_multiplier = 1.0 + (gap_mm * (f_Hz / 100000));
-    }
-
-    const Fr = X * (term1 + gap_multiplier * ((n * n - 1) / 3) * term2);
-    return (Number.isFinite(Fr) && Fr > 1.0) ? Fr : 1.0;
+    const Fr_modified = F_skin + (X / 2) * (totalProximity / n) * (sinhX - sinX) / denominatorProx;
+    return (Number.isFinite(Fr_modified) && Fr_modified >= 1 ? Fr_modified : (Number.isFinite(Fr_classic) && Fr_classic >= 1 ? Fr_classic : 1.0));
 }
 
 function sanitizeForJSON(value) {
@@ -211,38 +256,39 @@ function sanitizeForJSON(value) {
     return value;
 }
 
-function optimizeWires(Irms, targetCMA, maxStrandD, wiresData, f_sw_hz = 0) {
+function optimizeWires(
+    Irms,
+    targetCMA,
+    wiresData,
+    f_sw_hz = 0,
+    T_op = 80
+) {
     const candidates = [];
-    if (Irms <= 0 || !Array.isArray(wiresData)) return candidates;
+
+    if (!Number.isFinite(Irms) || Irms <= 0 || !Array.isArray(wiresData)) return candidates;
 
     const safeCMA = (Number.isFinite(targetCMA) && targetCMA > 0) ? targetCMA : 400;
-
-    let safeMaxStrandD = (Number.isFinite(maxStrandD) && maxStrandD > 0) ? maxStrandD : 2.5;
-
-    if (f_sw_hz > 0) {
-        const skinDepth_mm = 66 / Math.sqrt(f_sw_hz);
-        const maxSkinD_mm = skinDepth_mm * 2;
-        if (safeMaxStrandD > maxSkinD_mm) {
-            safeMaxStrandD = maxSkinD_mm;
-        }
-    }
-
     const reqArea_mm2 = (Irms * safeCMA) / 1973.525;
-
     const practicalMaxParallelCables = 25;
 
+    let skinDepth_mm = Infinity;
+    if (f_sw_hz > 0) {
+        const rho = getCopperResistivity(T_op);
+        const mu0 = 4 * Math.PI * 1e-7;
+        skinDepth_mm = Math.sqrt(rho / (Math.PI * f_sw_hz * mu0)) * 1000;
+    }
+
     wiresData.forEach(wire => {
+        const isLitz = wire.type === "litz";
         let d_mm = 0;
         let strandsPerCable = 1;
-        const isLitz = wire.type === "litz";
 
         if (isLitz) {
-            strandsPerCable = wire.numberConductors || 1;
+            strandsPerCable = Number.isFinite(wire.numberConductors) && wire.numberConductors > 0 ? wire.numberConductors : 1;
             const strandMatch = wire.strand?.match(/[\d.]+/);
-            if (strandMatch) {
-                d_mm = parseFloat(strandMatch[0]);
-            } else {
-                const nameMatch = wire.name?.match(/x\s*([0-9.]+)/);
+            if (strandMatch) d_mm = parseFloat(strandMatch[0]);
+            else {
+                const nameMatch = wire.name?.match(/x\s*([0-9.]+)/i);
                 if (nameMatch) d_mm = parseFloat(nameMatch[1]);
             }
         } else {
@@ -250,59 +296,57 @@ function optimizeWires(Irms, targetCMA, maxStrandD, wiresData, f_sw_hz = 0) {
             if (d_nom) d_mm = d_nom * 1000;
         }
 
-        if (!d_mm || d_mm <= 0) return;
+        if (!Number.isFinite(d_mm) || d_mm <= 0) return;
 
-        let singleStrandArea_mm2 = Math.PI * Math.pow(d_mm / 2, 2);
-        let effectiveStrandArea_mm2 = singleStrandArea_mm2;
+        const strandArea_mm2 = Math.PI * Math.pow(d_mm / 2, 2);
+        const cablePhysicalArea_mm2 = strandArea_mm2 * strandsPerCable;
+        const parallelCables = Math.ceil(reqArea_mm2 / cablePhysicalArea_mm2);
 
-        if (!isLitz && d_mm > safeMaxStrandD) {
-            const skinDepth = safeMaxStrandD / 2;
-            const innerD = d_mm - (2 * skinDepth);
-            const deadArea_mm2 = Math.PI * Math.pow(innerD / 2, 2);
-            effectiveStrandArea_mm2 = singleStrandArea_mm2 - deadArea_mm2;
+        if (parallelCables <= 0 || parallelCables > practicalMaxParallelCables) return;
+
+        const totalPhysicalArea_mm2 = cablePhysicalArea_mm2 * parallelCables;
+        const totalArea_cmil = totalPhysicalArea_mm2 * 1973.525;
+        const actualCMA = totalArea_cmil / Irms;
+        const totalStrands = parallelCables * strandsPerCable;
+
+        let frequencyClass = "Not evaluated";
+        let strandRatio = null;
+
+        if (f_sw_hz > 0) {
+            strandRatio = d_mm / skinDepth_mm;
+            if (strandRatio <= 1) frequencyClass = "Low strand AC-loss tendency";
+            else if (strandRatio <= 2) frequencyClass = "Moderate strand AC-loss tendency";
+            else if (strandRatio <= 3) frequencyClass = "High strand AC-loss tendency";
+            else frequencyClass = "Very high strand AC-loss tendency";
         }
-
-        const singleCableEffectiveArea_mm2 = effectiveStrandArea_mm2 * strandsPerCable;
-        const singleCablePhysicalArea_mm2 = singleStrandArea_mm2 * strandsPerCable;
-        const singleCableArea_cmil = singleCablePhysicalArea_mm2 * 1973.525;
-
-        const parallelCables = Math.ceil(reqArea_mm2 / singleCableEffectiveArea_mm2);
-
-        if (parallelCables > practicalMaxParallelCables) return;
-
-        const actualCMA = (parallelCables * singleCableArea_cmil) / Irms;
-        const totalStrandsInBundle = parallelCables * strandsPerCable;
 
         candidates.push({
             name: wire.name,
-
             standard: isLitz ? wire.name : (wire.standardName || wire.name || "-"),
-
             type: isLitz ? "Litz" : "Solid",
             d_mm: d_mm.toFixed(3),
-
             strands: parallelCables,
-
-            parallelCables: parallelCables,
-            strandsPerCable: strandsPerCable,
-            totalStrands: totalStrandsInBundle,
-            totalArea: (singleCablePhysicalArea_mm2 * parallelCables).toFixed(3),
+            parallelCables,
+            strandsPerCable,
+            totalStrands,
+            totalArea: totalPhysicalArea_mm2.toFixed(3),
             cma: Math.round(actualCMA),
-            coating: isLitz ? (wire.coating?.type || "Bare/Served") : (wire.coating?.type || "Enamelled")
+            coating: isLitz ? (wire.coating?.type || "Bare/Served") : (wire.coating?.type || "Enamelled"),
+            skinDepth_mm: Number.isFinite(skinDepth_mm) ? skinDepth_mm.toFixed(4) : null,
+            strandToSkinDepth: Number.isFinite(strandRatio) ? strandRatio.toFixed(3) : null,
+            frequencyClass
         });
     });
 
     candidates.sort((a, b) => {
         const cmaErrorA = Math.abs(a.cma - safeCMA) / safeCMA;
         const cmaErrorB = Math.abs(b.cma - safeCMA) / safeCMA;
-
         const cablePenaltyA = (a.parallelCables - 1) * 0.15;
         const cablePenaltyB = (b.parallelCables - 1) * 0.15;
+        const frequencyPenaltyA = a.frequencyClass.includes("Very high") ? 10 : (a.frequencyClass.includes("High") ? 1 : 0);
+        const frequencyPenaltyB = b.frequencyClass.includes("Very high") ? 10 : (b.frequencyClass.includes("High") ? 1 : 0);
 
-        const scoreA = cmaErrorA + cablePenaltyA;
-        const scoreB = cmaErrorB + cablePenaltyB;
-
-        return scoreA - scoreB;
+        return (cmaErrorA + cablePenaltyA + frequencyPenaltyA) - (cmaErrorB + cablePenaltyB + frequencyPenaltyB);
     });
 
     return candidates.slice(0, 5);
@@ -1003,9 +1047,8 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     const geom_pri = {
                         dt_mm: dt_pri_mm,
                         dl_mm: dl_assumed_mm,
-                        totalStrands: isLitz ? est_total_strands_pri : 1
+                        strandsPerCable: isLitz ? est_total_strands_pri : 1
                     };
-
                     const Fr_pri = getDowellRacFactor(f_sw_hz, wire_d_pri_mm, est_layers, isLitz, strand_d_mm, datasheet_gap_mm, rho_cu_T, eta_pri, geom_pri);
 
                     copper_loss_W = Fr_pri * (N1_calc * safe_pri_Irms * rho_cu_T * MLT_m) * (J_target * 1e6);
@@ -1033,7 +1076,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                         const geom_sec = {
                             dt_mm: dt_sec_mm,
                             dl_mm: dl_assumed_mm,
-                            totalStrands: isLitz ? est_total_strands_sec : 1
+                            strandsPerCable: isLitz ? est_total_strands_sec : 1
                         };
 
                         const Fr_sec = getDowellRacFactor(f_sw_hz, wire_d_sec_mm, est_layers_sec, isLitz, strand_d_mm, datasheet_gap_mm, rho_cu_T, eta_sec, geom_sec);
@@ -1993,8 +2036,8 @@ exports.runSmpsOptimization = onCall({
             const trafoType = isLinearTrafo ? "linear_trafo" : "trafo";
             result.trafoCores = await optimizeCores(veOpt, optMode, "volume", L_H, f_sw, T_op, 0, volt_sec, trafoGapReq, trafoType, dbData, staticDbsPayload, pri_Irms, turnsRatio, topology, smpsMode, D_switch, extraModeParams);
 
-            result.priWires = optimizeWires(pri_Irms, active_CMA, maxStrandD, dbData.wires, f_sw);
-            result.secWires = optimizeWires(sec_Irms, active_CMA, maxStrandD, dbData.wires, f_sw);
+            result.priWires = optimizeWires(pri_Irms, active_CMA, dbData.wires, f_sw, T_op);
+            result.secWires = optimizeWires(sec_Irms, active_CMA, dbData.wires, f_sw, T_op);
         }
 
         if (hasWmax) {
@@ -2008,11 +2051,11 @@ exports.runSmpsOptimization = onCall({
             );
 
             if (isFlyback) {
-                result.priWires = optimizeWires(pri_Irms, active_CMA, maxStrandD, dbData.wires, f_sw);
-                result.secWires = optimizeWires(sec_Irms, active_CMA, maxStrandD, dbData.wires, f_sw);
-                if (hasBias && biasWire_Irms > 0) result.biasWires = optimizeWires(biasWire_Irms, active_CMA, maxStrandD, dbData.wires, f_sw);
+                result.priWires = optimizeWires(pri_Irms, active_CMA, dbData.wires, f_sw, T_op);
+                result.secWires = optimizeWires(sec_Irms, active_CMA, dbData.wires, f_sw, T_op);
+                if (hasBias && biasWire_Irms > 0) result.biasWires = optimizeWires(biasWire_Irms, active_CMA, dbData.wires, f_sw, T_op);
             } else {
-                result.coilWires = optimizeWires(coilWire_Irms, active_CMA, maxStrandD, dbData.wires, f_sw);
+                result.coilWires = optimizeWires(coilWire_Irms, active_CMA, dbData.wires, f_sw, T_op);
             }
         }
         return sanitizeForJSON(result);
