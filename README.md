@@ -8,49 +8,49 @@ A light browser-based calculation, optimization, and circuit-simulation tool for
 
 ## Contents
 
-- [Features](#features)
-- [Architecture](#architecture)
-- [Project Structure](#project-structure)
-- [Setup](#setup)
-- [Running the Firebase Functions](#running-the-firebase-functions)
-- [Supported Topologies](#supported-topologies)
-- [Adding Switching Devices (PLECS Export)](#adding-switching-devices-plecs-export)
-- [Languages](#languages)
-- [Known Limitations / Roadmap](#known-limitations--roadmap)
-- [Security Notes](#security-notes)
-- [Contributing](#contributing)
+* [Features](https://www.google.com/search?q=%23features)
+* [Architecture](https://www.google.com/search?q=%23architecture)
+* [Project Structure](https://www.google.com/search?q=%23project-structure)
+* [Setup](https://www.google.com/search?q=%23setup)
+* [Running the Firebase Functions](https://www.google.com/search?q=%23running-the-firebase-functions)
+* [Supported Topologies](https://www.google.com/search?q=%23supported-topologies)
+* [Adding Switching Devices (PLECS Export)](https://www.google.com/search?q=%23adding-switching-devices-plecs-export)
+* [Languages](https://www.google.com/search?q=%23languages)
+* [Known Limitations / Roadmap](https://www.google.com/search?q=%23known-limitations--roadmap)
+* [Security Notes](https://www.google.com/search?q=%23security-notes)
+* [Contributing](https://www.google.com/search?q=%23contributing)
 
 ## Features
 
-- **18 topology calculators** — separate pages for Buck, Boost, Two-Phase Interleaved Boost, Buck-Boost, Ćuk, SEPIC, Zeta, Flyback, Forward (single/double transistor), Half-Bridge, Full-Bridge, LLC (Half/Full), DAB, PFC, transformer, and inductor design.
-- **Cloud-based magnetics optimization** — the `runSmpsOptimization` Cloud Function, running on Firebase Cloud Functions, picks the best combination from the core and wire database using fuzzy-weighted cost/efficiency/size targets, with per-topology duty-cycle (D1/D2) assumptions applied correctly (see [Architecture](#architecture)).
-- **Monte Carlo Tolerance Analysis** — run 1000-iteration statistical simulations to evaluate the impact of manufacturing tolerances (e.g., ±10-20% on core loss, switching loss, conduction loss, and thermal resistance) on thermal performance and magnetic saturation. Results are instantly exportable as CSV for yield and reliability analysis.
-- **3D core visualization** — a 3D render of the selected magnetic core via Three.js.
-- **Custom thermal analysis simulation** — a thermal test that runs against the core/switch combination actually selected by the optimizer, triggered from a separate modal (`window.openCustomThermalModal`) and downloadable as CSV.
-- **Embedded circuit simulator** — a live Falstad/CircuitJS circuit simulation can be opened from any topology page (the `falstad/` directory is a separate Java/GWT app).
-- **Multilingual UI** — Turkish, English, and German translations (`assets/js/common/language.js`).
-- **Contact form** — a simple PHPMailer-based contact form (`forms/contact.php`).
+* **18 topology calculators** — separate pages for Buck, Boost, Two-Phase Interleaved Boost, Buck-Boost, Ćuk, SEPIC, Zeta, Flyback, Forward (single/double transistor), Half-Bridge, Full-Bridge, LLC (Half/Full), DAB, PFC, transformer, and inductor design.
+* **Cloud-based magnetics optimization** — the `runSmpsOptimization` Cloud Function, running on Firebase Cloud Functions, picks the best combination from the core and wire database using fuzzy-weighted cost/efficiency/size targets, with per-topology duty-cycle (D1/D2) assumptions applied correctly (see [Architecture](https://www.google.com/search?q=%23architecture)).
+* **Hybrid AC Winding Resistance Modeling** — Computes high-frequency skin and proximity losses using a physically grounded hybrid algorithm[cite: 11]. It applies the classical 1D Dowell method for solid round wires, integrates Geng et al.'s equations for Litz wire implementations[cite: 6], and applies Holguin et al.'s geometrical corrections to account for 2D fringing fields in gapped magnetic components[cite: 7]. Edge effects and orthogonal field components are factored in for robust accuracy[cite: 8].
+* **Monte Carlo Tolerance Analysis** — run 1000-iteration statistical simulations to evaluate the impact of manufacturing tolerances (e.g., ±10-20% on core loss, switching loss, conduction loss, and thermal resistance) on thermal performance and magnetic saturation. Results are instantly exportable as CSV for yield and reliability analysis.
+* **3D core visualization** — a 3D render of the selected magnetic core via Three.js.
+* **Custom thermal analysis simulation** — a thermal test that runs against the core/switch combination actually selected by the optimizer, triggered from a separate modal (`window.openCustomThermalModal`) and downloadable as CSV.
+* **Embedded circuit simulator** — a live Falstad/CircuitJS circuit simulation can be opened from any topology page (the `falstad/` directory is a separate Java/GWT app).
+* **Multilingual UI** — Turkish, English, and German translations (`assets/js/common/language.js`).
+* **Contact form** — a simple PHPMailer-based contact form (`forms/contact.php`).
 
 ## Architecture
 
 The project is a **build-tool-free** (no Vite/Webpack) multi-page static site combined with a serverless backend:
 
-
-```
-
+```text
 Browser (18 HTML pages)
 │
 ├─ assets/js/common/firebase_config.js   → initializes the Firebase SDK
 ├─ assets/js/common/api_service.js       → the SINGLE entry point for all Cloud Functions calls
 ├─ assets/js/common/advanced_optimizer.js → UI logic, 3D render, thermal test, table/export;
-│                                         also reachable through the window.SMPSApp namespace
+│                                          also reachable through the window.SMPSApp namespace
 ├─ assets/js/topologies/*.js             → per-topology electrical calculation formulas
 └─ falstad/                              → embedded circuit simulator (standalone GWT app)
 │
 ▼ (HTTPS Callable)
 Firebase Cloud Functions (assets/js/functions/index.js)
 └─ runSmpsOptimization  → optimizes against the core/wire data in smps_database.json,
-using topology-specific D1/D2 waveform assumptions for the iGSE core-loss calculation
+   using topology-specific D1/D2 waveform assumptions for the iGSE core-loss calculation
+   and a hybrid Dowell/Geng/Holguin algorithm (`getDowellRacFactor`) for AC copper losses[cite: 11].
 
 ```
 
@@ -62,15 +62,13 @@ using topology-specific D1/D2 waveform assumptions for the iGSE core-loss calcul
 
 Because the inline `onclick="..."` handlers on the pages depend directly on global functions, the project doesn't currently use ES Modules (`import`/`export`). Instead:
 
-- Every function is still defined as `window.functionName` (for backward compatibility, so `onclick` doesn't break).
-- At the end of `advanced_optimizer.js`, a single namespace object called **`window.SMPSApp`** is created, and all the important functions/state are also collected there. Calling something like `window.SMPSApp.executeAdvancedOptimization()` in new code makes it clear which functions are considered part of the "public API."
-- A full move to ES Modules would mean converting every inline handler across the 19 HTML pages to `addEventListener`, which is a bigger separate refactor — see the roadmap below.
+* Every function is still defined as `window.functionName` (for backward compatibility, so `onclick` doesn't break).
+* At the end of `advanced_optimizer.js`, a single namespace object called **`window.SMPSApp`** is created, and all the important functions/state are also collected there. Calling something like `window.SMPSApp.executeAdvancedOptimization()` in new code makes it clear which functions are considered part of the "public API."
+* A full move to ES Modules would mean converting every inline handler across the 19 HTML pages to `addEventListener`, which is a bigger separate refactor — see the roadmap below.
 
 ## Project Structure
 
-
-```
-
+```text
 .
 ├── *.html                       # 21 pages: 18 topologies + index + filter + help
 ├── Web.config                     # request/build settings for the IIS static file server
@@ -108,9 +106,9 @@ Because the inline `onclick="..."` handlers on the pages depend directly on glob
 
 ### Requirements
 
-- A static file server (the project needs no build tool; opening `index.html` directly from an HTTP server is enough — don't open it via `file://`, the Firebase SDK and module loading may fail due to CORS). If you're running this on Windows/IIS, the `Web.config` at the root already has the request-size and build settings you need.
-- Node.js 22 (only if you want to run/deploy the Cloud Functions locally).
-- A Firebase project (only if you want to run your own optimization backend).
+* A static file server (the project needs no build tool; opening `index.html` directly from an HTTP server is enough — don't open it via `file://`, the Firebase SDK and module loading may fail due to CORS). If you're running this on Windows/IIS, the `Web.config` at the root already has the request-size and build settings you need.
+* Node.js 22 (only if you want to run/deploy the Cloud Functions locally).
+* A Firebase project (only if you want to run your own optimization backend).
 
 ### Quick start (frontend only)
 
