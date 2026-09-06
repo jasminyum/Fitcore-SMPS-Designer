@@ -65,13 +65,23 @@ window.openAdvancedPreCheck = function () {
                     </div>
                     <div id="customCoreParams" style="display:none;" class="mb-3 p-2 border border-secondary rounded">
                         <input type="text" id="custCoreName" class="form-control form-control-sm mb-1 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_core_name') || 'Nüve Adı (örn: EQ20)')}">
+
+                        <select id="custCoreStruct" class="form-select form-select-sm mb-1 bg-dark text-light border-secondary">
+                            <option value="ferrite" selected data-i18n="cust_struct_ferrite">${sanitizeHTML(safeGetT('cust_struct_ferrite') || 'Standart Ferrit (E, RM, PQ vb.)')}</option>
+                            <option value="planar" data-i18n="cust_struct_planar">${sanitizeHTML(safeGetT('cust_struct_planar') || 'Planar Nüve (EQ, ER - Yüksek Doluluk)')}</option>
+                            <option value="toroid" data-i18n="cust_struct_toroid">${sanitizeHTML(safeGetT('cust_struct_toroid') || 'Ferrit Toroid (Halka Nüve)')}</option>
+                            <option value="powder" data-i18n="cust_struct_powder">${sanitizeHTML(safeGetT('cust_struct_powder') || 'Toz Nüve / Powder Core (Kool Mµ vb.)')}</option>
+                        </select>
+
                         <input type="number" id="custAe" class="form-control form-control-sm mb-1 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_ae') || 'Ae (mm²)')}">
                         <input type="number" id="custLe" class="form-control form-control-sm mb-1 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_le') || 'le (mm)')}">
                         
-                        <!-- YENİ EKLENEN AIR GAP VE AL GİRDİLERİ -->
-                        <div class="row g-1 mb-1">
+                        <div class="row g-1">
                             <div class="col-6"><input type="number" id="custAL" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_al') || 'AL (nH)')}"></div>
                             <div class="col-6"><input type="number" id="custGap" step="0.01" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_gap') || 'Air Gap (mm)')}"></div>
+                        </div>
+                        <div class="mb-2" style="line-height: 1.1;">
+                            <small style="font-size: 10px; color: #aaa;" data-i18n="cust_al_gap_note">${sanitizeHTML(safeGetT('cust_al_gap_note') || '* Not: AL değeri, hava boşluklu (gapped) duruma göre düşürülmüş efektif değer olmalıdır.')}</small>
                         </div>
 
                         <input type="text" id="custMaterial" class="form-control form-control-sm mb-3 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_material') || 'Materyal (örn: 3C95)')}">
@@ -133,6 +143,7 @@ window.proceedToAdvancedTable = function () {
 
         window.customSelections.core = {
             name: coreName,
+            customStructure: document.getElementById('custCoreStruct').value,
             Ae: parseFloat(document.getElementById('custAe').value),
             Amin: parseFloat(document.getElementById('custAe').value),
             le: parseFloat(document.getElementById('custLe').value),
@@ -1171,7 +1182,7 @@ window.executeAdvancedOptimization = async function () {
         const rho_T = rho_20 * (1 + alpha_cu * (T_op_actual - 20));
         const mu_0 = 4 * Math.PI * 1e-7;
         const delta_m = Math.sqrt(rho_T / (Math.PI * mu_0 * f_sw));
-        const maxStrandD = delta_m * 1000; 
+        const maxStrandD = delta_m * 1000;
 
         let safeData = typeof CoreDB !== 'undefined' ? CoreDB.inductorCores : [];
         let safeKerne = typeof CoreDB !== 'undefined' ? CoreDB.flybackCores : [];
@@ -1397,7 +1408,7 @@ window.executeAdvancedOptimization = async function () {
                 topology = "bridge";
             } else if (isInterleaved) {
                 topology = "interleaved_boost";
-            } 
+            }
 
             if (isBuck && !isBuckBoost) {
                 estD = Math.min(0.95, Math.max(0.05, voutVal / vinNom));
@@ -1646,10 +1657,6 @@ window.filterResultsByManufacturer = function () {
     const maxStrandD = 2 * (65.6 / Math.sqrt(f_sw));
 
     const pageTitle = (document.title || "").toLowerCase();
-    const isSepic = pageTitle.includes('sepic');
-    const isCuk = pageTitle.includes('cuk');
-    const isZeta = pageTitle.includes('zeta');
-
     const voutVal = Math.abs(parseFloat((document.getElementById('vout') || document.getElementById('vout_nom'))?.value)) || 12;
     const ioutEl = document.getElementById('ilout') || document.getElementById('iout') || document.getElementById('iout_dab') || document.getElementById('Iout');
     const I_out = parseFloat(ioutEl?.value) || 0;
@@ -1671,190 +1678,24 @@ window.filterResultsByManufacturer = function () {
     }
 
     let bestSwitchLoss = (filteredResults.switches && filteredResults.switches.length > 0) ? (filteredResults.switches[0].p_tot_W || 0) : 0;
-
     bestSwitchLoss *= defaultSwitchQty;
 
     let bestCoreLoss = 0;
     let bestCopperLoss = 0;
 
-    const currentTemp = currents.T_op || 80;
-    const rho = 1.68e-8 * (1 + 0.00393 * (currentTemp - 20));
-
+    // --- DİREKT BACKEND SONUÇLARINI KULLANMA (TAM UYUM İÇİN) ---
     if (currents.isDualCoil) {
         const bestCoil1 = (filteredResults.coil1Cores && filteredResults.coil1Cores.length > 0) ? filteredResults.coil1Cores[0] : null;
         const bestCoil2 = (filteredResults.coil2Cores && filteredResults.coil2Cores.length > 0) ? filteredResults.coil2Cores[0] : null;
 
-        const bestCoil1Loss = bestCoil1 ? (bestCoil1.coreLossW || 0) : 0;
-        const bestCoil2Loss = bestCoil2 ? (bestCoil2.coreLossW || 0) : 0;
-        bestCoreLoss = bestCoil1Loss + bestCoil2Loss;
-
-        const wire1 = filteredResults.coil1Wires?.[0];
-        const wire2 = filteredResults.coil2Wires?.[0];
-
-		if (bestCoil1 && wire1 && wire1.totalArea) {
-			let Ae = bestCoil1.Ae_mm2 || 100;
-            let dimA = bestCoil1.dim_A || 0;
-            let dimD = bestCoil1.dim_D || 0;
-            let dimE = bestCoil1.dim_E || 0;
-            let family = bestCoil1.family || "E";
-            let w_width = 0;
-
-            if (family === "RM" || family === "PQ" || family === "PM") {
-                if (dimA > 0 && dimD > 0) w_width = (dimA - dimD) / 3;
-                else if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
-            } else {
-                if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
-                else if (dimA > 0 && dimD > 0) w_width = (dimA - 2 * dimD) / 2;
-            }
-
-            w_width = Math.max(0, w_width - 1.0);
-
-            const legPerimeter_mm = 4 * Math.sqrt(Ae);
-            let MLT_mm = legPerimeter_mm + (Math.PI * w_width);
-            if (w_width === 0) MLT_mm = 4.5 * Math.sqrt(Ae);
-
-            let MLT = MLT_mm / 1000;
-			let n1 = bestCoil1.n1_calc || 10;
-			let parsedArea = parseFloat(wire1.totalArea) || 0.5;
-			let dcr = rho * ((n1 * MLT) / 1000) / (parsedArea * 1e-6);
-			bestCopperLoss += dcr * Math.pow(currents.l1_rms, 2);
-		}
-		if (bestCoil2 && wire2 && wire2.totalArea) {
-			let Ae = bestCoil2.Ae_mm2 || 100;
-            let dimA = bestCoil2.dim_A || 0;
-            let dimD = bestCoil2.dim_D || 0;
-            let dimE = bestCoil2.dim_E || 0;
-            let family = bestCoil2.family || "E";
-            let w_width = 0;
-
-            if (family === "RM" || family === "PQ" || family === "PM") {
-                if (dimA > 0 && dimD > 0) w_width = (dimA - dimD) / 3;
-                else if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
-            } else {
-                if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
-                else if (dimA > 0 && dimD > 0) w_width = (dimA - 2 * dimD) / 2;
-            }
-
-            w_width = Math.max(0, w_width - 1.0);
-
-            const legPerimeter_mm = 4 * Math.sqrt(Ae);
-            let MLT_mm = legPerimeter_mm + (Math.PI * w_width);
-            if (w_width === 0) MLT_mm = 4.5 * Math.sqrt(Ae);
-
-            let MLT = MLT_mm / 1000;
-			let n1 = bestCoil2.n1_calc || 10;
-			let parsedArea2 = parseFloat(wire2.totalArea) || 0.5; 
-			let dcr = rho * ((n1 * MLT) / 1000) / (parsedArea2 * 1e-6);
-			bestCopperLoss += dcr * Math.pow(currents.l2_rms, 2);
-		}
+        bestCoreLoss = (bestCoil1 ? (bestCoil1.coreLossW || 0) : 0) + (bestCoil2 ? (bestCoil2.coreLossW || 0) : 0);
+        bestCopperLoss = (bestCoil1 ? (bestCoil1.copperLossW || 0) : 0) + (bestCoil2 ? (bestCoil2.copperLossW || 0) : 0);
     } else {
         const bestTrafoCore = (filteredResults.trafoCores && filteredResults.trafoCores.length > 0) ? filteredResults.trafoCores[0] : null;
         const bestCoilCore = (filteredResults.coilCores && filteredResults.coilCores.length > 0) ? filteredResults.coilCores[0] : null;
-        const bestTrafoCoreLoss = bestTrafoCore ? (bestTrafoCore.coreLossW || 0) : 0;
-        const bestCoilCoreLoss = bestCoilCore ? (bestCoilCore.coreLossW || 0) : 0;
 
-        bestCoreLoss = bestTrafoCoreLoss + bestCoilCoreLoss;
-
-        const priWire = filteredResults.priWires?.[0];
-        const secWire = filteredResults.secWires?.[0];
-        const coilWire = filteredResults.coilWires?.[0];
-
-        const priIrmsEst = currents.pri_Irms || 1;
-        const secIrmsEst = currents.sec_Irms || ioutVal;
-        const coilIrmsEst = currents.coilWire_Irms || ioutVal;
-
-		if (bestTrafoCore) {
-            let Ae = bestTrafoCore.Ae_mm2 || 100;
-            let dimA = bestTrafoCore.dim_A || 0;
-            let dimD = bestTrafoCore.dim_D || 0;
-            let dimE = bestTrafoCore.dim_E || 0;
-            let family = bestTrafoCore.family || "E";
-            let w_width = 0;
-
-            if (family === "RM" || family === "PQ" || family === "PM") {
-                if (dimA > 0 && dimD > 0) w_width = (dimA - dimD) / 3;
-                else if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
-            } else {
-                if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
-                else if (dimA > 0 && dimD > 0) w_width = (dimA - 2 * dimD) / 2;
-            }
-
-            w_width = Math.max(0, w_width - 1.0);
-
-            const legPerimeter_mm = 4 * Math.sqrt(Ae);
-            let MLT_mm = legPerimeter_mm + (Math.PI * w_width);
-            if (w_width === 0) MLT_mm = 4.5 * Math.sqrt(Ae);
-
-            let MLT_m = MLT_mm / 1000;
-            let n1 = bestTrafoCore.n1_calc || 10;
-            let n2 = bestTrafoCore.n2_calc || Math.max(4, Math.floor(n1 / 2));
-
-            if (priWire && priWire.totalArea) {
-                let A_wire_m2 = parseFloat(priWire.totalArea) * 1e-6;
-                let dcr = rho * (n1 * MLT_m) / A_wire_m2;
-                bestCopperLoss += dcr * Math.pow(priIrmsEst, 2);
-            }
-            if (secWire && secWire.totalArea) {
-                let A_wire_m2 = parseFloat(secWire.totalArea) * 1e-6;
-                let dcr = rho * (n2 * MLT_m) / A_wire_m2;
-                const isCenterTapped = pageTitle.includes('llc') && !pageTitle.includes('full');
-
-                if (isCenterTapped) {
-                    bestCopperLoss += 2 * dcr * Math.pow(secIrmsEst, 2);
-                } else {
-                    bestCopperLoss += dcr * Math.pow(secIrmsEst, 2);
-                }
-            }
-        }
-
-        if (bestCoilCore) {
-            let Ae = bestCoilCore.Ae_mm2 || 100;
-            let dimA = bestCoilCore.dim_A || 0;
-            let dimD = bestCoilCore.dim_D || 0;
-            let dimE = bestCoilCore.dim_E || 0;
-            let family = bestCoilCore.family || "E";
-            let w_width = 0;
-
-            if (family === "RM" || family === "PQ" || family === "PM") {
-                if (dimA > 0 && dimD > 0) w_width = (dimA - dimD) / 3;
-                else if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
-            } else {
-                if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
-                else if (dimA > 0 && dimD > 0) w_width = (dimA - 2 * dimD) / 2;
-            }
-
-            w_width = Math.max(0, w_width - 1.0);
-
-            const legPerimeter_mm = 4 * Math.sqrt(Ae);
-            let MLT_mm = legPerimeter_mm + (Math.PI * w_width);
-            if (w_width === 0) MLT_mm = 4.5 * Math.sqrt(Ae);
-
-            let MLT_m = MLT_mm / 1000;
-            let n1 = bestCoilCore.n1_calc || bestCoilCore.n1 || 10;
-            let n2 = bestCoilCore.n2_calc || Math.max(4, Math.floor(n1 / 2));
-
-            const isFlybackTopo = document.getElementById('wmax1') && document.getElementById('nOutput') && !document.getElementById('VeOpt');
-
-            if (isFlybackTopo) {
-                if (priWire && priWire.totalArea) {
-                    let A_wire = parseFloat(priWire.totalArea) || 0.5;
-                    let dcr = rho * (n1 * MLT_m) / (A_wire * 1e-6);
-                    bestCopperLoss += dcr * Math.pow(priIrmsEst, 2);
-                }
-                if (secWire && secWire.totalArea && secIrmsEst > 0) {
-                    let A_wire = parseFloat(secWire.totalArea) || 0.5;
-                    let dcr = rho * (n2 * MLT_m) / (A_wire * 1e-6);
-                    bestCopperLoss += dcr * Math.pow(secIrmsEst, 2);
-                }
-            } else {
-                let targetWire = coilWire || priWire;
-                if (targetWire) {
-                    let A_wire = parseFloat(targetWire.totalArea) || 0.5;
-                    let dcr = rho * ((n1 * MLT_mm) / 1000) / (A_wire * 1e-6);
-                    bestCopperLoss += dcr * Math.pow(coilIrmsEst, 2);
-                }
-            }
-        }
+        bestCoreLoss = (bestTrafoCore ? (bestTrafoCore.coreLossW || 0) : 0) + (bestCoilCore ? (bestCoilCore.coreLossW || 0) : 0);
+        bestCopperLoss = (bestTrafoCore ? (bestTrafoCore.copperLossW || 0) : 0) + (bestCoilCore ? (bestCoilCore.copperLossW || 0) : 0);
     }
 
     if (bestCopperLoss === 0 || isNaN(bestCopperLoss)) {
@@ -2110,7 +1951,7 @@ function renderAdvancedResults(res, skinDepthD, states) {
                 <td style="color:#ffd54f;">${sanitizeHTML(formattedPCond)}</td>
                 <td style="color:#4fc3f7;">${sanitizeHTML(formattedPSw)}</td>
                 <td style="color:#81c784; font-size:14px;"><b>${sanitizeHTML(formattedPTot)}</b></td>
-                <td><a href="${safeLink}" target="_blank" class="btn btn-sm btn-outline-info" style="padding:2px 5px; font-size:11px;">PDF</a></td>
+                <td><a href="${safeLink}" target="_blank" class="btn btn-sm btn-outline-info" style="padding:2px 5px; font-size:11px;">🔗</a></td>
             </tr>`;
         });
         return t + `</tbody></table></div>`;
@@ -2732,90 +2573,37 @@ window.openCustomThermalModal = function () {
 window.runCustomThermalTest = function () {
     const states = window.lastThermalStates;
     const res = lastOptimizationResults;
-    const currents = window.lastOptimizationCurrents;
-    const currentTemp = currents.T_op || 80;
-    const rho = 1.68e-8 * (1 + 0.00393 * (currentTemp - 20));
 
     let totalCoreLoss = 0;
     let totalCopperLoss = 0;
     let switchLoss = 0;
 
-    const getCoreDetails = (selId, coresData, wire1Data, wire2Data, irms1, irms2, isCenterTapped) => {
+    const getCoreDetails = (selId, coresData) => {
         const el = document.getElementById(selId);
         if (!el || !coresData || coresData.length === 0) return { coreLoss: 0, cuLoss: 0 };
         const idx = parseInt(el.value);
         const core = coresData[idx];
-        let cLoss = core.coreLossW || 0;
-        let cuLoss = 0;
-
-        let Ae = core.Ae_mm2 || 100;
-        let dimA = core.dim_A || 0;
-        let dimD = core.dim_D || 0;
-        let dimE = core.dim_E || 0;
-        let family = core.family || "E";
-        let w_width = 0;
-
-        if (family === "RM" || family === "PQ" || family === "PM") {
-            if (dimA > 0 && dimD > 0) w_width = (dimA - dimD) / 3;
-            else if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
-        } else {
-            if (dimE > 0 && dimD > 0) w_width = (dimE - dimD) / 2;
-            else if (dimA > 0 && dimD > 0) w_width = (dimA - 2 * dimD) / 2;
-        }
-
-        w_width = Math.max(0, w_width - 1.0);
-
-        const legPerimeter_mm = 4 * Math.sqrt(Ae);
-        let MLT_mm = legPerimeter_mm + (Math.PI * w_width);
-        if (w_width === 0) MLT_mm = 4.5 * Math.sqrt(Ae);
-
-        let MLT_m = MLT_mm / 1000;
-        let n1 = core.n1_calc || core.n1 || 10;
-        let n2 = core.n2_calc || Math.max(4, Math.floor(n1 / 2));
-
-        if (wire1Data && wire1Data.length > 0) {
-            let A_wire = parseFloat(wire1Data[0].totalArea) || 0.5;
-            let dcr = rho * ((n1 * MLT_mm) / 1000) / (A_wire * 1e-6);
-            cuLoss += dcr * Math.pow(irms1, 2);
-        }
-        if (wire2Data && wire2Data.length > 0 && irms2 > 0) {
-            let A_wire = parseFloat(wire2Data[0].totalArea) || 0.5;
-            let dcr = rho * ((n2 * MLT_mm) / 1000) / (A_wire * 1e-6);
-            if (isCenterTapped) {
-                cuLoss += 2 * dcr * Math.pow(irms2, 2);
-            } else {
-                cuLoss += dcr * Math.pow(irms2, 2);
-            }
-        }
-        return { coreLoss: cLoss, cuLoss: cuLoss };
+        return { coreLoss: core.coreLossW || 0, cuLoss: core.copperLossW || 0 };
     };
 
-    const ioutVal = states.P_out / (Math.abs(parseFloat((document.getElementById('vout') || document.getElementById('vout_nom'))?.value)) || 12);
-    const priIrmsEst = currents.pri_Irms || 1;
-    const secIrmsEst = currents.sec_Irms || ioutVal;
-    const coilIrmsEst = currents.coilWire_Irms || ioutVal;
-
-    const pageTitle = (document.title || "").toLowerCase();
-    const isCenterTapped = pageTitle.includes('llc') && !pageTitle.includes('full');
-
     if (states.isDualCoil) {
-        let d1 = getCoreDetails('selCoreL1', res.coil1Cores, res.coil1Wires, null, currents.l1_rms, 0, false);
-        let d2 = getCoreDetails('selCoreL2', res.coil2Cores, res.coil2Wires, null, currents.l2_rms, 0, false);
+        let d1 = getCoreDetails('selCoreL1', res.coil1Cores);
+        let d2 = getCoreDetails('selCoreL2', res.coil2Cores);
         totalCoreLoss = d1.coreLoss + d2.coreLoss;
         totalCopperLoss = d1.cuLoss + d2.cuLoss;
     } else {
         if (states.hasVeOpt) {
-            let d = getCoreDetails('selCoreTrafo', res.trafoCores, res.priWires, res.secWires, priIrmsEst, secIrmsEst, isCenterTapped);
+            let d = getCoreDetails('selCoreTrafo', res.trafoCores);
             totalCoreLoss += d.coreLoss;
             totalCopperLoss += d.cuLoss;
         }
         if (states.hasWmax) {
             if (states.isFlyback) {
-                let d = getCoreDetails('selCoreFlyback', res.coilCores, res.priWires, res.secWires, priIrmsEst, secIrmsEst, false);
+                let d = getCoreDetails('selCoreFlyback', res.coilCores);
                 totalCoreLoss += d.coreLoss;
                 totalCopperLoss += d.cuLoss;
             } else {
-                let d = getCoreDetails('selCoreCoil', res.coilCores, res.coilWires || res.priWires, null, coilIrmsEst, 0, false);
+                let d = getCoreDetails('selCoreCoil', res.coilCores);
                 totalCoreLoss += d.coreLoss;
                 totalCopperLoss += d.cuLoss;
             }
@@ -3016,6 +2804,7 @@ window.runMonteCarloCore = function (coreDataString) {
 window.SMPSApp = window.SMPSApp || {};
 Object.assign(window.SMPSApp, {
     loadThreeJS: window.loadThreeJS,
+
     openAdvancedTable: window.openAdvancedTable,
     showIgseModal: window.showIgseModal,
     render3DCore: window.render3DCore,
