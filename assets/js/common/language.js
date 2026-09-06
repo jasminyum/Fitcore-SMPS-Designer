@@ -3,6 +3,11 @@
 
 const translations = {
     tr: {
+        cust_al_gap_note: "* Not: Gireceğiniz AL değeri, hava boşluklu (gapped) duruma göre düşürülmüş efektif değer olmalıdır.",
+        cust_struct_ferrite: "Standart Ferrit (E, RM, PQ vb.)",
+        cust_struct_planar: "Planar Nüve (EQ, ER - Yüksek Doluluk)",
+        cust_struct_toroid: "Ferrit Toroid (Halka Nüve)",
+        cust_struct_powder: "Toz Nüve / Powder Core (Kool Mµ vb.)",
         cust_vds_max: "Vds Max (V)",
         cust_id_max: "Id Max (A)",
         adv_custom_component_title: "Özel Bileşen Seçimi",
@@ -860,6 +865,11 @@ const translations = {
         chart_4_exp: "İlk iki grafiğin üst üste bindirilmiş halidir. Mavi kare dalga ile kırmızı kesik çizgili kare dalga arasındaki kayma miktarı, sistemin ne kadar güç aktaracağını belirlemektedir."
     },
     en: {
+        cust_al_gap_note: "* Note: The AL value you enter should be the effective/reduced value corresponding to the gapped state.",
+        cust_struct_ferrite: "Standard Ferrite (E, RM, PQ etc.)",
+        cust_struct_planar: "Planar Core (EQ, ER - High Fill Factor)",
+        cust_struct_toroid: "Ferrite Toroid (Ring Core)",
+        cust_struct_powder: "Powder Core (Kool Mµ etc.)",
         cust_vds_max: "Vds Max (V)",
         cust_id_max: "Id Max (A)",
         adv_custom_component_title: "Custom Component Selection",
@@ -1716,6 +1726,11 @@ const translations = {
         chart_4_exp: "A superimposed version of the first two charts. The shift between the blue square wave and the red dashed square wave determines the amount of power to be transferred."
     },
     de: {
+        cust_al_gap_note: "* Hinweis: Der eingegebene AL-Wert sollte der effektive/reduzierte Wert sein, der dem Luftspalt (gapped) entspricht.",
+        cust_struct_ferrite: "Standard-Ferrit (E, RM, PQ usw.)",
+        cust_struct_planar: "Planarkern (EQ, ER - Hoher Füllfaktor)",
+        cust_struct_toroid: "Ferrit-Ringkern",
+        cust_struct_powder: "Pulverkern (Kool Mµ usw.)",
         cust_vds_max: "Vds Max (V)",
         cust_id_max: "Id Max (A)",
         adv_custom_component_title: "Auswahl Benutzerdefinierter Komponenten",
