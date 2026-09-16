@@ -112,11 +112,12 @@ function findShapeInfo(cleanShape, shapeName, coreShapes) {
 
 function getFuzzyWeights(mode) {
     switch (mode) {
-        case "low_cost": return { cost: 0.50, eff: 0.30, size: 0.20 };
-        case "high_eff": return { cost: 0.20, eff: 0.50, size: 0.30 };
-        case "compact": return { cost: 0.20, eff: 0.30, size: 0.50 };
+        case "low_cost": return { cost: 0.50, eff: 0.30, size: 0.20, mfg: 0.00 };
+        case "high_eff": return { cost: 0.20, eff: 0.50, size: 0.30, mfg: 0.00 };
+        case "compact": return { cost: 0.20, eff: 0.30, size: 0.50, mfg: 0.00 };
+        case "mfg": return { cost: 0.25, eff: 0.25, size: 0.10, mfg: 0.40 }; // DFM
         case "balanced":
-        default: return { cost: 0.33, eff: 0.34, size: 0.33 };
+        default: return { cost: 0.30, eff: 0.30, size: 0.30, mfg: 0.10 };
     }
 }
 
@@ -279,7 +280,8 @@ function optimizeWires(
     targetCMA,
     wiresData,
     f_sw_hz = 0,
-    T_op = 80
+    T_op = 80,
+    insulationData = []
 ) {
     const candidates = [];
 
@@ -338,6 +340,41 @@ function optimizeWires(
             else frequencyClass = "Very high strand AC-loss tendency";
         }
 
+        const coatingType = isLitz ? (wire.coating?.type || "Bare/Served") : (wire.coating?.type || "Enamelled");
+        const coatLower = coatingType.toLowerCase();
+
+        let maxTempClass = 155;
+        let thermalCond = 0.2;
+
+        let searchTarget = coatLower;
+        if (coatLower.includes("enamelled")) {
+            searchTarget = "polyester-imide";
+        } else if (coatLower.includes("served")) {
+            searchTarget = "nylon 6.6";
+        }
+
+        if (coatLower.includes("bare")) {
+            maxTempClass = 220;
+            thermalCond = 400.0;
+        }
+
+        else if (insulationData && insulationData.length > 0) {
+            const match = insulationData.find(mat => {
+                const matName = mat.name.toLowerCase();
+                const aliasMatch = mat.aliases && mat.aliases.some(a => searchTarget.includes(a.toLowerCase()));
+
+                return searchTarget.includes(matName) || matName.includes(searchTarget) || aliasMatch;
+            });
+
+            if (match) {
+                if (match.temperatureClass) maxTempClass = match.temperatureClass;
+                if (match.thermalConductivity) thermalCond = match.thermalConductivity;
+            } else {
+                if (coatLower.includes("enamelled")) { maxTempClass = 180; thermalCond = 0.22; }
+                else if (coatLower.includes("served")) { maxTempClass = 120; thermalCond = 0.25; }
+            }
+        }
+
         candidates.push({
             name: wire.name,
             standard: isLitz ? wire.name : (wire.standardName || wire.name || "-"),
@@ -349,10 +386,13 @@ function optimizeWires(
             totalStrands,
             totalArea: totalPhysicalArea_mm2.toFixed(3),
             cma: Math.round(actualCMA),
-            coating: isLitz ? (wire.coating?.type || "Bare/Served") : (wire.coating?.type || "Enamelled"),
+            coating: coatingType,
             skinDepth_mm: Number.isFinite(skinDepth_mm) ? skinDepth_mm.toFixed(4) : null,
             strandToSkinDepth: Number.isFinite(strandRatio) ? strandRatio.toFixed(3) : null,
-            frequencyClass
+            frequencyClass: frequencyClass,
+
+            maxTempClass: maxTempClass,
+            thermalConductivity: thermalCond
         });
     });
 
@@ -1369,8 +1409,33 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
         const fEff = Math.min(1.0, scoreEff * matSuitability) * internalWindowModifier * internalLossModifier;
         const fSize = scoreSize * internalOversizeModifier * internalWindowModifier;
 
+        let mfgScoreCore = 1.0;
+        const shapeStr = (c.name || "").toUpperCase();
+        if (shapeStr.includes("TOROID") || shapeStr.includes("RING") || c.customStructure === "toroid") {
+            mfgScoreCore = 0.4;
+        } else if (shapeStr.includes("EQ") || shapeStr.includes("PLANAR") || c.customStructure === "planar") {
+            mfgScoreCore = 1.0;
+        } else {
+            mfgScoreCore = 0.9; // E, RM, PQ
+        }
+
+        let mfgScoreWire = 1.0;
+
+        const N_layers = (c.n1_calc / 20) || 1;
+        if (N_layers > 4) {
+            mfgScoreWire -= (N_layers - 4) * 0.08;
+        }
+        mfgScoreWire = Math.max(0.1, mfgScoreWire);
+
+        const fMfg = (mfgScoreCore * 0.6) + (mfgScoreWire * 0.4);
+
         // [0.01 - 100]
-        let rawFuzzyScore = ((weights.cost * fCost) + (weights.size * fSize) + (weights.eff * fEff)) * 100;
+        let rawFuzzyScore = (
+            (weights.cost * fCost) +
+            (weights.size * fSize) +
+            (weights.eff * fEff) +
+            ((weights.mfg || 0) * fMfg)
+        ) * 100;
         c.fuzzyScore = Math.max(0.01, Math.min(100, rawFuzzyScore));
     });
 
@@ -1980,43 +2045,28 @@ exports.runSmpsOptimization = onCall({
         const dbData = { ...staticDbData };
         let active_CMA = CMA_target;
 
-        if (data.customCore) {
-            if (data.customCore.customCMA && data.customCore.customCMA > 0) {
-                active_CMA = data.customCore.customCMA;
-            } else {
-                active_CMA = 150;
-            }
-            data.customCore.isCustom = true;
-            dbData.cores = [data.customCore];
-
-            let dims = data.customCore.customDimensions || { A: 30, B: 15, C: 15, D: 10, E: 22, F: 10 };
-
-            if (dims.D > dims.E && dims.E > 0) {
-                let temp = dims.D;
-                dims.D = dims.E;
-                dims.E = temp;
-            }
-
-            if (!dbData.coreShapes) dbData.coreShapes = [];
-            dbData.coreShapes.push({
-                name: data.customCore.name.replace(/ gapped/i, "").trim().toUpperCase(),
+        const prepareCustomDb = (baseDb, customC) => {
+            if (!customC) return baseDb;
+            const newDb = { ...baseDb, cores: [customC], coreShapes: [...(baseDb.coreShapes || [])] };
+            customC.isCustom = true;
+            let dims = customC.customDimensions || { A: 30, B: 15, C: 15, D: 10, E: 22, F: 10 };
+            if (dims.D > dims.E && dims.E > 0) { let temp = dims.D; dims.D = dims.E; dims.E = temp; }
+            newDb.coreShapes.push({
+                name: customC.name.replace(/ gapped/i, "").trim().toUpperCase(),
                 dimensions: {
                     A: { nominal: dims.A }, B: { nominal: dims.B }, C: { nominal: dims.C },
                     D: { nominal: dims.D }, E: { nominal: dims.E }, F: { nominal: dims.F }
                 }
             });
-
-            data.customCore.functionalDescription = data.customCore.functionalDescription || {};
-            data.customCore.functionalDescription.shape = data.customCore.name.replace(/ gapped/i, "").trim();
-
-            if (data.customCore.customGap > 0) {
-                data.customCore.functionalDescription.gapping = [{
-                    type: "spacer",
-                    value: data.customCore.customGap,
-                    alValue: data.customCore.AL ? data.customCore.AL : undefined
+            customC.functionalDescription = customC.functionalDescription || {};
+            customC.functionalDescription.shape = customC.name.replace(/ gapped/i, "").trim();
+            if (customC.customGap > 0) {
+                customC.functionalDescription.gapping = [{
+                    type: "spacer", value: customC.customGap, alValue: customC.AL
                 }];
             }
-        }
+            return newDb;
+        };
         if (data.customSwitch) {
             data.customSwitch.isCustom = true;
             dbData.switches = [data.customSwitch];
@@ -2052,28 +2102,31 @@ exports.runSmpsOptimization = onCall({
 
         if (hasVeOpt) {
             const trafoType = isLinearTrafo ? "linear_trafo" : "trafo";
-            result.trafoCores = await optimizeCores(veOpt, optMode, "volume", L_H, f_sw, T_op, 0, volt_sec, trafoGapReq, trafoType, dbData, staticDbsPayload, pri_Irms, turnsRatio, topology, smpsMode, D_switch, extraModeParams);
+            const trafoDb = prepareCustomDb(dbData, data.customTrafoCore || data.customCore);
 
-            result.priWires = optimizeWires(pri_Irms, active_CMA, dbData.wires, f_sw, T_op);
-            result.secWires = optimizeWires(sec_Irms, active_CMA, dbData.wires, f_sw, T_op);
+            result.trafoCores = await optimizeCores(veOpt, optMode, "volume", L_H, f_sw, T_op, 0, volt_sec, trafoGapReq, trafoType, trafoDb, staticDbsPayload, pri_Irms, turnsRatio, topology, smpsMode, D_switch, extraModeParams);
+
+            result.priWires = optimizeWires(pri_Irms, active_CMA, dbData.wires, f_sw, T_op, dbData.insulationMaterials);
+            result.secWires = optimizeWires(sec_Irms, active_CMA, dbData.wires, f_sw, T_op, dbData.insulationMaterials);
         }
 
         if (hasWmax) {
             const cType = isFlyback ? "flyback" : "coil";
             const effective_Irms = isFlyback ? pri_Irms : coilWire_Irms;
+            const coilDb = prepareCustomDb(dbData, data.customCoilCore || (isFlyback ? data.customTrafoCore : null) || data.customCore);
 
             result.coilCores = await optimizeCores(
                 wmax * 1e-6, optMode, "energy", L_H, f_sw, T_op, deltaIL, volt_sec,
-                isFlyback ? trafoGapReq : coilGapReq, cType, dbData, staticDbsPayload,
+                isFlyback ? trafoGapReq : coilGapReq, cType, coilDb, staticDbsPayload,
                 effective_Irms, turnsRatio, topology, smpsMode, D_switch, extraModeParams
             );
 
             if (isFlyback) {
-                result.priWires = optimizeWires(pri_Irms, active_CMA, dbData.wires, f_sw, T_op);
-                result.secWires = optimizeWires(sec_Irms, active_CMA, dbData.wires, f_sw, T_op);
-                if (hasBias && biasWire_Irms > 0) result.biasWires = optimizeWires(biasWire_Irms, active_CMA, dbData.wires, f_sw, T_op);
+                result.priWires = optimizeWires(pri_Irms, active_CMA, dbData.wires, f_sw, T_op, dbData.insulationMaterials);
+                result.secWires = optimizeWires(sec_Irms, active_CMA, dbData.wires, f_sw, T_op, dbData.insulationMaterials);
+                if (hasBias && biasWire_Irms > 0) result.biasWires = optimizeWires(biasWire_Irms, active_CMA, dbData.wires, f_sw, T_op, dbData.insulationMaterials);
             } else {
-                result.coilWires = optimizeWires(coilWire_Irms, active_CMA, dbData.wires, f_sw, T_op);
+                result.coilWires = optimizeWires(coilWire_Irms, active_CMA, dbData.wires, f_sw, T_op, dbData.insulationMaterials);
             }
         }
         return sanitizeForJSON(result);
