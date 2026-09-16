@@ -49,71 +49,79 @@ window.loadThreeJS = function () {
 // ================================================================
 // Table Window (Injected Into the Modal)
 // ================================================================
-window.openAdvancedPreCheck = function () {
+window.openAdvancedPreCheck = function (modalType = 'single') {
+    window.customCoreModalType = modalType;
+
+    const genCoreInputHTML = (idSuffix, label, hideGap = false) => `
+        <div class="form-check mb-2 mt-2">
+            <input class="form-check-input" type="checkbox" id="hasCustomCore${idSuffix}" onchange="document.getElementById('customCoreParams${idSuffix}').style.display = this.checked ? 'block' : 'none'">
+            <label class="form-check-label" style="color:#ffb74d; font-weight:bold;">${label}</label>
+        </div>
+        <div id="customCoreParams${idSuffix}" style="display:none;" class="mb-3 p-2 border border-secondary rounded">
+            <input type="text" id="custCoreName${idSuffix}" class="form-control form-control-sm mb-1 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_core_name') || 'Nüve Adı (örn: EQ20)')}">
+            <select id="custCoreStruct${idSuffix}" class="form-select form-select-sm mb-1 bg-dark text-light border-secondary">
+                <option value="ferrite" selected>${sanitizeHTML(safeGetT('cust_struct_ferrite') || 'Standart Ferrit (E, RM, PQ vb.)')}</option>
+                <option value="planar">${sanitizeHTML(safeGetT('cust_struct_planar') || 'Planar Nüve (EQ, ER)')}</option>
+                <option value="toroid">${sanitizeHTML(safeGetT('cust_struct_toroid') || 'Ferrit Toroid')}</option>
+                <option value="powder">${sanitizeHTML(safeGetT('cust_struct_powder') || 'Toz Nüve / Powder Core')}</option>
+            </select>
+            <input type="number" id="custAe${idSuffix}" class="form-control form-control-sm mb-1 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_ae') || 'Ae (mm²)')}">
+            <input type="number" id="custLe${idSuffix}" class="form-control form-control-sm mb-1 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_le') || 'le (mm)')}">
+            <div class="row g-1 mb-1">
+                <div class="${hideGap ? 'col-12' : 'col-6'}"><input type="number" id="custAL${idSuffix}" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_al') || 'AL (nH)')}"></div>
+                ${hideGap ? '' : `<div class="col-6"><input type="number" id="custGap${idSuffix}" step="0.01" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_gap') || 'Air Gap (mm)')}"></div>`}
+            </div>
+            ${hideGap ? '' : `<p style="font-size:10px; color:#aaa; margin:0 0 8px 0; line-height:1.2;">${sanitizeHTML(safeGetT('cust_al_gap_note') || '* Not: Gireceğiniz AL değeri, hava boşluklu (gapped) duruma göre düşürülmüş efektif değer olmalıdır.')}</p>`}
+            <input type="text" id="custMaterial${idSuffix}" class="form-control form-control-sm mb-3 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_material') || 'Materyal (örn: 3C95)')}">
+            <label class="form-label mb-1" style="font-size:11px; color:#ffb74d;">${sanitizeHTML(safeGetT('cust_dim_label') || 'Fiziksel Dış Boyutlar (mm):')}</label>
+            <div class="row g-1 mb-1">
+                <div class="col-4"><input type="number" id="custDimA${idSuffix}" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_dim_a') || 'A (Genişlik)')}"></div>
+                <div class="col-4"><input type="number" id="custDimB${idSuffix}" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_dim_b') || 'B (Yükseklik)')}"></div>
+                <div class="col-4"><input type="number" id="custDimC${idSuffix}" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_dim_c') || 'C (Derinlik)')}"></div>
+            </div>
+            <div class="row g-1 mb-3">
+                <div class="col-4"><input type="number" id="custDimD${idSuffix}" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_dim_d') || 'D (İç Çap)')}"></div>
+                <div class="col-4"><input type="number" id="custDimE${idSuffix}" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_dim_e') || 'E (Pencere)')}"></div>
+                <div class="col-4"><input type="number" id="custDimF${idSuffix}" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_dim_f') || 'F (Ops.)')}"></div>
+            </div>
+            <label class="form-label mb-1" style="font-size:11px; color:#81c784;">${sanitizeHTML(safeGetT('cust_cma_label') || 'Tel Kalınlığı Hedefi (İsteğe Bağlı):')}</label>
+            <input type="number" id="custCMA${idSuffix}" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_cma') || 'Özel CMA (Örn: 150)')}">
+        </div>
+    `;
+
+    let coreSectionHTML = '';
+
+    if (modalType === 'dual_inductor') {
+        coreSectionHTML = genCoreInputHTML('_L1', sanitizeHTML(safeGetT('adv_custom_core_l1_checkbox') || 'L1 Bobini için özel nüve seçtim'), false) +
+            genCoreInputHTML('_L2', sanitizeHTML(safeGetT('adv_custom_core_l2_checkbox') || 'L2 Bobini için özel nüve seçtim'), false);
+    } else if (modalType === 'trafo_coil') {
+        coreSectionHTML = genCoreInputHTML('_Trafo', sanitizeHTML(safeGetT('adv_custom_core_trafo_checkbox') || 'Trafo için özel nüve seçtim'), true) +
+            genCoreInputHTML('_Coil', sanitizeHTML(safeGetT('adv_custom_core_coil_checkbox') || 'Bobin için özel nüve seçtim'), false);
+    } else if (modalType === 'flyback') {
+        coreSectionHTML = genCoreInputHTML('_Trafo', sanitizeHTML(safeGetT('adv_custom_core_trafo_checkbox') || 'Flyback Trafosu için özel nüve seçtim'), false);
+    } else {
+        coreSectionHTML = genCoreInputHTML('', sanitizeHTML(safeGetT('adv_custom_core_coil_checkbox') || 'Bobin için özel nüve seçtim'), false);
+    }
+
     const preCheckHtml = `
-<div class="modal fade" id="preCheckModal" tabindex="-1" aria-hidden="true">
-        <!-- 'modal-dialog-scrollable' sınıfı eklendi: -->
+    <div class="modal fade" id="preCheckModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content bg-dark text-light border-secondary">
                 <div class="modal-header">
-                    <h5 class="modal-title text-warning">${sanitizeHTML(safeGetT('adv_custom_component_title') || 'Özel Bileşen Seçimi')}</h5>
+                    <h5 class="modal-title text-warning">${sanitizeHTML(safeGetT('adv_custom_component_title'))}</h5>
                 </div>
                 <div class="modal-body">
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" id="hasCustomCore" onchange="document.getElementById('customCoreParams').style.display = this.checked ? 'block' : 'none'">
-                        <label class="form-check-label">${sanitizeHTML(safeGetT('adv_custom_core_checkbox') || 'Trafoyu/Nüveyi kendim seçtim (Özel Parametre Gireceğim)')}</label>
-                    </div>
-                    <div id="customCoreParams" style="display:none;" class="mb-3 p-2 border border-secondary rounded">
-                        <input type="text" id="custCoreName" class="form-control form-control-sm mb-1 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_core_name') || 'Nüve Adı (örn: EQ20)')}">
-
-                        <select id="custCoreStruct" class="form-select form-select-sm mb-1 bg-dark text-light border-secondary">
-                            <option value="ferrite" selected data-i18n="cust_struct_ferrite">${sanitizeHTML(safeGetT('cust_struct_ferrite') || 'Standart Ferrit (E, RM, PQ vb.)')}</option>
-                            <option value="planar" data-i18n="cust_struct_planar">${sanitizeHTML(safeGetT('cust_struct_planar') || 'Planar Nüve (EQ, ER - Yüksek Doluluk)')}</option>
-                            <option value="toroid" data-i18n="cust_struct_toroid">${sanitizeHTML(safeGetT('cust_struct_toroid') || 'Ferrit Toroid (Halka Nüve)')}</option>
-                            <option value="powder" data-i18n="cust_struct_powder">${sanitizeHTML(safeGetT('cust_struct_powder') || 'Toz Nüve / Powder Core (Kool Mµ vb.)')}</option>
-                        </select>
-
-                        <input type="number" id="custAe" class="form-control form-control-sm mb-1 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_ae') || 'Ae (mm²)')}">
-                        <input type="number" id="custLe" class="form-control form-control-sm mb-1 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_le') || 'le (mm)')}">
-                        
-                        <div class="row g-1">
-                            <div class="col-6"><input type="number" id="custAL" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_al') || 'AL (nH)')}"></div>
-                            <div class="col-6"><input type="number" id="custGap" step="0.01" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_gap') || 'Air Gap (mm)')}"></div>
-                        </div>
-                        <div class="mb-2" style="line-height: 1.1;">
-                            <small style="font-size: 10px; color: #aaa;" data-i18n="cust_al_gap_note">${sanitizeHTML(safeGetT('cust_al_gap_note') || '* Not: AL değeri, hava boşluklu (gapped) duruma göre düşürülmüş efektif değer olmalıdır.')}</small>
-                        </div>
-
-                        <input type="text" id="custMaterial" class="form-control form-control-sm mb-3 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_material') || 'Materyal (örn: 3C95)')}">
-                        
-                        <label class="form-label mb-1" style="font-size:12px; color:#ffb74d;">${sanitizeHTML(safeGetT('cust_dim_label') || 'Fiziksel Dış Boyutlar (mm):')}</label>
-                        <div class="row g-1 mb-1">
-                            <div class="col-4"><input type="number" id="custDimA" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_dim_a') || 'A (Genişlik)')}"></div>
-                            <div class="col-4"><input type="number" id="custDimB" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_dim_b') || 'B (Yükseklik)')}"></div>
-                            <div class="col-4"><input type="number" id="custDimC" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_dim_c') || 'C (Derinlik)')}"></div>
-                        </div>
-                        <div class="row g-1 mb-3">
-                            <div class="col-4"><input type="number" id="custDimD" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_dim_d') || 'D (İç Çap)')}"></div>
-                            <div class="col-4"><input type="number" id="custDimE" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_dim_e') || 'E (Pencere)')}"></div>
-                            <div class="col-4"><input type="number" id="custDimF" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_dim_f') || 'F (Opsiyonel)')}"></div>
-                        </div>
-
-                        <label class="form-label mb-1" style="font-size:12px; color:#81c784;">${sanitizeHTML(safeGetT('cust_cma_label') || 'Tel Kalınlığı Hedefi (İsteğe Bağlı):')}</label>
-                        <input type="number" id="custCMA" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_cma') || 'Özel CMA (örn: 150 - İnce tel için)')}">
-                    </div>
-
-                    <div class="form-check mb-3">
+                    ${coreSectionHTML}
+                    <div class="form-check mb-3 mt-4" style="border-top:1px solid #444; padding-top:10px;">
                         <input class="form-check-input" type="checkbox" id="hasCustomSwitch" onchange="document.getElementById('customSwitchParams').style.display = this.checked ? 'block' : 'none'">
-                        <label class="form-check-label">${sanitizeHTML(safeGetT('adv_custom_switch_checkbox') || 'Anahtarlama Elemanını kendim seçtim')}</label>
+                        <label class="form-check-label">${sanitizeHTML(safeGetT('adv_custom_switch_checkbox'))}</label>
                     </div>
                     <div id="customSwitchParams" style="display:none;" class="mb-3 p-2 border border-secondary rounded">
                         <input type="text" id="custSwName" class="form-control form-control-sm mb-1 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_sw_name') || 'Mosfet Adı')}">
-                        
                         <div class="row g-1 mb-1">
                             <div class="col-6"><input type="number" id="custVdsMax" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_vds_max') || 'Vds Max (V)')}"></div>
                             <div class="col-6"><input type="number" id="custIdMax" class="form-control form-control-sm bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_id_max') || 'Id Max (A)')}"></div>
                         </div>
-
                         <input type="number" id="custRds" class="form-control form-control-sm mb-1 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_rds') || 'Rds(on) (ohm)')}">
                         <input type="number" id="custTr" class="form-control form-control-sm mb-1 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_tr') || 'tr (ns)')}">
                         <input type="number" id="custTf" class="form-control form-control-sm mb-1 bg-dark text-light" placeholder="${sanitizeHTML(safeGetT('cust_tf') || 'tf (ns)')}">
@@ -121,7 +129,7 @@ window.openAdvancedPreCheck = function () {
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-primary" onclick="window.proceedToAdvancedTable()">${sanitizeHTML(safeGetT('btn_continue') || 'Devam Et')}</button>
+                    <button class="btn btn-primary" onclick="window.proceedToAdvancedTable()">${sanitizeHTML(safeGetT('btn_continue'))}</button>
                 </div>
             </div>
         </div>
@@ -132,39 +140,57 @@ window.openAdvancedPreCheck = function () {
 };
 
 window.proceedToAdvancedTable = function () {
-    window.customSelections = { core: null, switch: null };
+    const getCoreData = (idSuffix) => {
+        if (!document.getElementById(`hasCustomCore${idSuffix}`)?.checked) return null;
+        let coreName = document.getElementById(`custCoreName${idSuffix}`).value;
+        let gapVal = 0;
 
-    if (document.getElementById('hasCustomCore').checked) {
-        let coreName = document.getElementById('custCoreName').value;
+        const gapEl = document.getElementById(`custGap${idSuffix}`);
+        if (gapEl) gapVal = parseFloat(gapEl.value) || 0;
 
-        if (!coreName.toLowerCase().includes("gapped")) {
+        if (gapVal > 0 && !coreName.toLowerCase().includes("gapped")) {
             coreName += " Gapped";
         }
 
-        window.customSelections.core = {
+        return {
             name: coreName,
-            customStructure: document.getElementById('custCoreStruct').value,
-            Ae: parseFloat(document.getElementById('custAe').value),
-            Amin: parseFloat(document.getElementById('custAe').value),
-            le: parseFloat(document.getElementById('custLe').value),
-            AL: parseFloat(document.getElementById('custAL').value),
-            customGap: parseFloat(document.getElementById('custGap').value) || 0,
-            material: document.getElementById('custMaterial').value,
-            functionalDescription: { material: document.getElementById('custMaterial').value },
+            customStructure: document.getElementById(`custCoreStruct${idSuffix}`).value,
+            Ae: parseFloat(document.getElementById(`custAe${idSuffix}`).value),
+            Amin: parseFloat(document.getElementById(`custAe${idSuffix}`).value),
+            le: parseFloat(document.getElementById(`custLe${idSuffix}`).value),
+            AL: parseFloat(document.getElementById(`custAL${idSuffix}`).value),
+            customGap: gapVal,
+            material: document.getElementById(`custMaterial${idSuffix}`).value,
+            functionalDescription: { material: document.getElementById(`custMaterial${idSuffix}`).value },
             distributorsInfo: [{ name: "Custom", cost: "Unknown", link: "#" }],
             customDimensions: {
-                A: parseFloat(document.getElementById('custDimA').value) || 0,
-                B: parseFloat(document.getElementById('custDimB').value) || 0,
-                C: parseFloat(document.getElementById('custDimC').value) || 0,
-                D: parseFloat(document.getElementById('custDimD').value) || 0,
-                E: parseFloat(document.getElementById('custDimE').value) || 0,
-                F: parseFloat(document.getElementById('custDimF').value) || 0
+                A: parseFloat(document.getElementById(`custDimA${idSuffix}`).value) || 0,
+                B: parseFloat(document.getElementById(`custDimB${idSuffix}`).value) || 0,
+                C: parseFloat(document.getElementById(`custDimC${idSuffix}`).value) || 0,
+                D: parseFloat(document.getElementById(`custDimD${idSuffix}`).value) || 0,
+                E: parseFloat(document.getElementById(`custDimE${idSuffix}`).value) || 0,
+                F: parseFloat(document.getElementById(`custDimF${idSuffix}`).value) || 0
             },
-            customCMA: parseFloat(document.getElementById('custCMA').value) || null
+            customCMA: parseFloat(document.getElementById(`custCMA${idSuffix}`).value) || null
         };
+    };
+
+    window.customSelections = { core: null, coreL1: null, coreL2: null, coreTrafo: null, coreCoil: null, switch: null };
+
+    if (window.customCoreModalType === 'dual_inductor') {
+        window.customSelections.coreL1 = getCoreData('_L1');
+        window.customSelections.coreL2 = getCoreData('_L2');
+    } else if (window.customCoreModalType === 'trafo_coil') {
+        window.customSelections.coreTrafo = getCoreData('_Trafo');
+        window.customSelections.coreCoil = getCoreData('_Coil');
+    } else if (window.customCoreModalType === 'flyback') {
+        window.customSelections.coreTrafo = getCoreData('_Trafo');
+        window.customSelections.coreCoil = window.customSelections.coreTrafo;
+    } else {
+        window.customSelections.core = getCoreData('');
     }
 
-    if (document.getElementById('hasCustomSwitch').checked) {
+    if (document.getElementById('hasCustomSwitch')?.checked) {
         window.customSelections.switch = {
             name: document.getElementById('custSwName').value || "Custom MOSFET",
             type: "MOSFET",
@@ -299,12 +325,25 @@ window.openAdvancedTable = function () {
                         <input class="form-check-input" type="radio" name="optMode" id="optCompact" value="compact">
                         <label class="form-check-label text-light" for="optCompact">${sanitizeHTML(safeGetT('adv_opt_compact') || 'Kompakt Boyut')}</label>
                     </div>
+                    <div class="form-check m-0">
+                        <input class="form-check-input" type="radio" name="optMode" id="optMfg" value="mfg">
+                        <label class="form-check-label text-light" for="optMfg">${sanitizeHTML(safeGetT('adv_opt_mfg') || 'Üretim Kolaylığı')}</label>
+                    </div>
                 </div>
 
                 <div class="d-flex flex-wrap align-items-center gap-2 mt-2 mt-lg-0 w-100">
                     <div class="input-group input-group-sm" style="width: auto;">
                         <span class="input-group-text bg-dark text-light border-secondary">${sanitizeHTML(safeGetT('adv_temp_label') || 'Sıcaklık (°C)')}</span>
                         <input type="number" id="operatingTemp" class="form-control bg-dark text-light border-secondary" value="80" style="max-width: 70px;">
+                    </div>
+
+                    <div class="input-group input-group-sm" style="width: auto;">
+                        <span class="input-group-text bg-dark text-light border-secondary">${sanitizeHTML(safeGetT('gap_mat_label') || 'Boşluk (Gap) Materyali:')}</span>
+                        <select id="custGapMat" class="form-select bg-dark text-light border-secondary" style="max-width: 170px;" onchange="document.getElementById('manualRthWrapper').style.display = (this.value === 'manual') ? 'flex' : 'none'">
+                            <option value="kapton"> ${sanitizeHTML(safeGetT('gap_kapton') || 'Kapton Bant (< 0.5 mm)')}</option>
+                            <option value="fr4"> ${sanitizeHTML(safeGetT('gap_fr4') || 'FR4 Spacer (0.5 - 2 mm)')}</option>
+                            <option value="mica"> ${sanitizeHTML(safeGetT('gap_mica') || 'Mica / Seramik')}</option>
+                        </select>
                     </div>
 
                     <div class="input-group input-group-sm" style="width: auto;" title="${sanitizeHTML(safeGetT('adv_cooling_tooltip') || 'Sistem termal direnci ve soğutma profili seçiminiz.')}">
@@ -1216,11 +1255,19 @@ window.executeAdvancedOptimization = async function () {
                 CMA_target: CMA_target, maxStrandD: maxStrandD,
                 selectedManufacturer: selectedManufacturer, hasBias: false, biasWire_Irms: 0, isLinearTrafo: false,
                 staticDbsPayload: [safeData, safeKerne, safeVeriler, safeTrafoData],
-                vin_nom: vinNom, vout: voutVal, topology: topology, smpsMode: smpsMode, D_switch: estD, extraModeParams: extraModeParams
+                vin_nom: vinNom, vout: voutVal, topology: topology, smpsMode: smpsMode, D_switch: estD, extraModeParams: extraModeParams,
+                customCore: window.customSelections?.core || null,
+                customSwitch: window.customSelections?.switch || null
             };
 
-            const payloadL1 = { ...basePayload, hasWmax: hasWmax1, wmax: wmax1, L_H: lOutput1 * 1e-6, deltaIL: deltaIL1, coilWire_Irms: _l1_rms, pri_Irms: 0, sec_Irms: 0 };
-            const payloadL2 = { ...basePayload, hasWmax: hasWmax2, wmax: wmax2, L_H: lOutput2 * 1e-6, deltaIL: deltaIL2, coilWire_Irms: _l2_rms, pri_Irms: 0, sec_Irms: 0, calculateSwitches: false };
+            const payloadL1 = {
+                ...basePayload, hasWmax: hasWmax1, wmax: wmax1, L_H: lOutput1 * 1e-6, deltaIL: deltaIL1, coilWire_Irms: _l1_rms, pri_Irms: 0, sec_Irms: 0,
+                customCore: window.customSelections?.coreL1 || window.customSelections?.core || null
+            };
+            const payloadL2 = {
+                ...basePayload, hasWmax: hasWmax2, wmax: wmax2, L_H: lOutput2 * 1e-6, deltaIL: deltaIL2, coilWire_Irms: _l2_rms, pri_Irms: 0, sec_Irms: 0, calculateSwitches: false,
+                customCore: window.customSelections?.coreL2 || window.customSelections?.core || null
+            };
 
             const [settledL1, settledL2] = await window.apiService.runSmpsOptimizationDual(payloadL1, payloadL2);
 
@@ -1533,6 +1580,9 @@ window.executeAdvancedOptimization = async function () {
                 turnsRatio: turnsRatio,
 
                 customCore: window.customSelections?.core || null,
+                customTrafoCore: window.customSelections?.coreTrafo || null,
+                customCoilCore: window.customSelections?.coreCoil || null,
+
                 customSwitch: window.customSelections?.switch || null,
 
                 topology: topology,
@@ -2564,6 +2614,25 @@ window.openCustomThermalModal = function () {
     m.show();
 };
 
+function calculateMTBF(T_op_C, type) {
+    const T_ref_K = 25 + 273.15; // 25°C
+    const T_op_K = Math.max(T_op_C, 25) + 273.15;
+    const k_boltzmann = 8.617333262145e-5; // eV/K
+
+    const Ea = (type === 'semiconductor') ? 0.4 : 0.3;
+
+    // MIL-HDBK-217F
+    const lambda_b = (type === 'semiconductor') ? 0.012 : 0.00022;
+
+    const exponent = (Ea / k_boltzmann) * ((1 / T_ref_K) - (1 / T_op_K));
+    const pi_T = Math.exp(exponent);
+
+    const lambda_p = lambda_b * pi_T;
+    const mtbf_hours = 1e6 / lambda_p;
+
+    return mtbf_hours;
+}
+
 window.runCustomThermalTest = function () {
     const states = window.lastThermalStates;
     const res = lastOptimizationResults;
@@ -2631,15 +2700,72 @@ window.runCustomThermalTest = function () {
     }
 
     const P_loss = switchLoss + totalCoreLoss + totalCopperLoss;
-    const Delta_T = P_loss * states.R_th;
+
+    let Rth_calibrated = states.R_th;
+
+    // N1, N2, Bobin, Aux - all of the wires analysis
+    let validWires = [];
+    if (res.priWires && res.priWires.length > 0) validWires.push(res.priWires[0]);
+    if (res.secWires && res.secWires.length > 0) validWires.push(res.secWires[0]);
+    if (res.coilWires && res.coilWires.length > 0) validWires.push(res.coilWires[0]);
+    if (res.coil1Wires && res.coil1Wires.length > 0) validWires.push(res.coil1Wires[0]);
+    if (res.coil2Wires && res.coil2Wires.length > 0) validWires.push(res.coil2Wires[0]);
+    if (res.biasWires && res.biasWires.length > 0) validWires.push(res.biasWires[0]);
+
+    let wireTempClass = 155; // Default Class F
+
+    if (validWires.length > 0) {
+        // worst-case
+        wireTempClass = Math.min(...validWires.map(w => w.maxTempClass || 155));
+
+        const totalCond = validWires.reduce((sum, w) => sum + (w.thermalConductivity || 0.2), 0);
+        const avgWireCond = totalCond / validWires.length;
+
+        if (avgWireCond > 0.25) Rth_calibrated -= 0.2;
+        else if (avgWireCond < 0.15) Rth_calibrated += 0.3;
+    }
+
+    const gapMaterial = document.getElementById("custGapMat") ? document.getElementById("custGapMat").value : "kapton";
+    if (gapMaterial === "kapton") {
+        Rth_calibrated += 0.5;
+    } else if (gapMaterial === "fr4") {
+        Rth_calibrated += 1.2;
+    } else if (gapMaterial === "mica") {
+        Rth_calibrated += 0.2;
+    }
+
+    const Delta_T_calibrated = P_loss * Rth_calibrated;
+
+    const T_ambient = parseFloat(document.getElementById("operatingTemp")?.value) || 40;
+    const T_hotspot = T_ambient + Delta_T_calibrated;
+
+    const mtbf_core = calculateMTBF(T_hotspot, 'magnetic');
+    const mtbf_sw = calculateMTBF(T_hotspot, 'semiconductor');
+    const system_mtbf = Math.min(mtbf_core, mtbf_sw);
+
+    const mtbfWarningHtml = system_mtbf < 100000
+        ? `<div class="text-danger fw-bold mt-2" style="font-size:12px; background: rgba(229,57,53,0.1); padding: 5px;">
+            ${safeGetT('mtbf_warning')} (MTBF: ${(system_mtbf / 1000).toFixed(1)}${safeGetT('mtbf_unit')})
+           </div>`
+        : `<div class="text-success fw-bold mt-2" style="font-size:12px;">
+            ${safeGetT('mtbf_success')} ${(system_mtbf / 1000).toFixed(1)}${safeGetT('mtbf_unit')}
+           </div>`;
+
+    const insulationWarningHtml = T_hotspot > wireTempClass
+        ? `<div class="text-danger fw-bold mt-1" style="font-size:12px; background: rgba(229,57,53,0.1); padding: 5px;">
+            ${safeGetT('insulation_warning')} (T_hotspot: ${T_hotspot.toFixed(1)}°C > Limit: ${wireTempClass}°C)
+           </div>`
+        : `<div class="text-success fw-bold mt-1" style="font-size:12px;">
+            ${safeGetT('insulation_success')} (Limit: ${wireTempClass}°C)
+           </div>`;
 
     const resDiv = document.getElementById('customThermalResult');
     resDiv.style.display = 'block';
 
     window.lastCustomThermalData = {
-        P_out: states.P_out, P_loss: P_loss, Delta_T: Delta_T,
+        P_out: states.P_out, P_loss: P_loss, Delta_T: Delta_T_calibrated,
         switchLoss: switchLoss, coreLoss: totalCoreLoss, copperLoss: totalCopperLoss,
-        switchName: selSwitchName, rTh: states.R_th
+        switchName: selSwitchName, rTh: Rth_calibrated
     };
 
     resDiv.innerHTML = `
@@ -2651,8 +2777,10 @@ window.runCustomThermalTest = function () {
         <hr style="border-color:#555; margin:8px 0;">
         <div class="d-flex justify-content-between align-items-center" style="font-size:15px;">
             <span>${safeGetT('adv_thermal_deltat') || 'Temperature Rise (ΔT)'}:</span> 
-            <strong class="text-danger bg-dark px-2 py-1 rounded border border-danger">+${Delta_T.toFixed(1)} °C</strong>
+            <strong class="text-danger bg-dark px-2 py-1 rounded border border-danger">+${Delta_T_calibrated.toFixed(1)} °C</strong>
         </div>
+        ${mtbfWarningHtml}
+        ${insulationWarningHtml}
         <button class="btn btn-sm btn-outline-success w-100 mt-3 fw-bold" onclick="window.downloadCustomThermalCSV()">${safeGetT('adv_thermal_btn_csv') || 'Download Thermal Report (CSV)'}</button>
         
         <button class="btn btn-sm btn-outline-warning w-100 mt-2 fw-bold" onclick="window.runMonteCarloThermal()">Monte Carlo Analysis</button>
