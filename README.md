@@ -7,7 +7,11 @@
 A light browser-based calculation, optimization, and circuit-simulation tool for switch-mode power supply (SMPS) topologies. It includes 18 topology pages, a magnetics (coil/transformer) optimization engine running on Firebase Cloud Functions, a custom thermal-analysis simulation based on the actual selected components, and an embedded Falstad/CircuitJS circuit simulator.
 
 > **📸 Screenshots:**  
-> *(Note to contributors: Consider adding 1-2 screenshots or a GIF here showing the 3D core visualization, Falstad simulator, or the topology calculators in action to help users visualize the tool.)*
+<img width="1919" height="831" alt="Ekran görüntüsü 2026-09-13 005910" src="https://github.com/user-attachments/assets/690261c7-a6bc-463b-9ae3-a08a894749a2" />
+
+<img width="515" height="748" alt="Ekran görüntüsü 2026-09-13 005903" src="https://github.com/user-attachments/assets/81648b7a-e307-4ba4-ab4f-fa6c87008d5b" />
+
+<img width="1263" height="846" alt="Ekran görüntüsü 2026-09-13 024601" src="https://github.com/user-attachments/assets/60865226-e3f9-4352-90c9-43364a2ff74a" />
 
 ## Contents
 
