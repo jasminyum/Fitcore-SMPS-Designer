@@ -7,6 +7,16 @@
     <title data-i18n="card_full_title">Full-Bridge Push-Pull Converter</title>
     <meta content="" name="description">
     <meta content="" name="keywords">
+    <meta property="og:title" content="">
+    <meta property="og:image" content="">
+    <meta property="og:url" content="">
+    <meta property="og:site_name" content="">
+    <meta property="og:description" content="">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:site" content="">
+    <meta name="twitter:title" content="">
+    <meta name="twitter:description" content="">
+    <meta name="twitter:image" content="">
     <link href="assets/img/favicon.png" rel="icon">
     <link href="assets/img/apple-touch-icon.png" rel="apple-touch-icon">
     <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,700,700i%7CRaleway:300,400,500,700,800" rel="stylesheet">
@@ -66,8 +76,8 @@
                              xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
                              xmlns:svg="http://www.w3.org/2000/svg"
                              xmlns="http://www.w3.org/2000/svg"
-                             viewBox="0 0 950 370"
-                             style="width: 100%; height: auto; max-width: 850px;"
+                             viewBox="-10 -10 1000 340"
+                             style="width: 100%; height: auto; max-width: 550px;"
                              version="1.1">
                             <defs>
                                 <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
@@ -249,7 +259,14 @@
                                 <label class="input-group-text" data-i18n="label_fsw">Frekans [kHz]</label>
                                 <input id="f_khz" type="number" class="form-control" placeholder="50">
                             </div>
+
+                            <div class="input-group mb-3" id="inductance" style="display:none;">
+                                <label id="lbl_custom_l" class="input-group-text bg-warning text-dark border-warning" data-i18n="label_custom_l">L (μH) [Opsiyonel]</label>
+                                <input id="custom_L_uH" type="number" step="1" class="form-control border-warning" placeholder="e. g. 22">
+                            </div>
+
                             <div class="input-group mb-3 flex-wrap flex-md-nowrap">
+
                                 <label class="input-group-text" data-i18n="label_mode">Mod</label>
                                 <select id="mode" class="form-select">
                                     <option value="continuous">CCM</option>
@@ -307,7 +324,14 @@
                         </div>
                     </div>
 
-                    <div class="param-group mt-3" style="text-align: center;">
+                    <div class="form-check form-switch mt-4 mb-2 d-flex justify-content-center align-items-center gap-2">
+                        <input class="form-check-input" type="checkbox" id="testOwnDesignCheck" onchange="toggleCustomDesign()" style="width: 40px; height: 20px; cursor: pointer; margin:0;">
+                        <label class="form-check-label text-warning" for="testOwnDesignCheck" data-i18n="label_test_own_design" style="cursor: pointer; font-weight: bold; margin:0;">
+                            Zaten kendi tasarımım var, onu test etmek istiyorum
+                        </label>
+                    </div>
+
+                    <div id="coreSelectionGroup" class="param-group mt-3" style="text-align: center">
                         <h5 style="border-bottom: none; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px;">
                             <span data-i18n="core_selection_mode">Çekirdek & Tel Seçim Modu</span>
                             <button type="button" class="btn btn-sm btn-outline-warning" onclick="showModeInfo()" style="border-radius: 50%; width: 24px; height: 24px; padding: 0; line-height: 1; font-weight: bold;">i</button>

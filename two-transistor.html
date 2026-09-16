@@ -7,6 +7,16 @@
     <title data-i18n="card_two_title">Two-Transistor Forward Converter</title>
     <meta content="" name="description">
     <meta content="" name="keywords">
+    <meta property="og:title" content="">
+    <meta property="og:image" content="">
+    <meta property="og:url" content="">
+    <meta property="og:site_name" content="">
+    <meta property="og:description" content="">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:site" content="">
+    <meta name="twitter:title" content="">
+    <meta name="twitter:description" content="">
+    <meta name="twitter:image" content="">
     <link href="assets/img/favicon.png" rel="icon">
     <link href="assets/img/apple-touch-icon.png" rel="apple-touch-icon">
     <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,700,700i%7CRaleway:300,400,500,700,800" rel="stylesheet">
@@ -68,8 +78,8 @@
                              xmlns="http://www.w3.org/2000/svg"
                              xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
                              xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-                             viewBox="0 0 850 320"
-                             style="width: 100%; height: auto; max-width: 800px;"
+                             viewBox="-30 0 950 290"
+                             style="width: 100%; height: auto; max-width: 550px;"
                              version="1.1"
                              id="svg167"
                              sodipodi:docname="flyback.svg"
@@ -219,7 +229,14 @@
                                 <label class="input-group-text" data-i18n="label_fsw">Frekans [kHz]</label>
                                 <input id="f_khz" type="number" class="form-control" placeholder="50">
                             </div>
+
+                            <div class="input-group mb-3" id="inductance" style="display:none;">
+                                <label id="lbl_custom_l" class="input-group-text bg-warning text-dark border-warning" data-i18n="label_custom_l">L (μH) [Opsiyonel]</label>
+                                <input id="custom_L_uH" type="number" step="1" class="form-control border-warning" placeholder="e. g. 22">
+                            </div>
+
                             <div class="input-group mb-3 flex-wrap flex-md-nowrap">
+
                                 <label class="input-group-text" data-i18n="label_mode">Mod</label>
                                 <select id="mode" class="form-select">
                                     <option value="continuous">CCM</option>
@@ -278,9 +295,17 @@
                     </div>
                 </div>
 
-                <div class="param-group mt-3" style="text-align: center;">
+                <div class="form-check form-switch mt-4 mb-2 d-flex justify-content-center align-items-center gap-2">
+                    <input class="form-check-input" type="checkbox" id="testOwnDesignCheck" onchange="toggleCustomDesign()" style="width: 40px; height: 20px; cursor: pointer; margin:0;">
+                    <label class="form-check-label text-warning" for="testOwnDesignCheck" data-i18n="label_test_own_design" style="cursor: pointer; font-weight: bold; margin:0;">
+                        Zaten kendi tasarımım var, onu test etmek istiyorum
+                    </label>
+                </div>
+
+                <div id="coreSelectionGroup" class="param-group mt-3" style="text-align: center">
                     <h5 style="border-bottom: none; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px;">
                         <span data-i18n="core_selection_mode">Çekirdek & Tel Seçim Modu</span>
+                        <button type="button" class="btn btn-sm btn-outline-warning" onclick="showModeInfo()" style="border-radius: 50%; width: 24px; height: 24px; padding: 0; line-height: 1; font-weight: bold;">i</button>
                     </h5>
                     <div class="btn-group w-75" role="group">
                         <input type="radio" class="btn-check" name="coreSelectionMode" id="modeStandard" value="standard" checked>
@@ -291,7 +316,7 @@
                     </div>
                 </div>
 
-                <button id="calculateButton" onclick="hesapla()" class="btn btn-primary d-block mx-auto w-25 mt-3" data-i18n="btn_calc">Hesapla</button>
+                <button id="calculateButton" onclick="hesapla()" class="btn btn-primary d-block mx-auto w-25" data-i18n="btn_calc">Hesapla</button>
             </div>
             <br>
 
@@ -471,8 +496,6 @@
         </div>
     </footer>
     <div id="preloader"></div>
-
-    <!-- JS Kütüphaneleri -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="assets/vendor/aos/aos.js"></script>
     <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
@@ -481,23 +504,22 @@
     <script src="assets/vendor/swiper/swiper-bundle.min.js"></script>
     <script src="assets/vendor/typed.js/typed.min.js"></script>
 
-    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
 
-    <!-- UI ve Ortak Bileşenler -->
     <script src="assets/js/common/language.js"></script>
     <script src="assets/js/main.js"></script>
+
     <script src="assets/js/common/firebase_config.js"></script>
     <script src="assets/js/common/api_service.js"></script>
     <script src="assets/js/common/core_database.js"></script>
     <script src="assets/js/common/magnetic_utils.js"></script>
     <script src="assets/js/common/ui_modal.js"></script>
     <script src="assets/js/common/smps_filter.js"></script>
+
     <script src="assets/js/common/advanced_optimizer.js" defer="defer"></script>
 
-    <!-- Topology Script -->
     <script src="assets/js/topologies/two-transistor.js" defer="defer"></script>
 </body>
 </html>

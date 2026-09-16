@@ -69,7 +69,7 @@
             <div id="container">
                 <div class="row">
                     <div class="col-md-4 d-flex align-items-center justify-content-center p-3">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 750 320" style="width: 100%; height: auto; max-width: 750px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="-50 0 850 290" style="width: 100%; height: auto; max-width: 550px;">
                             <defs>
                                 <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
                                     <polygon points="0 0, 8 3, 0 6" fill="#00AEEF" />
@@ -258,12 +258,17 @@
                                 <input id="f_khz" type="number" class="form-control" placeholder="100">
                             </div>
 
+                            <div class="input-group mb-3" id="inductance" style="display:none;">
+                                <label class="input-group-text bg-warning text-dark border-warning" data-i18n="label_custom_l">L (μH) [Opsiyonel]</label>
+                                <input id="custom_L_uH" type="number" step="1" class="form-control border-warning" placeholder="e. g. 167">
+                            </div>
+
                             <div class="input-group mb-3 flex-wrap flex-md-nowrap">
                                 <label class="input-group-text" data-i18n="label_mode">Mod</label>
                                 <select id="mode" class="form-select">
                                     <option value="continuous">CCM</option>
-                                    <option value="critical">CRM</option>
                                     <option value="discontinuous">DCM</option>
+                                    <option value="critical">CRM</option>
                                 </select>
 
                                 <label class="input-group-text" data-i18n="label_rect_type">Doğrultucu</label>
@@ -329,7 +334,14 @@
                         </div>
                     </div>
 
-                    <div class="param-group mt-3" style="text-align: center;">
+                    <div class="form-check form-switch mt-4 mb-2 d-flex justify-content-center align-items-center gap-2">
+                        <input class="form-check-input" type="checkbox" id="testOwnDesignCheck" onchange="toggleCustomDesign()" style="width: 40px; height: 20px; cursor: pointer; margin:0;">
+                        <label class="form-check-label text-warning" for="testOwnDesignCheck" data-i18n="label_test_own_design" style="cursor: pointer; font-weight: bold; margin:0;">
+                            Zaten kendi tasarımım var, onu test etmek istiyorum
+                        </label>
+                    </div>
+
+                    <div id="coreSelectionGroup" class="param-group mt-3" style="text-align: center">
                         <h5 style="border-bottom: none; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px;">
                             <span data-i18n="core_selection_mode">Çekirdek & Tel Seçim Modu</span>
                             <button type="button" class="btn btn-sm btn-outline-warning" onclick="showModeInfo()" style="border-radius: 50%; width: 24px; height: 24px; padding: 0; line-height: 1; font-weight: bold;">i</button>
@@ -538,7 +550,6 @@
     </div>
 
     <div id="preloader"></div>
-    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="assets/vendor/aos/aos.js"></script>
     <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
