@@ -2927,6 +2927,8 @@ window.SMPSApp = window.SMPSApp || {};
 Object.assign(window.SMPSApp, {
     loadThreeJS: window.loadThreeJS,
 
+    openAdvancedPreCheck: window.openAdvancedPreCheck,
+    proceedToAdvancedTable: window.proceedToAdvancedTable,
     openAdvancedTable: window.openAdvancedTable,
     showIgseModal: window.showIgseModal,
     render3DCore: window.render3DCore,
@@ -2938,10 +2940,12 @@ Object.assign(window.SMPSApp, {
     runCustomThermalTest: window.runCustomThermalTest,
     downloadCustomThermalCSV: window.downloadCustomThermalCSV,
     updatePowerDensity: window.updatePowerDensity,
+    mcValue: window.mcValue,
     runMonteCarloThermal: window.runMonteCarloThermal,
     runMonteCarloSwitch: window.runMonteCarloSwitch,
     runMonteCarloCore: window.runMonteCarloCore
 });
+
 // Live access to state values that change at runtime:
 Object.defineProperties(window.SMPSApp, {
     currentCamera: { get: () => window.currentCamera, enumerable: true },
