@@ -20,6 +20,22 @@ function toggleEffMode() {
     }
 }
 
+window.toggleCustomDesign = function () {
+    var isChecked = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
+    var lblCustomL = document.getElementById("inductance");
+
+    if (isChecked) {
+        if (lblCustomL) lblCustomL.style.display = "flex";
+    } else {
+        if (lblCustomL) lblCustomL.style.display = "none";
+    }
+};
+
+window.addEventListener('DOMContentLoaded', (event) => {
+    window.toggleEffMode();
+    window.toggleCustomDesign();
+});
+
 function checkUserInput() {
     var vin_min = parseFloat(document.getElementById('vin_min').value);
     var vin_max = parseFloat(document.getElementById('vin_max').value);
@@ -68,6 +84,7 @@ function setDefaultValues() {
     document.getElementById('ilout').value = 1;
     document.getElementById('f_khz').value = 50;
     document.getElementById('verim').value = 95;
+    if (document.getElementById('custom_L_uH')) document.getElementById('custom_L_uH').value = "";
 }
 
 // ================================================================
@@ -206,8 +223,20 @@ function updateChartsAndTable() {
         deltaIL = 2.5 * iin_max_peak;
     }
 
-    var L_H = vin_min_peak * (1 - vin_min_peak / vout) / (f_hz * deltaIL);
+    var isCustomDesignActive = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
+    var customLEl = document.getElementById('custom_L_uH');
+    var userL_uH = (isCustomDesignActive && customLEl) ? parseFloat(customLEl.value) : 0;
+
+    var L_H;
+
+    if (userL_uH > 0) {
+        L_H = userL_uH * 1e-6;
+    } else {
+        L_H = vin_min_peak * (1 - vin_min_peak / vout) / (f_hz * deltaIL);
+    }
+
     if (L_H < 0) L_H = 0.0001;
+
     var lOutput = L_H * 1e6;
 
     var deltaILMax = deltaIL;
@@ -563,6 +592,8 @@ window.openSelectedTable = function () {
     const modeEl = document.querySelector('input[name="coreSelectionMode"]:checked');
     const mode = modeEl ? modeEl.value : 'standard';
 
+    const isCustomDesign = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
+
     var lOutput = parseFloat(document.getElementById('lOutput').innerText);
     var wmax1 = parseFloat(document.getElementById('wmax1').innerText);
 
@@ -572,12 +603,20 @@ window.openSelectedTable = function () {
         return;
     }
 
-    if (mode === 'advanced') {
-        if (typeof window.openAdvancedTable === 'function') {
-            window.openAdvancedTable(1);
+    if (mode === "advanced") {
+        if (isCustomDesign) {
+            if (typeof window.openAdvancedPreCheck === "function") {
+                window.openAdvancedPreCheck('single');
+            } else {
+                alert("Advanced modül yüklenemedi.");
+            }
         } else {
-            var getT = window.getT || function (key) { return key; };
-            alert(getT('alert_advanced_module_error') || 'Advanced mod modülü yüklenemedi.');
+            window.customSelections = { core: null, coreL1: null, coreL2: null, coreTrafo: null, coreCoil: null, switch: null };
+            if (typeof window.openAdvancedTable === "function") {
+                window.openAdvancedTable();
+            } else {
+                alert("Advanced modül yüklenemedi.");
+            }
         }
     } else {
         if (typeof UIModal !== 'undefined') {
@@ -588,7 +627,7 @@ window.openSelectedTable = function () {
                 L_H: lOutput * 1e-6,
                 L_uH: lOutput,
                 Wmax: wmax1,
-                Imax: il_peak_absolute_global, // real peak
+                Imax: il_peak_absolute_global,
                 Irms_sq: Math.pow(il_rms, 2),
                 d_wire_default: d_coil_req,
                 min_area: A_coil_req,

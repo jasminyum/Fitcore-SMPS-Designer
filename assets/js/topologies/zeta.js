@@ -59,8 +59,20 @@ function toggleEffMode() {
     }
 }
 
+window.toggleCustomDesign = function () {
+    var isChecked = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
+    var lblCustomL = document.getElementById("inductance");
+
+    if (isChecked) {
+        if (lblCustomL) lblCustomL.style.display = "flex";
+    } else {
+        if (lblCustomL) lblCustomL.style.display = "none";
+    }
+};
+
 window.addEventListener('DOMContentLoaded', (event) => {
-    toggleEffMode();
+    window.toggleEffMode();
+    window.toggleCustomDesign();
 });
 
 // ================================================================
@@ -148,20 +160,40 @@ function updateChartsAndTable() {
 
     var Pout = vout * ilout;
     var Iin_nom = (Pout / verim) / vin_nom;
+    var Iin_min = (Pout / verim) / vin_min;
 
-    var target_deltaIL1 = 0.4 * Iin_nom;
+    // Worst-case design point: In CCM, the ripple current reaches its maximum value
+    // at the minimum input voltage (maximum duty cycle, d_max); in critical/DCM
+    // mode, the boundary is defined at the nominal operating point.
+    var Ue_design = vin_min;
+    var d_design = d_max;
+    var Iin_design = Iin_min;
+
+    var target_deltaIL1 = 0.4 * Iin_design;
     var target_deltaIL2 = 0.4 * ilout;
 
     if (mode === "critical") {
         target_deltaIL1 = 2.0 * Iin_nom;
         target_deltaIL2 = 2.0 * ilout;
+        Ue_design = vin_nom;
+        d_design = d_nom;
+        Iin_design = Iin_nom;
     } else if (mode === "discontinuous") {
         target_deltaIL1 = 2.5 * Iin_nom;
         target_deltaIL2 = 2.5 * ilout;
+        Ue_design = vin_nom;
+        d_design = d_nom;
+        Iin_design = Iin_nom;
     }
 
-    var L1_H = (vin_nom * d_nom) / (target_deltaIL1 * f);
-    var L2_H = (vin_nom * d_nom) / (target_deltaIL2 * f);
+    var isCustomDesignActive = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
+    var customL1El = document.getElementById('custom_L1_uH');
+    var customL2El = document.getElementById('custom_L2_uH');
+    var userL1_uH = (isCustomDesignActive && customL1El) ? parseFloat(customL1El.value) : 0;
+    var userL2_uH = (isCustomDesignActive && customL2El) ? parseFloat(customL2El.value) : 0;
+
+    var L1_H = (userL1_uH > 0) ? (userL1_uH * 1e-6) : ((Ue_design * d_design) / (target_deltaIL1 * f));
+    var L2_H = (userL2_uH > 0) ? (userL2_uH * 1e-6) : ((Ue_design * d_design) / (target_deltaIL2 * f));
 
     window.lOutput_L1 = L1_H * 1e6;
     window.lOutput_L2 = L2_H * 1e6;
@@ -770,61 +802,71 @@ function hesapla() {
 function printPage() { window.print(); }
 
 // ----------------------------------------------------------------
-// TABLO & MODAL ENTEGRASYONU (Modern Architecture)
+// TABLO & MODAL INTEGRATION
 // ----------------------------------------------------------------
 window.openSelectedTable = function () {
     const modeElement = document.querySelector('input[name="coreSelectionMode"]:checked');
     const mode = modeElement ? modeElement.value : "standard";
+
+    const isCustomDesign = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
 
     var l1 = parseFloat(window.lOutput_L1);
     var l2 = parseFloat(window.lOutput_L2);
 
     if (isNaN(l1) || isNaN(l2) || l1 === 0 || l2 === 0) {
         var getT = window.getT || function (key) { return key; };
-        alert(getT('adv_alert_calc_first') || "Lütfen önce hesaplama yapýn!");
+        alert(getT('adv_alert_calc_first') || "Lütfen önce hesaplama yapın!");
         return;
     }
 
     if (mode === "advanced") {
-        if (typeof window.openAdvancedTable === "function") {
-            window.openAdvancedTable();
+        if (isCustomDesign) {
+            if (typeof window.openAdvancedPreCheck === "function") {
+                window.openAdvancedPreCheck('dual_inductor');
+            } else {
+                alert("Advanced modül yüklenemedi.");
+            }
         } else {
-            alert("Advanced modül yüklenemedi.");
+            window.customSelections = { core: null, coreL1: null, coreL2: null, coreTrafo: null, coreCoil: null, switch: null };
+            if (typeof window.openAdvancedTable === "function") {
+                window.openAdvancedTable();
+            } else {
+                alert("Advanced modül yüklenemedi.");
+            }
         }
-        return;
-    }
-
-    var coil1Params = {
-        title: (window.getT && window.getT('btn_coil_l1')) ? window.getT('btn_coil_l1') : "L1 Bobin Data",
-        L_H: window.lOutput_L1 * 1e-6,
-        L_uH: window.lOutput_L1,
-        Wmax: window.wmax_L1,
-        Imax: window.Imax_L1,
-        Irms_sq: Math.pow(window.l1_rms, 2),
-        d_wire_default: window.d_wire_L1,
-        min_area: window.min_area_L1,
-        max_litz: window.max_wire_d_mm
-    };
-
-    var coil2Params = {
-        title: (window.getT && window.getT('btn_coil_l2')) ? window.getT('btn_coil_l2') : "L2 Bobin Data",
-        L_H: window.lOutput_L2 * 1e-6,
-        L_uH: window.lOutput_L2,
-        Wmax: window.wmax_L2,
-        Imax: window.Imax_L2,
-        Irms_sq: Math.pow(window.l2_rms, 2),
-        d_wire_default: window.d_wire_L2,
-        min_area: window.min_area_L2,
-        max_litz: window.max_wire_d_mm
-    };
-
-    if (typeof UIModal !== 'undefined' && UIModal.openDualModal) {
-        UIModal.openDualModal([
-            { type: 'inductor', title: coil1Params.title, params: coil1Params },
-            { type: 'inductor', title: coil2Params.title, params: coil2Params }
-        ]);
     } else {
-        alert("Arayüz modülü (UIModal) yüklenemedi.");
+        var coil1Params = {
+            title: (window.getT && window.getT('btn_coil_l1')) ? window.getT('btn_coil_l1') : "L1 Bobin Data",
+            L_H: window.lOutput_L1 * 1e-6,
+            L_uH: window.lOutput_L1,
+            Wmax: window.wmax_L1,
+            Imax: window.Imax_L1,
+            Irms_sq: Math.pow(window.l1_rms, 2),
+            d_wire_default: window.d_wire_L1,
+            min_area: window.min_area_L1,
+            max_litz: window.max_wire_d_mm
+        };
+
+        var coil2Params = {
+            title: (window.getT && window.getT('btn_coil_l2')) ? window.getT('btn_coil_l2') : "L2 Bobin Data",
+            L_H: window.lOutput_L2 * 1e-6,
+            L_uH: window.lOutput_L2,
+            Wmax: window.wmax_L2,
+            Imax: window.Imax_L2,
+            Irms_sq: Math.pow(window.l2_rms, 2),
+            d_wire_default: window.d_wire_L2,
+            min_area: window.min_area_L2,
+            max_litz: window.max_wire_d_mm
+        };
+
+        if (typeof UIModal !== 'undefined' && UIModal.openDualModal) {
+            UIModal.openDualModal([
+                { type: 'inductor', title: coil1Params.title, params: coil1Params },
+                { type: 'inductor', title: coil2Params.title, params: coil2Params }
+            ]);
+        } else {
+            alert("Arayüz modülü (UIModal) yüklenemedi.");
+        }
     }
 };
 

@@ -20,7 +20,7 @@ window.max_wire_d_mm = 0;
 window.VeOpt_global = 0;
 
 // ----------------------------------------------------------------
-// ARAYÜZ VE GÝRÝÞ KONTROLLERÝ
+// Interface and Entering Value Controller
 // ----------------------------------------------------------------
 function toggleEffMode() {
     var mode = document.getElementById("effMode").value;
@@ -33,6 +33,22 @@ function toggleEffMode() {
         document.getElementById("realInputGroup").style.display = "block";
     }
 }
+
+window.toggleCustomDesign = function () {
+    var isChecked = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
+    var lblCustomL = document.getElementById("inductance");
+
+    if (isChecked) {
+        if (lblCustomL) lblCustomL.style.display = "flex";
+    } else {
+        if (lblCustomL) lblCustomL.style.display = "none";
+    }
+};
+
+window.addEventListener('DOMContentLoaded', (event) => {
+    window.toggleEffMode();
+    window.toggleCustomDesign();
+});
 
 function toggleRectifierType(isUserAction = false) {
     var type = document.getElementById("rectifierType").value;
@@ -445,11 +461,29 @@ function updateChartsAndTable() {
     var m = parseFloat(document.getElementById('m_ratio').value);
 
     var omega_r = 2.0 * Math.PI * fr;
-    var Lr_H = Qmax * Rac / omega_r;
+
+    var isCustomDesignActive = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
+    var customLrEl = document.getElementById('custom_L_uH');
+    var customLmEl = document.getElementById('custom_Lm_uH');
+    var userLr_uH = (isCustomDesignActive && customLrEl) ? parseFloat(customLrEl.value) : 0;
+    var userLm_uH = (isCustomDesignActive && customLmEl) ? parseFloat(customLmEl.value) : 0;
+
+    var Lr_H = (userLr_uH > 0) ? (userLr_uH * 1e-6) : (Qmax * Rac / omega_r);
     var Lr_uH = Lr_H * 1e6;
     var Cr_F = 1.0 / (omega_r * omega_r * Lr_H);
     var Cr_uF = Cr_F * 1e6;
-    var Lm_H = (m - 1.0) * Lr_H;
+    var Lm_H = (userLm_uH > 0) ? (userLm_uH * 1e-6) : ((m - 1.0) * Lr_H);
+
+    var m_effective = (Lm_H / Lr_H) + 1.0;
+
+    if (Math.abs(m_effective - m) > 0.05) {
+        var warnMsg = getT('warn_lm_override') || "⚠️ Entered Lm results in an effective m ratio of {0} (Target m: {1}). Calculations updated.";
+        warnMsg = warnMsg.replace("{0}", m_effective.toFixed(2)).replace("{1}", m.toFixed(2));
+
+        alert(warnMsg);
+
+        m = m_effective;
+    }
 
     var target_gain = vin_nom / vin_test;
     var Fx = findFxForGain(target_gain, m, Qmax);
@@ -914,22 +948,15 @@ window.openSelectedTable = function () {
     const modeElement = document.querySelector('input[name="coreSelectionMode"]:checked');
     const mode = modeElement ? modeElement.value : "standard";
 
+    const isCustomDesign = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
+
     var lOutputStr = document.getElementById('lOutput')?.innerText;
     var wmax1Str = document.getElementById('wmax1')?.innerText;
     var veOptStr = document.getElementById('VeOpt')?.innerText;
 
     if (!lOutputStr || isNaN(parseFloat(lOutputStr)) || !veOptStr || isNaN(parseFloat(veOptStr))) {
         var getT = window.getT || function (key) { return key; };
-        alert(getT('adv_alert_calc_first') || "Lütfen önce hesaplama yapýn!");
-        return;
-    }
-
-    if (mode === "advanced") {
-        if (typeof window.openAdvancedTable === "function") {
-            window.openAdvancedTable();
-        } else {
-            alert("Advanced modül yüklenemedi.");
-        }
+        alert(getT('adv_alert_calc_first') || "Lütfen önce hesaplama yapin!");
         return;
     }
 
@@ -941,40 +968,57 @@ window.openSelectedTable = function () {
     var nOutput = parseFloat(document.getElementById('nOutput')?.innerText) || 1;
     var Imax = window.Imax_global;
 
-    var trafoParams = {
-        title: (window.getT && window.getT('btn_transformer')) ? window.getT('btn_transformer') : "Transformer Data",
-        topology: 'llc',
-        vin_min: vin_test,
-        VeOpt: VeOpt,
-        f_hz: f_hz,
-        vin1: vin_test,
-        nOutput: nOutput,
-        I1_rms_sq: Math.pow(window.i1_rms_global, 2),
-        I2_rms_sq: Math.pow(window.i2_rms_global, 2),
-        d1_req: window.d1_req,
-        d2_req: window.d2_req,
-        max_litz: window.max_wire_d_mm
-    };
-
-    var coilParams = {
-        title: (window.getT && window.getT('btn_coil')) ? window.getT('btn_coil') : "Coil Data",
-        L_H: L_H,
-        L_uH: window.lOutput_global,
-        Wmax: Wmax,
-        Imax: Imax,
-        Irms_sq: Math.pow(window.il_rms, 2),
-        d_wire_default: window.d_coil_req,
-        min_area: window.A_coil_req,
-        max_litz: window.max_wire_d_mm
-    };
-
-    if (typeof UIModal !== 'undefined' && UIModal.openDualModal) {
-        UIModal.openDualModal([
-            { type: 'trafo', title: trafoParams.title, params: trafoParams },
-            { type: 'inductor', title: coilParams.title, params: coilParams }
-        ]);
+    if (mode === "advanced") {
+        if (isCustomDesign) {
+            if (typeof window.openAdvancedPreCheck === "function") {
+                window.openAdvancedPreCheck('trafo_coil');
+            } else {
+                alert("Advanced modül yüklenemedi.");
+            }
+        } else {
+            window.customSelections = { core: null, coreL1: null, coreL2: null, coreTrafo: null, coreCoil: null, switch: null };
+            if (typeof window.openAdvancedTable === "function") {
+                window.openAdvancedTable();
+            } else {
+                alert("Advanced modül yüklenemedi.");
+            }
+        }
     } else {
-        alert("Arayüz modülü (UIModal) yüklenemedi.");
+        var trafoParams = {
+            title: (window.getT && window.getT('btn_transformer')) ? window.getT('btn_transformer') : "Transformer Data",
+            topology: 'llc',
+            vin_min: vin_test,
+            VeOpt: VeOpt,
+            f_hz: f_hz,
+            vin1: vin_test,
+            nOutput: nOutput,
+            I1_rms_sq: Math.pow(window.i1_rms_global, 2),
+            I2_rms_sq: Math.pow(window.i2_rms_global, 2),
+            d1_req: window.d1_req,
+            d2_req: window.d2_req,
+            max_litz: window.max_wire_d_mm
+        };
+
+        var coilParams = {
+            title: (window.getT && window.getT('btn_coil')) ? window.getT('btn_coil') : "Coil Data",
+            L_H: L_H,
+            L_uH: window.lOutput_global,
+            Wmax: Wmax,
+            Imax: Imax,
+            Irms_sq: Math.pow(window.il_rms, 2),
+            d_wire_default: window.d_coil_req,
+            min_area: window.A_coil_req,
+            max_litz: window.max_wire_d_mm
+        };
+
+        if (typeof UIModal !== 'undefined' && UIModal.openDualModal) {
+            UIModal.openDualModal([
+                { type: 'trafo', title: trafoParams.title, params: trafoParams },
+                { type: 'inductor', title: coilParams.title, params: coilParams }
+            ]);
+        } else {
+            alert("Arayüz modülü (UIModal) yüklenemedi.");
+        }
     }
 };
 

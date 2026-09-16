@@ -27,6 +27,22 @@ function toggleEffMode() {
     }
 }
 
+window.toggleCustomDesign = function () {
+    var isChecked = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
+    var lblCustomL = document.getElementById("inductance");
+
+    if (isChecked) {
+        if (lblCustomL) lblCustomL.style.display = "flex";
+    } else {
+        if (lblCustomL) lblCustomL.style.display = "none";
+    }
+};
+
+window.addEventListener('DOMContentLoaded', (event) => {
+    window.toggleEffMode();
+    window.toggleCustomDesign();
+});
+
 // ================================================================
 // INPUT VALIDATION
 // ================================================================
@@ -124,8 +140,9 @@ function updateChartsAndTable() {
     var f_hz = f_khz * 1000;
     var Uem = (vin_min + vin_max) / 2;
 
+    var isCustomDesignActive = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
     var customRatioEl = document.getElementById('custom_nRatio');
-    var userRatio = customRatioEl ? parseFloat(customRatioEl.value) : 0;
+    var userRatio = (isCustomDesignActive && customRatioEl) ? parseFloat(customRatioEl.value) : 0;
 
     var nOutput;
     if (userRatio > 0) {
@@ -147,7 +164,7 @@ function updateChartsAndTable() {
     }
 
     var customLEl = document.getElementById('custom_L_uH');
-    var userL_uH = customLEl ? parseFloat(customLEl.value) : 0;
+    var userL_uH = (isCustomDesignActive && customLEl) ? parseFloat(customLEl.value) : 0;
 
     var lOutput_H;
     if (userL_uH > 0) {
@@ -682,8 +699,9 @@ function openFalstadFlybackSimulation() {
     var c_farad = c_uF * 1e-6;
     var r_load = vout / ilout;
 
+    var isCustomDesignActiveFalstad = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
     var customRatioEl = document.getElementById('custom_nRatio');
-    var userRatio = customRatioEl ? parseFloat(customRatioEl.value) : 0;
+    var userRatio = (isCustomDesignActiveFalstad && customRatioEl) ? parseFloat(customRatioEl.value) : 0;
     var nOutput = (userRatio > 0) ? userRatio : ((vin_min * 0.45) / ((vout + Uf) * 0.55));
     var ratio = 1 / nOutput;
 
@@ -839,6 +857,8 @@ window.openSelectedTable = function () {
     const modeElement = document.querySelector('input[name="coreSelectionMode"]:checked');
     const mode = modeElement ? modeElement.value : "standard";
 
+    const isCustomDesign = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
+
     var lOutputStr = document.getElementById('lOutput')?.innerText;
     var wmax1Str = document.getElementById('wmax1')?.innerText;
 
@@ -872,12 +892,20 @@ window.openSelectedTable = function () {
     };
 
     if (mode === "advanced") {
-        if (typeof window.openAdvancedPreCheck === "function") {
-            window.openAdvancedPreCheck();
+        if (isCustomDesign) {
+            if (typeof window.openAdvancedPreCheck === "function") {
+                window.openAdvancedPreCheck('flyback');
+            } else {
+                alert("Advanced modül yüklenemedi.");
+            }
         } else {
-            alert("Advanced modül yüklenemedi.");
+            window.customSelections = { core: null, coreL1: null, coreL2: null, coreTrafo: null, coreCoil: null, switch: null };
+            if (typeof window.openAdvancedTable === "function") {
+                window.openAdvancedTable();
+            } else {
+                alert("Advanced modül yüklenemedi.");
+            }
         }
-        return;
     } else {
         if (typeof UIModal !== 'undefined' && UIModal.openFlybackModal) {
             UIModal.openFlybackModal(params);

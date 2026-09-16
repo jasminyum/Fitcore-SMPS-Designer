@@ -48,6 +48,22 @@ function toggleEffMode() {
     }
 }
 
+window.toggleCustomDesign = function () {
+    var isChecked = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
+    var lblCustomL = document.getElementById("inductance");
+
+    if (isChecked) {
+        if (lblCustomL) lblCustomL.style.display = "flex";
+    } else {
+        if (lblCustomL) lblCustomL.style.display = "none";
+    }
+};
+
+window.addEventListener('DOMContentLoaded', (event) => {
+    window.toggleEffMode();
+    window.toggleCustomDesign();
+});
+
 function checkUserInput() {
     var vin_min = parseFloat(document.getElementById('vin_min').value);
     var vin_max = parseFloat(document.getElementById('vin_max').value);
@@ -225,7 +241,17 @@ function updateChartsAndTable() {
     var nUe_max = Ue_max / nOutput - Uf;
     var deltaILMax = 0.4 * ilout;
     var t1_max = (vout + Uf) / (fScale * (nUe_max + Uf));
-    var L_H = t1_max * (nUe_max - vout) / deltaILMax;
+
+    var isCustomDesignActive = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
+    var customLEl = document.getElementById('custom_L_uH');
+    var userL_uH = (isCustomDesignActive && customLEl) ? parseFloat(customLEl.value) : 0;
+
+    var L_H;
+    if (userL_uH > 0) {
+        L_H = userL_uH * 1e-6;
+    } else {
+        L_H = t1_max * (nUe_max - vout) / deltaILMax;
+    }
 
     var Ue_nom = vin_nom;
     var nUe_nom = Ue_nom / nOutput - Uf;
@@ -554,21 +580,14 @@ window.openSelectedTable = function () {
     const modeElement = document.querySelector('input[name="coreSelectionMode"]:checked');
     const mode = modeElement ? modeElement.value : "standard";
 
+    const isCustomDesign = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
+
     var lOutputStr = document.getElementById('lOutput')?.innerText;
     var wmax1Str = document.getElementById('wmax1')?.innerText;
     var veOptStr = document.getElementById('VeOpt')?.innerText;
 
     if (!lOutputStr || isNaN(parseFloat(lOutputStr)) || !veOptStr || isNaN(parseFloat(veOptStr))) {
         alert(window.getT ? window.getT('adv_alert_calc_first') : "Lütfen önce hesaplama yapın!");
-        return;
-    }
-
-    if (mode === "advanced") {
-        if (typeof window.openAdvancedTable === "function") {
-            window.openAdvancedTable();
-        } else {
-            alert("Advanced modül yüklenemedi.");
-        }
         return;
     }
 
@@ -582,40 +601,57 @@ window.openSelectedTable = function () {
     var nOutput = parseFloat(document.getElementById('nOutput')?.innerText) || 1;
     var Imax = window.Imax_global;
 
-    var trafoParams = {
-        title: window.getT ? window.getT('btn_transformer') : "Transformer Data",
-        topology: 'full_bridge',
-        VeOpt: VeOpt,
-        f_hz: f_hz,
-        vin_min: vin1,
-        vin1: parseFloat(document.getElementById('vin_nom')?.value) || 400,
-        nOutput: nOutput,
-        I1_rms_sq: window.i1_rms_global * window.i1_rms_global,
-        I2_rms_sq: window.i2_rms_global * window.i2_rms_global,
-        d1_req: window.d1_req,
-        d2_req: window.d2_req,
-        max_litz: window.max_wire_d_mm
-    };
-
-    var coilParams = {
-        title: window.getT ? window.getT('btn_coil') : "Coil Data",
-        L_H: L_H,
-        L_uH: window.lOutput_global,
-        Wmax: Wmax,
-        Imax: Imax,
-        Irms_sq: window.il_rms * window.il_rms,
-        d_wire_default: window.d_coil_req,
-        min_area: window.A_coil_req,
-        max_litz: window.max_wire_d_mm
-    };
-
-    if (typeof UIModal !== 'undefined' && UIModal.openDualModal) {
-        UIModal.openDualModal([
-            { type: 'trafo', title: trafoParams.title, params: trafoParams },
-            { type: 'inductor', title: coilParams.title, params: coilParams }
-        ]);
+    if (mode === "advanced") {
+        if (isCustomDesign) {
+            if (typeof window.openAdvancedPreCheck === "function") {
+                window.openAdvancedPreCheck('trafo_coil');
+            } else {
+                alert("Advanced modül yüklenemedi.");
+            }
+        } else {
+            window.customSelections = { core: null, coreL1: null, coreL2: null, coreTrafo: null, coreCoil: null, switch: null };
+            if (typeof window.openAdvancedTable === "function") {
+                window.openAdvancedTable();
+            } else {
+                alert("Advanced modül yüklenemedi.");
+            }
+        }
     } else {
-        alert("Arayüz modülü (UIModal) yüklenemedi.");
+        var trafoParams = {
+            title: window.getT ? window.getT('btn_transformer') : "Transformer Data",
+            topology: 'full_bridge',
+            VeOpt: VeOpt,
+            f_hz: f_hz,
+            vin_min: vin1,
+            vin1: parseFloat(document.getElementById('vin_nom')?.value) || 400,
+            nOutput: nOutput,
+            I1_rms_sq: window.i1_rms_global * window.i1_rms_global,
+            I2_rms_sq: window.i2_rms_global * window.i2_rms_global,
+            d1_req: window.d1_req,
+            d2_req: window.d2_req,
+            max_litz: window.max_wire_d_mm
+        };
+
+        var coilParams = {
+            title: window.getT ? window.getT('btn_coil') : "Coil Data",
+            L_H: L_H,
+            L_uH: window.lOutput_global,
+            Wmax: Wmax,
+            Imax: Imax,
+            Irms_sq: window.il_rms * window.il_rms,
+            d_wire_default: window.d_coil_req,
+            min_area: window.A_coil_req,
+            max_litz: window.max_wire_d_mm
+        };
+
+        if (typeof UIModal !== 'undefined' && UIModal.openDualModal) {
+            UIModal.openDualModal([
+                { type: 'trafo', title: trafoParams.title, params: trafoParams },
+                { type: 'inductor', title: coilParams.title, params: coilParams }
+            ]);
+        } else {
+            alert("Arayüz modülü (UIModal) yüklenemedi.");
+        }
     }
 };
 

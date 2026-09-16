@@ -47,8 +47,20 @@ window.toggleEffMode = function () {
     }
 };
 
+window.toggleCustomDesign = function () {
+    var isChecked = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
+    var lblCustomL = document.getElementById("inductance");
+
+    if (isChecked) {
+        if (lblCustomL) lblCustomL.style.display = "flex";
+    } else {
+        if (lblCustomL) lblCustomL.style.display = "none";
+    }
+};
+
 window.addEventListener('DOMContentLoaded', (event) => {
     window.toggleEffMode();
+    window.toggleCustomDesign();
 });
 
 window.checkUserInput = function () {
@@ -101,6 +113,7 @@ window.setDefaultValues = function () {
     document.getElementById('ilout').value = 10;
     document.getElementById('f_khz').value = 50;
     document.getElementById('verim').value = 85;
+    if (document.getElementById('custom_L_uH')) document.getElementById('custom_L_uH').value = "";
 };
 
 window.calcBuckOperatingPoint = function (Ue, vout, iout, f, L_H) {
@@ -173,7 +186,17 @@ window.updateChartsAndTable = function () {
         Ue_design = vin_nom;
     }
 
-    var lOutput_H = (Ue_design - vout) * (vout + Uf) / ((Ue_design + Uf) * f * deltaIL_target);
+    var isCustomDesignActive = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
+    var customLEl = document.getElementById('custom_L_uH');
+    var userL_uH = (isCustomDesignActive && customLEl) ? parseFloat(customLEl.value) : 0;
+
+    var lOutput_H;
+    if (userL_uH > 0) {
+        lOutput_H = userL_uH * 1e-6;
+    } else {
+        lOutput_H = (Ue_design - vout) * (vout + Uf) / ((Ue_design + Uf) * f * deltaIL_target);
+    }
+
     var lOutput = lOutput_H * 1e6;
 
     var op = window.calcBuckOperatingPoint(vin_nom, vout, ilout, f, lOutput_H);
@@ -546,6 +569,8 @@ window.openSelectedTable = function () {
     const modeElement = document.querySelector('input[name="coreSelectionMode"]:checked');
     const mode = modeElement ? modeElement.value : "standard";
 
+    const isCustomDesign = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
+
     if (!window.currentOperatingPoint) {
         alert(window.getT ? window.getT('adv_alert_calc_first') : "Lütfen önce hesaplama yapın!");
         return;
@@ -568,10 +593,19 @@ window.openSelectedTable = function () {
     };
 
     if (mode === "advanced") {
-        if (typeof window.openAdvancedTable === "function") {
-            window.openAdvancedTable();
+        if (isCustomDesign) {
+            if (typeof window.openAdvancedPreCheck === "function") {
+                window.openAdvancedPreCheck('single');
+            } else {
+                alert("Advanced modül yüklenemedi.");
+            }
         } else {
-            alert("Advanced modül yüklenemedi.");
+            window.customSelections = { core: null, coreL1: null, coreL2: null, coreTrafo: null, coreCoil: null, switch: null };
+            if (typeof window.openAdvancedTable === "function") {
+                window.openAdvancedTable();
+            } else {
+                alert("Advanced modül yüklenemedi.");
+            }
         }
     } else {
         if (typeof UIModal !== 'undefined') {

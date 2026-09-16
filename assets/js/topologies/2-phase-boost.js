@@ -48,8 +48,20 @@ window.toggleEffMode = function () {
     }
 };
 
+window.toggleCustomDesign = function () {
+    var isChecked = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
+    var lblCustomL = document.getElementById("inductance");
+
+    if (isChecked) {
+        if (lblCustomL) lblCustomL.style.display = "flex";
+    } else {
+        if (lblCustomL) lblCustomL.style.display = "none";
+    }
+};
+
 window.addEventListener('DOMContentLoaded', (event) => {
     window.toggleEffMode();
+    window.toggleCustomDesign();
 });
 
 window.checkUserInput = function () {
@@ -111,6 +123,7 @@ window.setDefaultValues = function () {
     document.getElementById('ilout').value = 1.9;
     document.getElementById('f_khz').value = 100;
     document.getElementById('verim').value = 90;
+    if (document.getElementById('custom_L_uH')) document.getElementById('custom_L_uH').value = "";
 };
 
 window.updateChartsAndTable = function () {
@@ -146,7 +159,17 @@ window.updateChartsAndTable = function () {
         target_deltaIL = 2.5 * Ie_min;
     }
 
-    var lOutput_H = (nUa - Ue_min) * Ue_min / (nUa * f_sw * target_deltaIL);
+    var isCustomDesignActive = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
+    var customLEl = document.getElementById('custom_L_uH');
+    var userL_uH = (isCustomDesignActive && customLEl) ? parseFloat(customLEl.value) : 0;
+
+    var lOutput_H;
+    if (userL_uH > 0) {
+        lOutput_H = userL_uH * 1e-6;
+    } else {
+        lOutput_H = (nUa - Ue_min) * Ue_min / (nUa * f_sw * target_deltaIL);
+    }
+
     var lOutput = lOutput_H * 1e6;
 
     // Nominal
@@ -210,6 +233,10 @@ window.updateChartsAndTable = function () {
     window.Imax2_global = Imax_phase;
     window.l1_rms = Math.sqrt(Math.pow(Ie_nom, 2) + Math.pow(deltaILMax, 2) / 12);
     window.l2_rms = window.l1_rms;
+
+    var J = MagneticUtils.getCurrentDensity(f_khz);
+    window.A_coil_req = window.l1_rms / J;
+    window.d_coil_req = Math.sqrt((4 * window.A_coil_req) / Math.PI);
 
     document.getElementById('lOutput1').innerText = lOutput.toFixed(2);
     document.getElementById('lOutput2').innerText = lOutput.toFixed(2);
@@ -574,6 +601,8 @@ window.openSelectedTable = function () {
     const modeElement = document.querySelector('input[name="coreSelectionMode"]:checked');
     const mode = modeElement ? modeElement.value : "standard";
 
+    const isCustomDesign = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
+
     if (!window.lOutput1_global) {
         alert(window.getT ? window.getT('adv_alert_calc_first') : "Lütfen önce hesaplama yapın!");
         return;
@@ -589,17 +618,26 @@ window.openSelectedTable = function () {
         Wmax: window.wmax1_global,
         Imax: window.Imax1_global,
         Irms_sq: Math.pow(window.l1_rms, 2),
-        d_wire_default: Math.sqrt((4 * (window.l1_rms / 4)) / Math.PI), // J=4 approx
-        min_area: window.l1_rms / 4,
+        d_wire_default: window.d_coil_req,
+        min_area: window.A_coil_req,
         max_litz: max_litz,
         userMode: document.getElementById("mode").value
     };
 
     if (mode === "advanced") {
-        if (typeof window.openAdvancedTable === "function") {
-            window.openAdvancedTable();
+        if (isCustomDesign) {
+            if (typeof window.openAdvancedPreCheck === "function") {
+                window.openAdvancedPreCheck('single');
+            } else {
+                alert("Advanced modül yüklenemedi.");
+            }
         } else {
-            alert("Advanced modül yüklenemedi.");
+            window.customSelections = { core: null, coreL1: null, coreL2: null, coreTrafo: null, coreCoil: null, switch: null };
+            if (typeof window.openAdvancedTable === "function") {
+                window.openAdvancedTable();
+            } else {
+                alert("Advanced modül yüklenemedi.");
+            }
         }
     } else {
         if (typeof UIModal !== 'undefined') {
