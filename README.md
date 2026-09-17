@@ -115,6 +115,8 @@ Because the inline `onclick="..."` handlers on the pages depend directly on glob
 
 ```
 
+<img width="1919" height="952" alt="resim" src="https://github.com/user-attachments/assets/edd7175e-4ae4-410f-b37e-13a9f2c5e67b" />
+<br><br>
 ## Setup
 
 ### Requirements
