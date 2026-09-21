@@ -972,6 +972,10 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 let windowExceeded = false;
                 let fillRatio = 0;
 
+                let w_height = 0;
+                let wire_d_pri_mm = 0;
+                let isLitz = false;
+
                 if (core.isCustom) {
                     isValid = true;
                 }
@@ -981,7 +985,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     let isPlanar = core.customStructure === "planar" || coreName.includes("EQ") || coreName.includes("PLANAR");
                     let isToroid = core.customStructure === "toroid" || core.customStructure === "powder" || coreName.includes("TOROID") || coreName.includes("RING");
 
-                    let Aw_mm2 = 0, w_width = 0, w_height = 0;
+                    let Aw_mm2 = 0, w_width = 0;
                     let bobbin_margin_mm = (core.isCustom || isPlanar) ? 0.2 : 1.0;
                     if (isToroid) bobbin_margin_mm = 0.5; // Toroid epoxy coating margin
 
@@ -1077,12 +1081,12 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     const dl_assumed_mm = 0.1;
 
                     // Per-turn effective wire diameter (NOT sqrt of the total winding copper area!
-                    const wire_d_pri_mm = Math.sqrt(primary_Cu_mm2 / N1_calc);
+                    wire_d_pri_mm = Math.sqrt(primary_Cu_mm2 / N1_calc);
 
                     // Estimate physical layers dynamically based on window height and wire cross-section
                     const est_layers = Math.max(1, Math.ceil(N1_calc / (w_height / wire_d_pri_mm)));
 
-                    const isLitz = (f_kHz >= 20);
+                    isLitz = (f_kHz >= 20);
                     let strand_d_mm = 0;
                     let est_total_strands_pri = 1;
 
@@ -1297,9 +1301,9 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     l_deviation_pct: l_actual_H > 0 ? l_deviation_pct : null,
                     matAbsMinFreq: matAbsMinFreq,
                     matAbsMaxFreq: matAbsMaxFreq,
-                    wire_d_pri_mm: typeof wire_d_pri_mm !== 'undefined' ? wire_d_pri_mm : 0,
-                    w_height: typeof w_height !== 'undefined' ? w_height : 0,
-                    isLitz: typeof isLitz !== 'undefined' ? isLitz : false
+                    wire_d_pri_mm: wire_d_pri_mm,
+                    w_height: w_height,
+                    isLitz: isLitz
                 });
 
                 if (singlePiecePrice !== 999 && singlePiecePrice > 0) {
