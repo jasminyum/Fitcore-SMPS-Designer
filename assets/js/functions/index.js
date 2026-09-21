@@ -1296,7 +1296,10 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     l_actual_H: l_actual_H > 0 ? l_actual_H : null,
                     l_deviation_pct: l_actual_H > 0 ? l_deviation_pct : null,
                     matAbsMinFreq: matAbsMinFreq,
-                    matAbsMaxFreq: matAbsMaxFreq
+                    matAbsMaxFreq: matAbsMaxFreq,
+                    wire_d_pri_mm: typeof wire_d_pri_mm !== 'undefined' ? wire_d_pri_mm : 0,
+                    w_height: typeof w_height !== 'undefined' ? w_height : 0,
+                    isLitz: typeof isLitz !== 'undefined' ? isLitz : false
                 });
 
                 if (singlePiecePrice !== 999 && singlePiecePrice > 0) {
@@ -1409,25 +1412,66 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
         const fEff = Math.min(1.0, scoreEff * matSuitability) * internalWindowModifier * internalLossModifier;
         const fSize = scoreSize * internalOversizeModifier * internalWindowModifier;
 
-        let mfgScoreCore = 1.0;
+        let windingScore = 1.0;
+        let windowScore = 1.0;
+        let coreScore = 1.0;
+        let wireScore = 1.0;
+        let gapScore = 1.0;
+
+        // 1. Winding Complexity
+        let est_layers = 1;
+        if (c.w_height > 0 && c.wire_d_pri_mm > 0) {
+            let turnsPerLayer = Math.floor(c.w_height / c.wire_d_pri_mm);
+            if (turnsPerLayer < 1) turnsPerLayer = 1;
+            est_layers = Math.ceil(c.n1_calc / turnsPerLayer);
+        }
+        if (est_layers <= 2) windingScore = 1.0;
+        else if (est_layers <= 4) windingScore = 0.90;
+        else if (est_layers <= 6) windingScore = 0.75;
+        else if (est_layers <= 8) windingScore = 0.50;
+        else windingScore = 0.20;
+
+        // 2. Window Utilization
+        if (c.fillRatio <= 0.50) windowScore = 1.0;
+        else if (c.fillRatio <= 0.70) windowScore = 0.90;
+        else if (c.fillRatio <= 0.85) windowScore = 0.75;
+        else if (c.fillRatio <= 0.95) windowScore = 0.50;
+        else windowScore = 0.20;
+
+        // 3. Wire Complexity
+        if (c.isLitz) wireScore -= 0.15;
+        if (c.wire_d_pri_mm < 0.15) wireScore -= 0.20;
+        else if (c.wire_d_pri_mm > 1.5) wireScore -= 0.15;
+        wireScore = Math.max(0.1, wireScore);
+
+        // 4. Gap & Insulation Complexity
+        if (c.required_gap_mm > 0) {
+            if (c.gap_is_builtin) gapScore = 0.95;
+            else gapScore = 0.75;
+
+            if (c.required_gap_mm < 0.1 || c.required_gap_mm > 1.5) {
+                gapScore -= 0.15;
+            }
+        }
+
+        // 5. Core Assembly
         const shapeStr = (c.name || "").toUpperCase();
         if (shapeStr.includes("TOROID") || shapeStr.includes("RING") || c.customStructure === "toroid") {
-            mfgScoreCore = 0.4;
-        } else if (shapeStr.includes("EQ") || shapeStr.includes("PLANAR") || c.customStructure === "planar") {
-            mfgScoreCore = 1.0;
+            coreScore = 0.40;
+        } else if (shapeStr.includes("PLANAR") || shapeStr.includes("EQ") || c.customStructure === "planar") {
+            coreScore = 1.0;
+        } else if (shapeStr.includes("RM") || shapeStr.includes("PQ") || shapeStr.includes("EP")) {
+            coreScore = 0.85;
         } else {
-            mfgScoreCore = 0.9; // E, RM, PQ
+            coreScore = 0.95;
         }
 
-        let mfgScoreWire = 1.0;
-
-        const N_layers = (c.n1_calc / 20) || 1;
-        if (N_layers > 4) {
-            mfgScoreWire -= (N_layers - 4) * 0.08;
-        }
-        mfgScoreWire = Math.max(0.1, mfgScoreWire);
-
-        const fMfg = (mfgScoreCore * 0.6) + (mfgScoreWire * 0.4);
+        // DFM (Design for Manufacturing)
+        const fMfg = (0.30 * windingScore) +
+            (0.25 * windowScore) +
+            (0.20 * coreScore) +
+            (0.15 * wireScore) +
+            (0.10 * gapScore);
 
         // [0.01 - 100]
         let rawFuzzyScore = (
