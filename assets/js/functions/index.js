@@ -1334,9 +1334,9 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
 
     let calcMinCost = Infinity, calcMaxCost = 0, calcMinLoss = Infinity, calcMinVol = Infinity;
     refCandidates.forEach(c => {
-        if (c.totalCost !== 999 && c.totalCost > 0) {
-            if (c.totalCost < calcMinCost) calcMinCost = c.totalCost;
-            if (c.totalCost > calcMaxCost) calcMaxCost = c.totalCost;
+        if (c.costPerUnit !== 999 && c.costPerUnit > 0) {
+            if (c.costPerUnit < calcMinCost) calcMinCost = c.costPerUnit;
+            if (c.costPerUnit > calcMaxCost) calcMaxCost = c.costPerUnit;
         }
         if (c.totalLossW < calcMinLoss) calcMinLoss = c.totalLossW;
         if (c.volume < calcMinVol) calcMinVol = c.volume;
@@ -1359,9 +1359,9 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
     candidates.forEach(c => {
         let scoreCost = 0.01;
 
-        if (c.totalCost !== 999 && c.totalCost > 0) {
+        if (c.costPerUnit !== 999 && c.costPerUnit > 0) {
             if (logDiff > 0) {
-                const logPrice = Math.log(c.totalCost);
+                const logPrice = Math.log(c.costPerUnit);
                 scoreCost = Math.max(0.01, (logMax - logPrice) / logDiff);
             } else {
                 scoreCost = 1.0;
