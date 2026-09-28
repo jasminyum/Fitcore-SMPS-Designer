@@ -87,6 +87,50 @@
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const staticDbData = require("./smps_database.json");
+// ---- [FIX] CRM/DCM corner, flux and bounded-relaxation helpers (inlined) ----
+const MagCorners = (function () {
+    function reflectedVoltage(vout, vf, turnsRatio) {
+        return (vout + vf) * turnsRatio;
+    }
+
+    function crmCorner(vin, vr, L_H, pin_W) {
+        const D = vr / (vin + vr);
+        const Ipk = (2 * pin_W) / (vin * D);
+        const f = (vin * D) / (L_H * Ipk);
+        return { vin, D1: D, D2: 1 - D, Dz: 0, Ipk, f_Hz: f };
+    }
+
+    function fixedFreqPoint(vin, vr, L_H, pin_W, f_Hz) {
+        const Dccm = vr / (vin + vr);
+        const W = pin_W / f_Hz;
+        const L_crit = (vin * vin * Dccm * Dccm) / (2 * f_Hz * pin_W);
+        if (L_H <= L_crit * 1.02) {
+            const Ipk = Math.sqrt((2 * W) / L_H);
+            const D1 = (L_H * Ipk * f_Hz) / vin;
+            const D2 = (L_H * Ipk * f_Hz) / vr;
+            return { mode: "DCM", vin, D1, D2, Dz: Math.max(0, 1 - D1 - D2), Ipk, f_Hz, L_crit };
+        }
+        const Idc = pin_W / (vin * Dccm);
+        const dI = (vin * Dccm) / (L_H * f_Hz);
+        return { mode: "CCM", vin, D1: Dccm, D2: 1 - Dccm, Dz: 0, Ipk: Idc + dI / 2, dI, f_Hz, L_crit };
+    }
+
+    function fluxFromPoint(pt, L_act_H, N1, Ae_m2, Amin_m2) {
+        const dB = (pt.mode === "CCM")
+            ? (pt.vin * pt.D1) / (pt.f_Hz * N1 * Ae_m2)
+            : (L_act_H * pt.Ipk) / (N1 * Ae_m2);
+        const Bpk = (L_act_H * pt.Ipk) / (N1 * Amin_m2);
+        return { deltaB_T: dB, Bpk_T: Bpk };
+    }
+
+    function relaxationFactor(Tz_s, tau_s, scale, base) {
+        if (!(Tz_s > 0) || !(tau_s > 0)) return 0;
+        return scale * (1 - Math.exp(-Tz_s / tau_s)) * base;
+    }
+
+
+    return { reflectedVoltage, crmCorner, fixedFreqPoint, fluxFromPoint, relaxationFactor };
+})();
 
 // ================================================================
 // HELPER FUNCTIONS
@@ -515,12 +559,13 @@ function calculateLoss_iGSE_Dynamic(k_steinmetz, alpha, beta, f_kHz, delta_B_mT,
 
     let tau_str = "0";
     if (Dz > 0 && matData) {
-        const tau = getDynamicRelaxationTau(matData, f_Hz);
+        // [FIX-2] tau = after-effect (relaxation) time constant (us range, Muhlethaler i2GSE: N87 ~6us),
+        // NOT mu''/(2*pi*f*mu') (ns range = loss-angle time). Bounded (1-exp) form: can never blow up.
+        const tau = matParams.tau_relax || (matParams.isMnZn ? 6e-6 : 4.5e-6);
         if (tau > 0) {
             tau_str = tau.toExponential(3);
             const Tz = Dz / f_Hz;
-            const relaxation_factor = Math.pow((Tz / tau), (beta - alpha)) * (matParams.relax_scale || 0.1);
-            base_waveform_factor += relaxation_factor;
+            base_waveform_factor += MagCorners.relaxationFactor(Tz, tau, (matParams.relax_scale || 0.1), base_waveform_factor);
         }
     }
 
@@ -927,11 +972,10 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                         let base_waveform_factor = Math.pow(D1, 1 - matParams.alpha) + Math.pow(D2, 1 - matParams.alpha);
 
                         if (Dz > 0 && matData) {
-                            const tau = getDynamicRelaxationTau(matData, f_sw_hz);
+                            const tau = matParams.tau_relax || (matParams.isMnZn ? 6e-6 : 4.5e-6); // [FIX-2]
                             if (tau > 0) {
                                 const Tz = Dz / f_sw_hz;
-                                const relaxation_factor = Math.pow((Tz / tau), (matParams.beta - matParams.alpha)) * (matParams.relax_scale || 0.1);
-                                base_waveform_factor += relaxation_factor;
+                                base_waveform_factor += MagCorners.relaxationFactor(Tz, tau, (matParams.relax_scale || 0.1), base_waveform_factor);
                             }
                         }
 
@@ -968,6 +1012,7 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 }
 
                 let copper_loss_W = 0;
+                let cornerWorst = null; // [FIX-1] worst Vin corner (flux + loss) for CRM/DCM flyback
                 let windowPenalty = 1.0;
                 let windowExceeded = false;
                 let fillRatio = 0;
@@ -1028,6 +1073,37 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     if (turnsRatio > 0) {
                         if (N2_calc < 1) N2_calc = 1;
                         N1_calc = Math.round(N2_calc * turnsRatio);
+                    }
+
+                    // [FIX-1] Flux / saturation / loss were computed with the PRE-rounding N1 and the TARGET L.
+                    // Re-derive them with the FINAL integer N1, the ACHIEVED L (=AL*N1^2) and the Vin corners.
+                    const xp = extraModeParams || {};
+                    if (type === "energy" && !core.isCustom && AL > 0 && actualReqVal > 0 &&
+                        (smpsMode === "CRM" || smpsMode === "DCM") && xp.vr > 0 && xp.vin_nom > 0) {
+                        const Lact = AL * N1_calc * N1_calc;
+                        l_actual_H = Lact;
+                        const pin_W = actualReqVal * f_sw_hz; // W_cycle = Pin/f
+                        let worstBpk = 0;
+                        [xp.vin_min, xp.vin_nom, xp.vin_max].filter(v => v > 0).forEach(v => {
+                            const pt = (smpsMode === "CRM")
+                                ? MagCorners.crmCorner(v, xp.vr, Lact, pin_W)
+                                : MagCorners.fixedFreqPoint(v, xp.vr, Lact, pin_W, f_sw_hz);
+                            const fl = MagCorners.fluxFromPoint(pt, Lact, N1_calc, Ae, Amin);
+                            worstBpk = Math.max(worstBpk, fl.Bpk_T);
+                            const res = calculateLoss_iGSE_Dynamic(matParams.k, matParams.alpha, matParams.beta,
+                                pt.f_Hz / 1000, fl.deltaB_T * 1000, T_op,
+                                {
+                                    D1: pt.D1, D2: pt.D2, Dz: pt.Dz, confidence: "medium",
+                                    note: `Corner Vin=${v}V: f=${(pt.f_Hz / 1000).toFixed(0)}kHz, Ipk=${pt.Ipk.toFixed(1)}A, Bpk=${(fl.Bpk_T * 1000).toFixed(0)}mT, L_act=${(Lact * 1e6).toFixed(2)}uH.`
+                                },
+                                matParams, matData);
+                            if (!cornerWorst || res.Pv_W_m3 > cornerWorst.res.Pv_W_m3) cornerWorst = { res, fl, pt, v };
+                        });
+                        if (worstBpk > dynamic_B_sat_T * 0.90) isValid = false; // hard saturation reject (10% margin)
+                        if (cornerWorst) {
+                            delta_B_mT = cornerWorst.fl.deltaB_T * 1000;
+                            Bmax_calc_mT = delta_B_mT / 2;
+                        }
                     }
 
                     const safe_pri_Irms = Math.max(pri_Irms, 0.05);
@@ -1158,7 +1234,8 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                     utilizationRatio = actualReqVal / (Aele * 1e9);
                 }
 
-                const igseResult = calculateLoss_iGSE_Dynamic(matParams.k, matParams.alpha, matParams.beta, f_kHz, delta_B_mT, T_op, wf, matParams, matData);
+                const igseResult = cornerWorst ? cornerWorst.res
+                    : calculateLoss_iGSE_Dynamic(matParams.k, matParams.alpha, matParams.beta, f_kHz, delta_B_mT, T_op, wf, matParams, matData);
                 const Pv_mW_cm3 = igseResult.Pv_mW_cm3;
                 const Pv_W_m3 = igseResult.Pv_W_m3;
 
@@ -1173,6 +1250,11 @@ async function optimizeCores(reqVal, mode, type, L_H, f_sw_hz, T_op, deltaIL, vo
                 let overLossPenalty = 1.0;
                 if (Pv_mW_cm3 > 600) {
                     overLossPenalty = 0.05;
+                }
+                // [FIX-1] achieved inductance far from target => soft penalty beyond +-15 %
+                if (cornerWorst && l_actual_H > 0 && L_H > 0) {
+                    const devAbs = Math.abs(l_actual_H - L_H) / L_H * 100;
+                    if (devAbs > 15) overLossPenalty *= Math.max(0.1, 1 - (devAbs - 15) / 100);
                 }
 
                 let lowestCost = null;
