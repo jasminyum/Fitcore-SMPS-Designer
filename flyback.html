@@ -616,6 +616,13 @@
                           </label>
                       </div>
 
+                      <div class="form-check form-switch mt-2 mb-2 d-flex justify-content-center align-items-center gap-2" id="closedLoopContainer" style="display:none;">
+                          <input class="form-check-input" type="checkbox" id="closedLoopCheck" onchange="toggleClosedLoopButton()" style="width: 40px; height: 20px; cursor: pointer; margin:0;">
+                          <label class="form-check-label text-info" for="closedLoopCheck" style="cursor: pointer; font-weight: bold; margin:0;">
+                              Closed Loop Control (BETA)
+                          </label>
+                      </div>
+
                       <div id="coreSelectionGroup" class="param-group mt-3" style="text-align: center">
                           <h5 style="border-bottom: none; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px;">
                               <span data-i18n="core_selection_mode">Çekirdek & Tel Seçim Modu</span>
@@ -663,10 +670,11 @@
                           <p id="iin_container" style="display: none;"><span data-i18n="curr_in">Giriş Akımı:</span> <span id="iin">-</span> A</p>
                       </div>
                       <div class="col-md-4 d-flex align-items-center justify-content-end">
-                          <div id="buttons" class="d-flex gap-2">
+                          <div id="buttons" class="d-flex gap-2 flex-wrap justify-content-end">
                               <button id="printButton" onclick="printPage()" class="btn btn-primary" data-i18n="btn_print">Yazdır</button>
                               <button id="openButton" onclick="openSelectedTable()" class="btn btn-primary" data-i18n="btn_transformer">Transformer Data</button>
                               <button id="filterButton" onclick="openFilterDesign()" class="btn btn-primary" data-i18n="btn_filter">Filtre Tasarımı</button>
+                              <button id="closedLoopButton" onclick="openClosedLoopModal()" class="btn btn-info" style="display: none; font-weight: 900; margin: 0;">Closed Loop (BETA)</button>
                           </div>
                       </div>
                   </div>
@@ -820,7 +828,7 @@
       <script src="assets/js/common/smps_filter.js"></script>
 
       <script src="assets/js/common/advanced_optimizer.js" defer="defer"></script>
-
+      <script src="assets/js/common/closed_loop_compensator.js" defer="defer"></script>
       <script src="assets/js/topologies/flyback.js" defer="defer"></script>
   </body>
 </html>
