@@ -327,6 +327,31 @@ function updateChartsAndTable() {
     var wf = generateAllWaveforms(Ue, vout, nOutput, f_hz, t1, lOutput_H, dIL, Imax, actualMode);
     drawCharts(wf, ilout, vin_min, vin_max, Uem, effData);
     updateResultTable(wf);
+
+    // Closed Loop (BETA)
+    var esr_cout = 0.01;
+    var esrEl = document.getElementById('p_esrcout');
+    if (esrEl && !isNaN(parseFloat(esrEl.value))) {
+        esr_cout = parseFloat(esrEl.value);
+    }
+
+    window.flybackLastCalc = {
+        Vin: vin_nom,
+        Vo: vout,
+        Io: ilout,
+        fs: f_hz,
+        Lm: lOutput_H,
+        nOutput: nOutput,
+        Co: cOutput * 1e-6,
+        ESR_Cout: esr_cout,
+        mode: actualMode === "continuous" ? "CCM" : (actualMode === "critical" ? "CRM" : "DCM"),
+        Vd: Uf
+    };
+
+    var clContainer = document.getElementById("closedLoopContainer");
+    if (clContainer) {
+        clContainer.style.display = "flex";
+    }
 }
 
 // ================================================================
