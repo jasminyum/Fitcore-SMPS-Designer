@@ -1515,6 +1515,38 @@ window.executeAdvancedOptimization = async function () {
                 extraModeParams.D1 = estD;
                 extraModeParams.D2 = 1 - estD;
             }
+            // [FIX] Vin corners + reflected voltage for server-side CRM/DCM flux & saturation check
+            if (isFlyback) {
+                const _nOut = parseFloat(nOutputEl?.innerText) || 1;
+                const _vinMinEl = document.getElementById('vin_min') || document.getElementById('Vs_min');
+                extraModeParams.vin_nom = vinNom;
+                extraModeParams.vin_max = vinMax;
+                extraModeParams.vin_min = parseFloat(_vinMinEl?.value) || vinNom;
+                extraModeParams.vr = (voutVal + 0.7) * _nOut;
+            } else if (smpsMode === "DCM" || smpsMode === "CRM") {
+                let dIL = parseFloat(deltaILEl?.innerText) || 0;
+
+                let v_on, v_off;
+
+                if (topology === "buck") {
+                    v_on = vinNom - voutVal;
+                    v_off = voutVal;
+                } else if (topology === "boost" || topology === "interleaved_boost") {
+                    v_on = vinNom;
+                    v_off = voutVal - vinNom;
+                } else if (topology === "buckboost") {
+                    v_on = vinNom;
+                    v_off = voutVal;
+                }
+
+                if (v_on > 0 && v_off > 0) {
+                    let actual_d1 = (L_H_value * dIL * f_sw) / v_on;
+                    let actual_d2 = (L_H_value * dIL * f_sw) / v_off;
+
+                    extraModeParams.D1 = Math.min(0.95, actual_d1);
+                    extraModeParams.D2 = Math.min(0.95, actual_d2);
+                }
+            }
 
             if (pageTitle.includes('llc')) {
                 topology = "llc";
