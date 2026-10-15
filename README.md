@@ -35,7 +35,7 @@ A light browser-based calculation, optimization, and circuit-simulation tool for
 
 ## Features
 
-* **18 topology calculators** — separate pages for Buck, Boost, Two-Phase Interleaved Boost, Buck-Boost, Ćuk, SEPIC, Zeta, Flyback, Forward (single/double transistor), Half-Bridge, Full-Bridge, LLC (Half/Full), DAB, PFC, transformer, and inductor design.
+* **18 topology calculators** — separate pages for Buck, Boost, Two-Phase Interleaved Boost, Buck-Boost, Ćuk, SEPIC, Zeta, Flyback, Forward (single/double transistor), Half-Bridge, Full-Bridge, LLC (Half/Full), DAB, SAB, PFC, transformer, and inductor design.
 * **Cloud-based magnetics optimization** — the `runSmpsOptimization` Cloud Function, running on Firebase Cloud Functions, picks the best combination from the core and wire database using fuzzy-weighted cost/efficiency/size targets, with per-topology duty-cycle (D1/D2) assumptions applied correctly (see [Architecture](#architecture)).
 * **Hybrid AC Winding Resistance Modeling** — Computes high-frequency skin and proximity losses using a physically grounded hybrid algorithm. It applies the classical 1D Dowell method for solid round wires, integrates Geng et al.'s equations for Litz wire implementations, and applies Holguin et al.'s geometrical corrections to account for 2D fringing fields in gapped magnetic components. Edge effects and orthogonal field components are factored in for robust accuracy.
 * **Monte Carlo Tolerance Analysis** — run 1000-iteration statistical simulations to evaluate the impact of manufacturing tolerances (e.g., ±10-20% on core loss, switching loss, conduction loss, and thermal resistance) on thermal performance and magnetic saturation. Results are instantly exportable as CSV for yield and reliability analysis.
@@ -69,7 +69,7 @@ Firebase Cloud Functions (assets/js/functions/index.js)
 
 ### Topology detection and D1/D2 assumptions
 
-`advanced_optimizer.js` detects which topology the page is for from the page title (`document.title`) — via `isBuck`, `isBoost`, `isInterleavedBoost`, `isBuckBoost`, `isFlyback`, `isForward`, `isPushPull`, `isBridge`, `isPfc` — and sends it to the server as a `topology` field (`"buck"`, `"boost"`, `"interleavedboost"`, `"buckboost"`, `"flyback"`, `"forward"`, `"pushpull"`, `"bridge"`, `"llc"`, `"dab"`). On the Cloud Function side, `getEffectiveWaveformParams` uses that value to pick the D1/D2 waveform parameters and the confidence level used in the iGSE calculation — for example, Buck/Boost use the actual switching duty cycle (`D_switch`) directly, while Bridge/LLC/DAB use values computed from the symmetric or resonant operating condition. If `topology` is missing or wrong, the server falls back to `D1=D2=0.5` and flags the result as "Low Confidence" — make sure this mapping is done correctly when adding a new topology page.
+`advanced_optimizer.js` detects which topology the page is for from the page title (`document.title`) — via `isBuck`, `isBoost`, `isBuckBoost`, `isFlyback`, `isForward`, `isPushPull`, `isBridge`, `isPfc` — and sends it to the server as a `topology` field (`"buck"`, `"boost"`, `"buckboost"`, `"flyback"`, `"forward"`, `"pushpull"`, `"bridge"`, `"llc"`, `"dab"`, `"sab"`). On the Cloud Function side, `getEffectiveWaveformParams` uses that value to pick the D1/D2 waveform parameters and the confidence level used in the iGSE calculation — for example, Buck/Boost use the actual switching duty cycle (`D_switch`) directly, while Bridge/LLC/DAB/SAB use values computed from the symmetric or resonant operating condition. If `topology` is missing or wrong, the server falls back to `D1=D2=0.5` and flags the result as "Low Confidence" — make sure this mapping is done correctly when adding a new topology page.
 
 ### Why global `window.X` is used
 
@@ -208,6 +208,7 @@ If a new page needs to call Firebase, add `api_service.js` as a script right aft
 | `llc-half.html` | LLC Half-Bridge Resonant |
 | `llc-full.html` | LLC Full-Bridge Resonant |
 | `dab.html` | Dual Active Bridge (DAB) |
+| `sab.html` | Single Active Bridge (SAB) |
 | `pfc.html` | Active Power Factor Correction (PFC) |
 | `transformer.html` | Transformer Design |
 | `inductor.html` | Inductor Design |
