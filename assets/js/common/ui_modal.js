@@ -298,9 +298,9 @@ const UIModal = {
 
                 <div class="p-3 rounded" id="${prefix}boxOptSettings" style="display:none; background: var(--surface-dark); border: 1px solid var(--border-color);">
                     <h6 style="color:var(--color-yellow); border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">${this.getT('label_opt_settings')}</h6>
-                    <label style="font-size:12px;">Pri. Tel (mm):</label>
+                    <label style="font-size:12px;">Pri. W. (mm):</label>
                     <input type="number" id="${prefix}wireDia1" class="form-control form-control-sm bg-dark text-light mt-1" value="${params.d1_req.toFixed(2)}" step="0.1" onchange="UIModal._renderTrafoTable('${prefix}')">
-                    <label style="font-size:12px; margin-top:10px;">Sec. Tel (mm):</label>
+                    <label style="font-size:12px; margin-top:10px;">Sec. W. (mm):</label>
                     <input type="number" id="${prefix}wireDia2" class="form-control form-control-sm bg-dark text-light mt-1" value="${params.d2_req.toFixed(2)}" step="0.1" onchange="UIModal._renderTrafoTable('${prefix}')">
                 </div>
                 

@@ -1197,11 +1197,11 @@ window.executeAdvancedOptimization = async function () {
         let smpsMode = "CCM";
         let extraModeParams = {};
 
-        if (uiMode === 'continuous') {
+        if (uiMode === 'ccm' || uiMode === 'continuous') {
             smpsMode = "CCM";
-        } else if (uiMode === 'critical') {
+        } else if (uiMode === 'crm' || uiMode === 'critical') {
             smpsMode = "CRM";
-        } else if (uiMode === 'discontinuous') {
+        } else if (uiMode === 'dcm' || uiMode === 'discontinuous') {
             smpsMode = "DCM";
         }
 
@@ -1396,11 +1396,15 @@ window.executeAdvancedOptimization = async function () {
                 biasWire_Irms = sec_Irms * (i_bias / I_out);
             }
 
+            const isSAB = pageTitle.includes('single active') || pageTitle.includes('(sab)');
             let volt_sec = 0;
             let trafoGapReq = "any";
             let coilGapReq = "gapped_only";
 
-            if (pageTitle.includes('llc') || pageTitle.includes('resonant')) {
+            if (isSAB) {
+                volt_sec = (window.sabVeq || vinNom) * (0.5 / f_sw);
+                trafoGapReq = "ungapped_only";
+            } else if (pageTitle.includes('llc') || pageTitle.includes('resonant')) {
                 const isFullBridge = pageTitle.includes('full') || pageTitle.includes('tam');
                 volt_sec = isFullBridge ? (vinNom * (0.5 / f_sw)) : ((vinNom / 2) * (0.5 / f_sw));
                 trafoGapReq = "ungapped_only";
@@ -1488,6 +1492,9 @@ window.executeAdvancedOptimization = async function () {
             } else if (isForward || isPushPull) {
                 sw_Vmax = vinMax * 2;
                 sw_Irms = pri_Irms;
+            } else if (isSAB) {
+                sw_Vmax = vinMax;
+                sw_Irms = window.sabSwitchIrms || (pri_Irms / Math.SQRT2);
             } else if (isBridge) {
                 sw_Vmax = vinMax;
                 sw_Irms = pri_Irms / Math.SQRT2;
@@ -1561,6 +1568,13 @@ window.executeAdvancedOptimization = async function () {
                 topology = "dab";
                 extraModeParams.dabMode = uiMode || "sps";
                 extraModeParams.phaseShift = window.dabPhaseShift || 0;
+            } else if (isSAB) {
+                topology = "dab";
+                extraModeParams.dabMode = "sps";
+                extraModeParams.phaseShift = window.dabPhaseShift || 0;   // β = 2π·d
+                extraModeParams.sabMode = uiMode;                          // ccm | crm | dcm
+                extraModeParams.sabDuty = window.sabDutyNom || 0;
+                extraModeParams.sabDutyEff = window.sabDutyEff || 0;       // sunucu: trafo iGSE dalga şekli (DCM'de <0.5)
             }
 
             let turnsRatio = 0;
@@ -1601,6 +1615,7 @@ window.executeAdvancedOptimization = async function () {
                 calculateSwitches: isTopologySingle,
                 sw_Irms: sw_Irms,
                 sw_Vmax: sw_Vmax,
+                sw_Ipeak: isSAB ? (window.Imax_global || 0) : 0,   // SAB: gerçek tepe akım (sunucu Irms*sqrt2 yerine kullanır)
 
                 CMA_target: CMA_target,
                 maxStrandD: maxStrandD,
@@ -1750,7 +1765,8 @@ window.filterResultsByManufacturer = function () {
     let defaultSwitchQty = 1;
     if (pageTitle.includes('interleaved') || pageTitle.includes('push-pull') || pageTitle.includes('half-bridge') || pageTitle.includes('half bridge')) {
         defaultSwitchQty = 2;
-    } else if (pageTitle.includes('full-bridge') || pageTitle.includes('full bridge') || pageTitle.includes('dab')) {
+    } else if (pageTitle.includes('full-bridge') || pageTitle.includes('full bridge') || pageTitle.includes('dab')
+        || pageTitle.includes('single active') || pageTitle.includes('(sab)')) {
         defaultSwitchQty = 4;
     }
 
@@ -2075,7 +2091,7 @@ function renderAdvancedResults(res, skinDepthD, states) {
                         </div>`;
                     }
                 }
-            } else if (pageTitle.includes('llc') || pageTitle.includes('dab')) {
+            } else if (pageTitle.includes('llc') || pageTitle.includes('dab') || pageTitle.includes('single active') || pageTitle.includes('(sab)')) {
                 html += `<div style="background: rgba(255, 183, 77, 0.1); border-left: 3px solid #ffb74d; padding: 10px; margin-top: 15px; border-radius: 4px;">
                     <p style="font-size: 12px; color: #ffb74d; margin: 0;"><b>${sanitizeHTML(safeGetT('alt_bobin') || 'Alternatif Harici Bobin:')} </b> <i>${sanitizeHTML(safeGetT('rez_bobin') || 'LLC/DAB topolojilerinde kaçak endüktansı trafoya entegre etmek yerine harici bir rezonans/seri bobin kullanmayı tercih ederseniz aşağıdaki önerileri değerlendirebilirsiniz.')}</i></p>
                 </div><br>`;
@@ -2128,8 +2144,9 @@ function renderAdvancedResults(res, skinDepthD, states) {
     const currentFreqKhz = parseFloat(document.getElementById('f_khz')?.value) || parseFloat(document.getElementById('p_fsw')?.value) || 100;
     const isLLC = pageTitle.includes('llc') || pageTitle.includes('resonance') || pageTitle.includes('rezonans');
     const isDAB = pageTitle.includes('dab') || pageTitle.includes('dual active');
+    const isSAB = pageTitle.includes('single active') || pageTitle.includes('(sab)');
     const isIsolated = states.hasVeOpt || states.isFlyback;
-    const isHardSwitchedIsolated = isIsolated && !isLLC && !isDAB && !states.isLinear;
+    const isHardSwitchedIsolated = isIsolated && !isLLC && !isDAB && !isSAB && !states.isLinear;
 
     if (isHardSwitchedIsolated && !states.isDualCoil) {
         let L_primary_uH = 0;
@@ -2201,7 +2218,7 @@ function renderAdvancedResults(res, skinDepthD, states) {
                 <p style="font-size:11px; color:var(--text-muted); margin-top:5px; margin-bottom:0;">${sanitizeHTML(safeGetT('adv_snubber_note') || '* Sandwich sarım kullanarak kaçak endüktansı %50 azaltabilir ve anahtarlama kayıplarını minimuma indirebilirsiniz.')}</p>
             </div>`;
         }
-    } else if (isLLC || isDAB) {
+    } else if (isLLC || isDAB || isSAB) {
         let bestCore = res.trafoCores && res.trafoCores.length > 0 ? res.trafoCores[0] : null;
         let L_primary_uH = 0;
         if (bestCore && bestCore.al_nH && bestCore.n1_calc) {
@@ -2357,7 +2374,7 @@ function renderAdvancedResults(res, skinDepthD, states) {
 
             if (states.hasWmax && res.coilCores && res.coilCores.length > 0) {
                 const pageTitle = (document.title || "").toLowerCase();
-                const isLLCorDAB = pageTitle.includes('llc') || pageTitle.includes('dab');
+                const isLLCorDAB = pageTitle.includes('llc') || pageTitle.includes('dab') || pageTitle.includes('single active') || pageTitle.includes('(sab)');
 
                 const hasExternalCoil = res.coilCores && res.coilCores.length > 0;
 
@@ -2595,7 +2612,7 @@ window.openCustomThermalModal = function () {
         let defaultQty = 1;
         const pt = (document.title || "").toLowerCase();
         if (pt.includes('interleaved') || pt.includes('push-pull') || pt.includes('half-bridge') || pt.includes('half bridge')) defaultQty = 2;
-        else if (pt.includes('full-bridge') || pt.includes('full bridge') || pt.includes('dab')) defaultQty = 4;
+        else if (pt.includes('full-bridge') || pt.includes('full bridge') || pt.includes('dab') || pt.includes('single active') || pt.includes('(sab)')) defaultQty = 4;
 
         switchHtml = `
             <div class="mb-2">

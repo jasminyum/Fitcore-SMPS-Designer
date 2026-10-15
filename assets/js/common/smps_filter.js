@@ -70,6 +70,10 @@ class SMPSFilterCalculator {
         } else if (topo.includes('push-pull') || topo.includes('full-bridge') || topo.includes('half-bridge')) {
             D = 0.5;
             isPulsedInput = true;
+        } else if (topo.includes('sab')) {
+            f_sw_hz = f_sw_hz * 2;
+            D = Math.min(0.9, Math.max(0.1, 2 * (window.sabDutyNom || 0.25)));
+            isPulsedInput = true;
         } else if (topo.includes('llc') || topo.includes('dab')) {
             D = 0.5;
             isPulsedInput = false;
@@ -242,6 +246,7 @@ window.openFilterDesign = function (topologyOverride = null) {
         else if (pageTitle.includes('power factor')) topology = 'power factor';
         else if (pageTitle.includes('llc')) topology = 'llc';
         else if (pageTitle.includes('dab')) topology = 'dab';
+        else if (pageTitle.includes('single active') || pageTitle.includes('(sab)')) topology = 'sab';
         else topology = 'buck';
     }
 
