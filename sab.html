@@ -1,830 +1,482 @@
-// ================================================================
-// SAB (SINGLE ACTIVE BRIDGE) CONVERTER CALCULATOR
-// SPDX-License-Identifier: AGPL-3.0-only
-// ----------------------------------------------------------------
-// Model: full bridge (active) primer + diode bridge seconder, series L (for primer),
-//        capacitif output filter. There is NO output inductor!
-// Reference (Rodriguez et al., Electronics 2022, 11, 601):
-//   n  = N2/N1 (seconder/primer), 1:n.  Vr = (Vo + 2·Vf)/n
-//   d  = tc/Ts  (d < 0.5),  N = Vo/(n*Vg)
-//   k  = 2 L n^2 / (RL * Ts/2)
-//   CCM: N = 4(1-d)d / (k + sqrt(k^2 + 4(1-d)d))      (19)
-//   DCM: N = 2d / (d + sqrt(d^2 + k))                  (23)
-//   line: N = 2 d_crit                                (26)
-//   design: n = Vxmax/(2 Vgmin dcritmax) (59),  L = [Vgmin dmax(1-dmax) - Vxmax^2/(4 Vgmin n^2)]/(2 n f Iomax) (60),  Vx = Vo + 2·Vf
-//   Mode (CCM/CRM/DCM)
-// Jha et al., Energies 2022, 15, 666: NOT verified against the source; only used for the informational dabPhaseShift value.
-// NOTE: sabDesignByMode uses the Eq.(59) form n = Vxmax/(2 Vgmin dc) and Eq.(60) for L, but dc is found by bisection so
-//       that Icrit/Io hits the mode target. This is a design choice of this code, not a fixed dcrit procedure from the paper.
-// ================================================================
-
-window.il_rms = 0;
-window.A1_req = 0;
-window.A2_req = 0;
-window.d1_req = 0;
-window.d2_req = 0;
-window.max_wire_d_mm = 0;
-window.lOutput_global = 0;
-window.wmax1_global = 0;
-window.Imax_global = 0;
-window.VeOpt_global = 0;
-window.sabVeq = 0;
-window.sabSwitchIrms = 0;
-window.sabDutyNom = 0.25;
-window.sabDutyEff = 0.5;
-
-// ================================================================
-// Core model
-// ================================================================
-// Mode target: Icrit(nominal Vin/Vout) / I_out,max
-//   ccm : 0.5
-//   crm : 1.0
-//   dcm : 1.5
-var SAB_MODE_TARGET = { ccm: 0.5, crm: 1.0, dcm: 1.5 };
-
-function sabSolvePoint(Vg, Vo, Io, n, L, f, Vf) {
-    Vf = Vf || 0;
-    var Vx = Vo + 2 * Vf;
-    var Vr = Vx / n;
-    if (!(Vg > 0) || !(Vo > 0) || !(n > 0) || !(L > 0) || !(f > 0)) return { ok: false, reason: "param" };
-    if (Vr >= Vg) return { ok: false, reason: "gain" };   // N >= 1: SAB just step-down
-    var Ts = 1 / f, h = Ts / 2;
-    var d, mode, shape;
-
-    var dDcm = Math.sqrt(Math.max(0, Io * Vx * L * f / (Vg * (Vg - Vr))));
-    if (Vr / Vg >= 2 * dDcm * 0.995) {
-        shape = "DCM"; d = dDcm;
-        mode = (Vr / Vg - 2 * dDcm <= 0.005 * (Vr / Vg)) ? "CRM" : "DCM";
-    } else {
-        var X = 2 * n * L * f * Io + (Vr * Vr) / (4 * Vg);
-        var disc = 1 - 4 * X / Vg;
-        if (disc < 0) return { ok: false, reason: "power" };
-        d = (1 - Math.sqrt(disc)) / 2;
-        shape = "CCM"; mode = "CCM";
-    }
-    if (d >= 0.5) return { ok: false, reason: "dmax", d: d };
-
-    var a = d * Ts;
-    var seg = [];           // {t0,t1,i0,i1,k}  k: A,B,C
-    var I0 = 0, iL2 = 0, t1 = 0, tf = 0;
-    if (shape === "CCM") {
-        I0 = (Vg + Vr) * (Vg * a - Vr * h) / (2 * Vg * L);
-        t1 = L * I0 / (Vg + Vr);
-        iL2 = (Vg - Vr) * (a - t1) / L;
-        seg.push({ t0: 0, t1: t1, i0: -I0, i1: 0, k: "A" });
-        seg.push({ t0: t1, t1: a, i0: 0, i1: iL2, k: "B" });
-        seg.push({ t0: a, t1: h, i0: iL2, i1: I0, k: "C" });
-    } else {
-        iL2 = (Vg - Vr) * a / L;
-        tf = iL2 * L / Vr;
-        seg.push({ t0: 0, t1: a, i0: 0, i1: iL2, k: "B" });
-        seg.push({ t0: a, t1: a + tf, i0: iL2, i1: 0, k: "C" });
-    }
-
-    var sumAbs = { A: 0, B: 0, C: 0 }, sumSq = { A: 0, B: 0, C: 0 };
-    for (var s = 0; s < seg.length; s++) {
-        var g = seg[s], tau = g.t1 - g.t0;
-        sumAbs[g.k] += tau * (Math.abs(g.i0) + Math.abs(g.i1)) / 2;
-        sumSq[g.k] += tau * (g.i0 * g.i0 + g.i0 * g.i1 + g.i1 * g.i1) / 3;
-    }
-    var totSq = sumSq.A + sumSq.B + sumSq.C;
-    var totAbs = sumAbs.A + sumAbs.B + sumAbs.C;
-    var iLrms = Math.sqrt(totSq / h);
-    var iLabs = totAbs / h;                 // |iL| avg.
-
-    var dev = {
-        Slag: { avg: sumAbs.B / Ts, rms: Math.sqrt(sumSq.B / Ts) },                         // S1,S2
-        Slead: { avg: (sumAbs.B + sumAbs.C) / Ts, rms: Math.sqrt((sumSq.B + sumSq.C) / Ts) }, // S3,S4
-        DSlag: { avg: (sumAbs.A + sumAbs.C) / Ts, rms: Math.sqrt((sumSq.A + sumSq.C) / Ts) }, // DS1,DS2
-        DSlead: { avg: sumAbs.A / Ts, rms: Math.sqrt(sumSq.A / Ts) }                        // DS3,DS4
-    };
-
-    return {
-        ok: true, mode: mode, shape: shape, d: d, N: Vr / Vg, Vr: Vr, Vx: Vx, Vf: Vf, Vg: Vg, Vo: Vo, n: n, L: L, f: f, Ts: Ts, h: h, a: a,
-        I0: I0, iL2: iL2, t1: t1, tf: tf, seg: seg,
-        iLrms: iLrms, iLpeak: Math.max(iL2, I0), Io: iLabs / n,
-        Idpk: Math.max(iL2, I0) / n, dev: dev,
-        Ilead_comm: (shape === "CCM") ? I0 : 0,       // leading
-        Ilag_comm: iL2,                               // (turn-off)
-        Veq: Math.min(Vr, 2 * d * Vg),
-        Icrit: Math.pow(Vr / Vg / 2, 2) * Vg * (Vg - Vr) / (Vx * L * f)
-    };
-}
-
-// CCM/DCM (Vg, Vx=Vo+2Vf, n, L)
-function sabIcrit(Vg, Vx, n, L, f) {
-    var Vr = Vx / n;
-    if (Vr >= Vg) return Infinity;
-    var N = Vr / Vg;
-    return (N / 2) * (N / 2) * Vg * (Vg - Vr) / (Vx * L * f);
-}
-
-// Rodriguez Eq.(60) (n from Eq.(59) form, see sabDesignByMode note)
-function sabLForDmax(Vgmin, Vxmax, Iomax, f, n, dmax) {
-    var Vr = Vxmax / n;
-    if (Vr / Vgmin >= 2 * dmax) return Vgmin * (Vgmin - Vr) * dmax * dmax / (Vxmax * f * Iomax);
-    return (Vgmin * dmax * (1 - dmax) - Vr * Vr / (4 * Vgmin)) / (2 * n * f * Iomax);
-}
-
-function sabDesignByMode(sp, mode) {
-    var target = SAB_MODE_TARGET[mode] || 0.5;
-    var Vxmax = sp.Vomax + 2 * sp.Vf, Vxn = sp.Von + 2 * sp.Vf;
-    var hiLim = Math.min(0.499, 0.999 * Math.sqrt(sp.dmax * (1 - sp.dmax)));
-    function ratio(dc) {
-        var n = Vxmax / (2 * sp.Vgmin * dc);
-        var L = sabLForDmax(sp.Vgmin, Vxmax, sp.Io, sp.f, n, sp.dmax);
-        if (!(L > 0)) return { r: NaN, n: n, L: L };
-        return { r: sabIcrit(sp.Vgn, Vxn, n, L, sp.f) / sp.Io, n: n, L: L };
-    }
-    var lo = 0.02, hi = hiLim, clamped = false;
-    var rl = ratio(lo), rh = ratio(hi);
-    var dc;
-    if (rl.r >= target) { dc = lo; clamped = true; }
-    else if (!(rh.r < Infinity) || rh.r <= target) { dc = hi; clamped = true; }
-    else {
-        for (var it = 0; it < 80; it++) {
-            dc = 0.5 * (lo + hi);
-            var r = ratio(dc).r;
-            if (!(r < Infinity) || r > target) hi = dc; else lo = dc;
-        }
-        dc = 0.5 * (lo + hi);
-    }
-    var res = ratio(dc);
-    return { n: res.n, L: res.L, dcrit: dc, clamped: clamped };
-}
-
-function sabWaveforms(pt, count) {
-    count = count || 400;
-    var t_arr = [], vb = [], v2 = [], il = [], ir = [], phiA = [];
-    var Ts = pt.Ts, h = pt.h;
-    var bx = [], by = [];
-    for (var s = 0; s < pt.seg.length; s++) {
-        bx.push(pt.seg[s].t0); by.push(pt.seg[s].i0);
-        if (s === pt.seg.length - 1) { bx.push(pt.seg[s].t1); by.push(pt.seg[s].i1); }
-    }
-    if (pt.shape === "DCM") { bx.push(h); by.push(0); }
-    function g(t) {
-        for (var i = 0; i < bx.length - 1; i++) {
-            if (t >= bx[i] && t <= bx[i + 1]) {
-                var w = (bx[i + 1] - bx[i]) || 1e-30;
-                return by[i] + (by[i + 1] - by[i]) * (t - bx[i]) / w;
-            }
-        }
-        return by[by.length - 1];
-    }
-    var cum = 0, cumArr = [], dt = Ts / count;
-    for (var i = 0; i <= count; i++) {
-        var t = i * dt, tm = t % Ts;
-        var second = tm >= h, ph = second ? tm - h : tm;
-        var sgn = second ? -1 : 1;
-        var iL = sgn * g(ph);
-        var vB = (ph < pt.a) ? sgn * pt.Vg : 0;
-        var v2r;
-        if (pt.shape === "CCM") {
-            var pos = (ph >= pt.t1);
-            v2r = sgn * (pos ? pt.Vr : -pt.Vr);
-        } else {
-            v2r = (ph < pt.a + pt.tf) ? sgn * pt.Vr : 0;
-        }
-        t_arr.push((t * 1e6).toFixed(2));
-        vb.push(vB); v2.push(v2r); il.push(iL); ir.push(Math.abs(iL) / pt.n);
-        phiA.push(pt.shape === "CCM" ? 360 * pt.t1 / Ts : 0);
-        if (i > 0) cum += (ir[i] - pt.Io) * dt;
-        cumArr.push(cum);
-    }
-    var dQ = Math.max.apply(null, cumArr) - Math.min.apply(null, cumArr);
-    return { t: t_arr, vb: vb, v2: v2, il: il, ir: ir, phi: phiA, dQ: dQ };
-}
-
-// real loss model (own model: linear switching overlap, Coss-based ZVS criterion, diode conduction + reverse recovery)
-function sabRealLosses(pt, p) {
-    var Vg = pt.Vg, f = pt.f, Pout = pt.Vo * pt.Io;
-    var Ec = p.Coss_pri * Vg * Vg;              // energy to commutate one bridge leg (own criterion, not from the paper)
-    var zvsLead = (pt.shape === "CCM") && (0.5 * pt.L * pt.I0 * pt.I0 > Ec);
-    var zvsLag = (0.5 * pt.L * pt.iL2 * pt.iL2 > Ec);
-
-    var Pon_pri = 2 * Math.pow(pt.dev.Slag.rms, 2) * p.Ron_pri + 2 * Math.pow(pt.dev.Slead.rms, 2) * p.Ron_pri;
-    var Pbody = 2 * p.Vf_body * pt.dev.DSlag.avg + 2 * p.Vf_body * pt.dev.DSlead.avg;
-
-    // Turn-off
-    var Psw_off = Vg * p.tf * f * (pt.Ilag_comm + pt.Ilead_comm);
-    var Psw_on = 0, Pcoss = 0;
-    if (!zvsLead) { Psw_on += f * Vg * pt.Ilead_comm * p.tr; Pcoss += 2 * 0.5 * p.Coss_pri * Vg * Vg * f; }
-    if (!zvsLag) { Psw_on += f * Vg * pt.Ilag_comm * p.tr; Pcoss += 2 * 0.5 * p.Coss_pri * Vg * Vg * f; }
-    var Psw_pri = Psw_on + Psw_off;
-
-    var iDrms = pt.iLrms / (pt.n * Math.SQRT2);
-    var Pdiode = 4 * (p.Vf_d * pt.Io / 2 + p.Rd * iDrms * iDrms);
-    // reverse recovery: 4 secondary diodes commutate per period in CCM at non-zero current; DCM/CRM turn off at zero current
-    var Prr = (pt.shape === "CCM") ? 4 * p.Qrr * pt.Vo * f : 0;
-    var I2rms = pt.iLrms / pt.n;
-    var Ptr = pt.iLrms * pt.iLrms * p.DCR_pri + I2rms * I2rms * p.DCR_sec;
-    var Pl = pt.iLrms * pt.iLrms * p.DCR_ind;
-    var Pgate = 4 * p.Qg * p.Vgs * f;
-    var Pic = Vg * p.Icc;
-    var icout2 = I2rms * I2rms - pt.Io * pt.Io; if (icout2 < 0) icout2 = 0;
-    var Pcout = icout2 * p.ESR_Cout;
-
-    var Ptotal = Pon_pri + Pbody + Psw_pri + Pcoss + Pdiode + Prr + Ptr + Pl + Pgate + Pic + Pcout;
-    return {
-        totalLossW: Ptotal,
-        efficiencyPercent: Math.max(0, Pout / (Pout + Ptotal) * 100),
-        zvsLead: zvsLead, zvsLag: zvsLag, Icout_rms: Math.sqrt(icout2),
-        breakdown: { Pon_pri: Pon_pri, Pbody: Pbody, Psw_pri: Psw_pri, Pcoss: Pcoss, Pdiode: Pdiode, Prr: Prr, Ptr_dcr: Ptr, Pl_dcr: Pl, Pgate: Pgate, Pic: Pic, Pcout: Pcout }
-    };
-}
-
-// ================================================================
-// UI helpers
-// ================================================================
-function sabEl(id) { return document.getElementById(id); }
-function sabNum(id, def) { var e = sabEl(id); var v = e ? parseFloat(e.value) : NaN; return isNaN(v) ? def : v; }
-
-function toggleEffMode() {
-    var mode = sabEl("effMode").value;
-    if (mode === "ideal") {
-        sabEl("idealInputGroup").style.display = "contents";
-        sabEl("realInputGroup").style.display = "none";
-        sabEl("powerLossSection").style.display = "none";
-    } else {
-        sabEl("idealInputGroup").style.display = "none";
-        sabEl("realInputGroup").style.display = "block";
-        sabEl("powerLossSection").style.display = "flex";
-    }
-}
-
-window.toggleCustomDesign = function () {
-    var chk = sabEl("testOwnDesignCheck");
-    var on = chk ? chk.checked : false;
-    var box = sabEl("inductance");
-    if (box) box.style.display = on ? "flex" : "none";
-};
-
-window.addEventListener('DOMContentLoaded', function () {
-    window.toggleEffMode();
-    window.toggleCustomDesign();
-});
-
-function checkUserInput() {
-    var ids = ['vin_min', 'vin_max', 'vout_min', 'vout_max', 'ilout', 'f_khz'];
-    for (var i = 0; i < ids.length; i++) { if (isNaN(parseFloat(sabEl(ids[i]).value))) return false; }
-    return true;
-}
-
-function setDefaultValues() {
-    sabEl('vin_min').value = 760;
-    sabEl('vin_max').value = 840;
-    sabEl('vin_nom').value = 800;
-    sabEl('vout_min').value = 350;
-    sabEl('vout_max').value = 400;
-    sabEl('vout_nom').value = 380;
-    sabEl('ilout').value = 5.5;
-    sabEl('f_khz').value = 33;
-    sabEl('d_max').value = 0.45;
-    sabEl('verim').value = 96;
-    sabEl('mode').value = "ccm";
-}
-
-function sabGetVf() {
-    var m = sabEl("effMode") ? sabEl("effMode").value : "ideal";
-    return (m === "real") ? Math.max(0, sabNum('p_vf_d', 0.8)) : 0;
-}
-
-function getRealParamsSAB() {
-    return {
-        Ron_pri: sabNum('p_ron_pri', 0.099),
-        Vf_body: sabNum('p_vf_body', 0.9),
-        Coss_pri: sabNum('p_coss_pri', 100) * 1e-12,
-        Qg: sabNum('p_qg', 30) * 1e-9,
-        Vgs: sabNum('p_vgs', 10),
-        tr: sabNum('p_tr', 20) * 1e-9,
-        tf: sabNum('p_tf', 20) * 1e-9,
-        Vf_d: sabNum('p_vf_d', 0.8),
-        Rd: sabNum('p_rd', 0.010),
-        DCR_pri: sabNum('p_dcr_pri', 0.050),
-        DCR_sec: sabNum('p_dcr_sec', 0.005),
-        DCR_ind: sabNum('p_dcr_ind', 0.020),
-        ESR_Cout: sabNum('p_esrcout', 0.003),
-        Icc: sabNum('p_icc', 5.0) * 1e-3,
-        Qrr: sabNum('p_qrr', 0) * 1e-9        // nC -> C; 0 when the input does not exist
-    };
-}
-
-function generateEfficiencyVsPowerCurve(spec, design, verim_pct, isIdeal) {
-    var labels = [], values = [];
-    var params = isIdeal ? null : getRealParamsSAB();
-    var Pnom = spec.Vo_nom * spec.Io;
-    var lossNom = Pnom * (100 / verim_pct - 1);
-    for (var percent = 10; percent <= 120; percent += 5) {
-        var Io_p = spec.Io * percent / 100;
-        var pt = sabSolvePoint(spec.Vg_nom, spec.Vo_nom, Io_p, design.n, design.L, spec.Fs, spec.Vf);
-        if (!pt.ok) continue;
-        var P = spec.Vo_nom * Io_p;
-        labels.push(percent + "%");
-        if (isIdeal) {
-            // EMPIRICAL assumption (no literature source): load-dependent loss shape around the user's verim at nominal load
-            var loss = lossNom * (0.3 + 0.7 * Math.pow(percent / 100, 2));
-            values.push((P / (P + loss) * 100).toFixed(2));
-        } else {
-            values.push(sabRealLosses(pt, params).efficiencyPercent.toFixed(2));
-        }
-    }
-    return { labels: labels, values: values };
-}
-
-// ================================================================
-// Main Calculation Function
-// ================================================================
-function updateChartsAndTable() {
-    var vin_min = sabNum('vin_min', 0), vin_max = sabNum('vin_max', 0);
-    var vout_min = sabNum('vout_min', 0), vout_max = sabNum('vout_max', 0);
-    var ilout = sabNum('ilout', 0), f_khz = sabNum('f_khz', 0);
-    var verim = sabNum('verim', 96);
-    var dmax = Math.min(0.49, Math.max(0.1, sabNum('d_max', 0.45)));
-    var effMode = sabEl("effMode").value;
-    var modeSel = sabEl("mode").value;
-    var getT = window.getT || function (k) { return k; };
-
-    var vin_nom_in = sabNum('vin_nom', 0);
-    var vin_nom = vin_nom_in > 0 ? vin_nom_in : (vin_min + vin_max) / 2;
-    var vout_nom_in = sabNum('vout_nom', 0);
-    var vout_nom = vout_nom_in > 0 ? vout_nom_in : (vout_min + vout_max) / 2;
-    var Fs = f_khz * 1000;
-    var pOutput = vout_nom * ilout;
-    var rOutput = vout_nom / ilout;
-
-    // ---- Design (n, L)
-    var Vf = sabGetVf();
-    var design = sabDesignByMode({ Vgmin: vin_min, Vgn: vin_nom, Vomax: vout_max, Von: vout_nom, Io: ilout, f: Fs, dmax: dmax, Vf: Vf }, modeSel);
-    var isCustom = sabEl("testOwnDesignCheck") ? sabEl("testOwnDesignCheck").checked : false;
-    var userL = isCustom ? sabNum('custom_L_uH', 0) : 0;
-    var n = design.n;
-    var L_H = userL > 0 ? userL * 1e-6 : design.L;
-    var lOutput = L_H * 1e6;
-
-    // ---- warnings
-    var warnings = [];
-    if (f_khz > 200) warnings.push("<strong>⚠️ " + getT("alert_freq_limit_title") + "</strong> " + getT("alert_freq_limit_desc"));
-    var mk = (modeSel === "crm" || modeSel === "dcm") ? modeSel : "ccm";
-    warnings.push("<strong>💡 " + getT("alert_sab_mode_" + mk + "_title") + "</strong> " + getT("alert_sab_mode_" + mk + "_desc"));
-    if (design.clamped) {
-        warnings.push("<strong>⚠️ " + getT("alert_sab_clamp_title") + "</strong> " + getT("alert_sab_clamp_desc"));
-    }
-    if (!(L_H > 0) || !(n > 0)) {
-        warnings.push("<strong>⛔ " + getT("alert_sab_infeasible_title") + "</strong> " + getT("alert_sab_infeasible_desc"));
-    }
-
-    var spec = { Vg_nom: vin_nom, Vo_nom: vout_nom, Io: ilout, Fs: Fs, Vf: Vf };
-    var dsg = { n: n, L: L_H };
-
-    // ---- (Vg x Vo) @ Io = ilout
-    var corners = [
-        { v1: vin_min, v2: vout_min }, { v1: vin_min, v2: vout_max },
-        { v1: vin_max, v2: vout_min }, { v1: vin_max, v2: vout_max }, { v1: vin_nom, v2: vout_nom }
-    ];
-    var Ipeak_max = 0, IrmsWorst = 0, SwRmsWorst = 0, Veq_max = 0, d_worst = 0, Idpk_max = 0, anyBad = false;
-    for (var ci = 0; ci < corners.length; ci++) {
-        var c = corners[ci];
-        var pc = sabSolvePoint(c.v1, c.v2, ilout, n, L_H, Fs, Vf);
-        if (!pc.ok) { anyBad = true; continue; }
-        if (pc.d > dmax + 1e-9) anyBad = true;
-        Ipeak_max = Math.max(Ipeak_max, pc.iLpeak);
-        IrmsWorst = Math.max(IrmsWorst, pc.iLrms);
-        SwRmsWorst = Math.max(SwRmsWorst, pc.dev.Slead.rms, pc.dev.Slag.rms);
-        Veq_max = Math.max(Veq_max, pc.Veq);
-        d_worst = Math.max(d_worst, pc.d);
-        Idpk_max = Math.max(Idpk_max, pc.Idpk);
-    }
-    if (anyBad) warnings.push("<strong>⚠️ " + getT("alert_sab_dmax_title") + "</strong> " + getT("alert_sab_dmax_desc"));
-
-    var warningDiv = sabEl("modeWarning");
-    warningDiv.style.display = "block";
-    warningDiv.innerHTML = warnings.join("<br><br>");
-
-    // ---- Nominal point
-    var nom = sabSolvePoint(vin_nom, vout_nom, ilout, n, L_H, Fs, Vf);
-    if (!nom.ok) {
-        warningDiv.innerHTML += "<br><br><strong>⛔ " + getT("alert_sab_infeasible_title") + "</strong> " + getT("alert_sab_infeasible_desc");
-        ["lOutput", "cOutput", "rOutput", "Ipeak", "nOutput"].forEach(function (id) { sabEl(id).innerText = "-"; });
-        sabEl('lOutput').innerText = lOutput.toFixed(2);
-        sabEl('nOutput').innerText = (1 / n).toFixed(3) + " : 1";
-        return;
-    }
-    var wf = sabWaveforms(nom, 400);
-    var deltaVout = vout_nom * 0.01;
-    var cOutput = (wf.dQ / deltaVout) * 1e6;
-
-    // ---- efficiency vs. power
-    var finalVerim = verim, effData, real = null;
-    if (effMode === "ideal") {
-        effData = generateEfficiencyVsPowerCurve(spec, dsg, verim, true);
-        sabEl('loss').innerText = Math.abs(100 - verim).toFixed(2);
-        // clear the loss table so stale real-mode values are not shown
-        ["res_pon_pri","res_pbody","res_psw_pri","res_pcoss","res_pdiode","res_prr","res_ptr_dcr","res_pl_dcr","res_pcout","res_pgate","res_pic","res_ptotal","res_peff"]
-            .forEach(function (id) { sabEl(id).innerText = "-"; });
-    } else {
-        var params = getRealParamsSAB();
-        effData = generateEfficiencyVsPowerCurve(spec, dsg, verim, false);
-        real = sabRealLosses(nom, params);
-        finalVerim = real.efficiencyPercent;
-        var b = real.breakdown;
-        var setR = function (id, v) { sabEl(id).innerText = v.toFixed(4) + " W"; };
-        setR("res_pon_pri", b.Pon_pri); setR("res_pbody", b.Pbody); setR("res_psw_pri", b.Psw_pri);
-        setR("res_pcoss", b.Pcoss); setR("res_pdiode", b.Pdiode); setR("res_ptr_dcr", b.Ptr_dcr);
-        setR("res_pl_dcr", b.Pl_dcr); setR("res_pcout", b.Pcout); setR("res_pgate", b.Pgate); setR("res_pic", b.Pic); setR("res_prr", b.Prr);
-        sabEl("res_ptotal").innerText = real.totalLossW.toFixed(4) + " W";
-        sabEl("res_peff").innerText = real.efficiencyPercent.toFixed(2) + " %";
-        sabEl('loss').innerText = Math.abs(100 - finalVerim).toFixed(2);
-    }
-
-    var J = MagneticUtils.getCurrentDensity(f_khz);
-
-    var wmax1 = 0.5 * L_H * Ipeak_max * Ipeak_max * 1e6;
-    var Bmax_nom = 0.2 * Math.pow(50000 / Fs, 0.6);   // empirical estimate
-    var Ku = 0.4;                                      // window utilisation factor (assumed)
-    var Ap_req = (pOutput * 1e6) / (4 * Fs * Bmax_nom * Ku * J);   // mm^4, J in A/mm^2 (assumed, same unit as d1_req)
-    var VeOpt = 52000 * Math.pow(pOutput / 800, 1.2) * Math.sqrt(50000 / Fs);   // empirical
-    var iin = (pOutput / (finalVerim / 100)) / vin_nom;
-
-    window.il_rms = IrmsWorst;
-    window.i1_rms_global = IrmsWorst;
-    window.i2_rms_global = IrmsWorst / n;
-    window.A1_req = window.i1_rms_global / J;
-    window.A2_req = window.i2_rms_global / J;
-    window.d1_req = 2 * Math.sqrt(window.A1_req / Math.PI);
-    window.d2_req = 2 * Math.sqrt(window.A2_req / Math.PI);
-    window.A_coil_req = window.il_rms / J;
-    window.d_coil_req = 2 * Math.sqrt(window.A_coil_req / Math.PI);
-    window.max_wire_d_mm = 2 * (65.6 / Math.sqrt(Fs));
-
-    window.lOutput_global = lOutput;
-    window.wmax1_global = wmax1;
-    window.Imax_global = Ipeak_max;
-    window.VeOpt_global = VeOpt;
-    window.sabVeq = Veq_max;
-    window.sabSwitchIrms = SwRmsWorst;
-    window.sabDutyNom = nom.d;
-    window.sabDutyEff = Math.min(0.5, nom.d / nom.N);   // iGSE effective duty: CCM 0.5, DCM <0.5
-    window.sabN_paper = n;
-    window.dabPhaseShift = 2 * Math.PI * nom.d;      // β = 2π·d (Jha et al., unverified)
-
-    // ---- Sonuç tabloları
-    sabEl('lOutput').innerText = lOutput.toFixed(2);
-    sabEl('cOutput').innerText = cOutput.toFixed(2);
-    sabEl('rOutput').innerText = rOutput.toFixed(2);
-    sabEl('Ipeak').innerText = Ipeak_max.toFixed(2);
-    sabEl('nOutput').innerText = (1 / n).toFixed(3) + " : 1";          // N1/N2
-    sabEl('wmax1').innerText = wmax1.toFixed(2);
-    sabEl('vin1').innerText = vin_nom.toFixed(2);
-    sabEl('VeOpt').innerText = VeOpt.toFixed(0);
-    sabEl('ApOpt').innerText = Ap_req.toFixed(0);
-    sabEl('f').innerText = Fs.toFixed(0);
-    sabEl('iin').innerText = iin.toFixed(2);
-
-    var rr = real || sabRealLosses(nom, getRealParamsSAB());
-    var okTxt = getT('sab_zvs_ok'), noTxt = getT('sab_zvs_lost');
-    sabEl('sab_n').innerText = n.toFixed(3);
-    sabEl('sab_vr').innerText = nom.Vr.toFixed(1) + " V";
-    sabEl('sab_dnom').innerText = nom.d.toFixed(3);
-    sabEl('sab_dworst').innerText = d_worst.toFixed(3) + " / " + dmax.toFixed(2);
-    sabEl('sab_mode_nom').innerText = nom.mode === "CCM" ? getT('sab_mode_ccm_txt') : (nom.mode === "CRM" ? getT('sab_mode_crm_txt') : getT('sab_mode_dcm_txt'));
-    sabEl('sab_icrit').innerText = nom.Icrit.toFixed(2) + " A";
-    sabEl('sab_zvs_lag').innerText = rr.zvsLag ? okTxt : noTxt;
-    sabEl('sab_zvs_lead').innerText = rr.zvsLead ? okTxt : noTxt;
-    sabEl('sab_vsw').innerText = vin_max.toFixed(0) + " V";
-    sabEl('sab_vd').innerText = vout_max.toFixed(0) + " V";
-    sabEl('sab_idpk').innerText = Idpk_max.toFixed(2) + " A";
-    sabEl('sab_ilrms').innerText = IrmsWorst.toFixed(2) + " A";
-    sabEl('sab_icout').innerText = rr.Icout_rms.toFixed(2) + " A";
-    sabEl('sab_veq').innerText = Veq_max.toFixed(1) + " V";
-
-    drawCharts(wf.t, wf.vb, wf.v2, wf.il, wf.ir, nom.Io, effData.labels, effData.values);
-
-    var tbody = sabEl('resultTable').getElementsByTagName('tbody')[0];
-    tbody.innerHTML = "";
-    var step = Math.max(1, Math.floor(wf.t.length / 20));
-    for (var i = 0; i <= 20; i++) {
-        var idx = Math.min(i * step, wf.t.length - 1);
-        var row = tbody.insertRow(-1);
-        row.insertCell(0).innerHTML = wf.t[idx] + " µs";
-        row.insertCell(1).innerHTML = wf.vb[idx].toFixed(2) + " V";
-        row.insertCell(2).innerHTML = wf.v2[idx].toFixed(2) + " V";
-        row.insertCell(3).innerHTML = wf.il[idx].toFixed(2) + " A";
-        row.insertCell(4).innerHTML = wf.ir[idx].toFixed(2) + " A";
-        row.insertCell(5).innerHTML = wf.phi[idx].toFixed(2) + " °";
-    }
-}
-
-// ================================================================
-// FALSTAD
-// ================================================================
-var falstadSim = null;
-
-function embedFalstadSimulation(circuitString) {
-    var iframe = document.getElementById("circuitFrame");
-    var blankCct = encodeURIComponent("$ 1 0.000005 10.20027730826997 50 5 50 5e-11");
-    iframe.src = "./falstad/circuitjs.html"
-        + "?hideHeader=true" + "&hideMenuBar=true" + "&hideToolBar=true"
-        + "&hideControls=false" + "&noPowerCheck=true" + "&cct=" + blankCct;
-
-    iframe.onload = function () {
-        var checkReady = setInterval(function () {
-            try {
-                var cw = iframe.contentWindow;
-                if (cw && cw.CircuitJS1 && typeof cw.CircuitJS1.importCircuit === "function") {
-                    clearInterval(checkReady);
-                    falstadSim = cw.CircuitJS1;
-                    cw.CircuitJS1.importCircuit(circuitString, false);
-                }
-            } catch (e) { }
-        }, 50);
-    };
-}
-
-// ================================================================
-// FALSTAD (SAB template)
-// ================================================================
-
-var SAB_FALSTAD_TEMPLATE = `<cir f="1" ts="{TIMESTEP}" ic="242.03481360272136" cb="72" pb="50" vr="5" mts="5e-11">
-<v x="112 432 112 160" f="16" wf="0" maxv="{VIN}"/>
-<g x="112 432 112 464" f="0"/>
-<l x="320 272 624 272" f="2" l="{L_VAL}" ic="0" i="{IL_INIT}"/>
-<T x="624 272 736 336" f="2" in="{L_MAG}" ra="{RATIO}" co="0.9999" wi="64" c0="0" c1="0"/>
-<c x="1088 128 1088 432" f="2" c="{C_VAL}" iv="{VOUT_INIT}" sr="0.1" vd="0"/>
-<r x="1152 128 1152 432" f="0" r="{R_VAL}"/>
-<w x="112 160 112 128" f="0"/>
-<w x="112 128 320 128" f="0"/>
-<w x="320 128 320 176" f="0"/>
-<w x="320 128 512 128" f="0"/>
-<w x="512 128 512 176" f="0"/>
-<w x="320 208 320 272" f="0"/>
-<w x="320 384 320 272" f="0"/>
-<w x="112 432 320 432" f="0"/>
-<w x="320 432 320 416" f="0"/>
-<w x="512 208 512 336" f="0"/>
-<w x="512 416 512 432" f="0"/>
-<w x="320 432 512 432" f="0"/>
-<w x="624 336 512 336" f="0"/>
-<w x="512 336 512 384" f="0"/>
-<w x="848 416 848 432" f="0"/>
-<w x="848 272 848 208" f="0"/>
-<w x="1040 208 1040 336" f="0"/>
-<w x="1040 416 1040 432" f="0"/>
-<w x="1040 432 848 432" f="0"/>
-<w x="848 176 848 128" f="0"/>
-<w x="848 128 1040 128" f="0"/>
-<w x="1040 128 1040 176" f="0"/>
-<w x="736 272 848 272" f="0"/>
-<w x="736 336 1040 336" f="0"/>
-<w x="848 272 848 384" f="0"/>
-<w x="1040 336 1040 384" f="0"/>
-<w x="1040 128 1088 128" f="0"/>
-<w x="1152 128 1088 128" f="0"/>
-<w x="1152 432 1088 432" f="0"/>
-<w x="1088 432 1040 432" f="0"/>
-<R x="192 272 160 272" f="17" wf="2" fr="{FREQ}" maxv="2.5" bias="2.5"/>
-<I x="192 272 272 272" f="0" sl="0.5" hi="5"/>
-<w x="304 192 192 192" f="0"/>
-<w x="192 192 192 272" f="0"/>
-<w x="272 272 272 400" f="0"/>
-<R x="496 192 464 192" f="17" wf="2" fr="{FREQ}" maxv="2.5" bias="2.5" phaseShift="{PH_TOP}"/>
-<R x="496 400 464 400" f="17" wf="2" fr="{FREQ}" maxv="2.5" bias="2.5" phaseShift="{PH_BOT}"/>
-<g x="1152 432 1152 464" f="0"/>
-<as x="512 176 512 208" f="2" ron="0.001" roff="10000000000" th="2.5"/>
-<as x="512 384 512 416" f="2" ron="0.001" roff="10000000000" th="2.5"/>
-<as x="320 384 320 416" f="2" ron="0.001" roff="10000000000" th="2.5"/>
-<as x="320 176 320 208" f="2" ron="0.001" roff="10000000000" th="2.5"/>
-<w x="272 400 304 400" f="0"/>
-<dm nm="ideal" f="1" is="1.7143528192810002e-7" rs="0" n="2.0000000000000084" bv="0" fi="1"/>
-<d x="544 208 544 176" f="0" mo="ideal"/>
-<d x="544 416 544 384" f="0" mo="ideal"/>
-<d x="352 208 352 176" f="0" mo="ideal"/>
-<d x="352 416 352 384" f="0" mo="ideal"/>
-<d x="1040 416 1040 384" f="0" mo="ideal"/>
-<d x="1040 208 1040 176" f="0" mo="ideal"/>
-<d x="848 208 848 176" f="0" mo="ideal"/>
-<d x="848 416 848 384" f="0" mo="ideal"/>
-<w x="544 176 512 176" f="0"/>
-<w x="544 208 512 208" f="0"/>
-<w x="544 384 512 384" f="0"/>
-<w x="544 416 512 416" f="0"/>
-<w x="352 384 320 384" f="0"/>
-<w x="352 416 320 416" f="0"/>
-<w x="352 176 320 176" f="0"/>
-<w x="352 208 320 208" f="0"/>
-<c x="320 176 320 208" f="2" c="1e-9" iv="0" sr="0.1" vd="0"/>
-<c x="320 384 320 416" f="2" c="1e-9" iv="0" sr="0" vd="0"/>
-<c x="512 176 512 208" f="2" c="1e-9" iv="0" sr="0.1" vd="0"/>
-<c x="512 384 512 416" f="2" c="1e-9" iv="0" sr="0" vd="0"/>
-<o en="5" sp="5" f="x3" p="0">
-<p v="0" sc="512"/>
-<p v="3" sc="8"/>
-</o>
-<o en="2" sp="5" f="x3" p="1">
-<p v="0" sc="1024"/>
-<p v="3" sc="32"/>
-</o>
-<o en="28" sp="5" f="x3" p="2">
-<p v="0" sc="512"/>
-<p v="3" sc="32"/>
-</o>
-</cir>`;
-
-function openFalstadSabSimulation() {
-    if (!window.lOutput_global) { hesapla(); }
-    var vin_nom = sabNum('vin_nom', 800), vout_nom = sabNum('vout_nom', 380);
-    var ilout = sabNum('ilout', 5.5), f_khz = sabNum('f_khz', 33);
-    var freq_hz = f_khz * 1000;
-    var n = window.sabN_paper || 1;
-    var L_val = window.lOutput_global * 1e-6;
-    var c_uF = parseFloat(sabEl('cOutput').innerText) || 10;
-    var pt = sabSolvePoint(vin_nom, vout_nom, ilout, n, L_val, freq_hz, sabGetVf());
-
-    var P = {
-        TIMESTEP: (1.0 / (freq_hz * 100)).toExponential(2).toUpperCase(),
-        VIN: vin_nom, VOUT: vout_nom, FREQ: freq_hz,
-        L_VAL: L_val,                        // series L [H] (primer)
-        L_MAG: (100 * L_val).toExponential(6),
-        RATIO: n,                            // N2/N1 = n
-        C_VAL: c_uF * 1e-6,
-        R_VAL: vout_nom / ilout,
-        VOUT_INIT: vout_nom.toFixed(4),
-        DUTY: pt.ok ? pt.d : 0.25,           // d = tc/Ts
-        TC: pt.ok ? pt.a : 0,                // pulse width [s]
-        IL_INIT: pt.ok ? (pt.shape === "CCM" ? -pt.I0 : 0).toFixed(6) : "0",
-        PHASE_DEG: pt.ok ? (360 * pt.d).toFixed(3) : "0",  // β = 360·d [degree]
-        PH_TOP: (2 * Math.PI * (1 - (pt.ok ? pt.d : 0.25))).toFixed(6),
-        PH_BOT: ((2 * Math.PI * (1 - (pt.ok ? pt.d : 0.25)) + Math.PI) % (2 * Math.PI)).toFixed(6)
-    };
-
-    var circuitString = SAB_FALSTAD_TEMPLATE;
-    Object.keys(P).forEach(function (key) {
-        circuitString = circuitString.replace(new RegExp("\\{" + key + "\\}", "g"), P[key]);
-    });
-
-    embedFalstadSimulation(circuitString);
-    var simContainer = document.getElementById("simulationContainer");
-    if (simContainer) { simContainer.style.display = "block"; simContainer.scrollIntoView({ behavior: 'smooth' }); }
-    var liveDataBox = document.getElementById("liveDataBox");
-    if (liveDataBox) {
-        liveDataBox.style.display = "block";
-        liveDataBox.innerHTML = "Fitcore SMPS Designer: Single Active Bridge (SAB) Converter Simulation";
-    }
-}
-
-function hesapla() {
-    if (!checkUserInput()) { setDefaultValues(); }
-    updateChartsAndTable();
-    if (typeof window.openSelectedTable === "function") {
-        window.openSelectedTable();
-    }
-}
-
-// ================================================================
-// GRAFİKLER
-// ================================================================
-function drawCharts(t, vb, v2, il, ir, Io, p_arr, eff_arr) {
-    const textColor = '#e0e0e0';
-    const gridColor = 'rgba(255, 255, 255, 0.1)';
-    const getT = window.getT || function (k) { return k; };
-
-    const commonOpts = {
-        responsive: true, animation: false,
-        elements: { point: { radius: 0 }, line: {} },
-        scales: {
-            x: { display: false, grid: { color: gridColor } },
-            y: { ticks: { color: textColor }, grid: { color: gridColor, borderColor: gridColor } }
-        },
-        plugins: { legend: { position: 'top', labels: { color: textColor } } }
-    };
-
-    function mk(id, datasets, isStepped) {
-        var canvas = document.getElementById(id);
-        if (!canvas) return;
-        if (canvas.chart) canvas.chart.destroy();
-        let opts = JSON.parse(JSON.stringify(commonOpts));
-        if (isStepped) opts.elements.line.stepped = true;
-        canvas.chart = new Chart(canvas.getContext('2d'), { type: 'line', data: { labels: t, datasets: datasets }, options: opts });
-    }
-
-    mk('vinChart', [{ label: getT('chart_1_name'), data: vb, borderColor: 'rgba(100, 181, 246, 1)', borderWidth: 2, fill: false }], true);
-    mk('v3Chart', [{ label: getT('sab_chart_2_name'), data: v2, borderColor: 'rgba(239, 83, 80, 1)', borderWidth: 2, fill: false }], true);
-    mk('ilChart', [{ label: getT('chart_3_name'), data: il, borderColor: 'rgba(105, 240, 174, 1)', borderWidth: 2, fill: false }], false);
-
-    var ioLine = ir.map(function () { return Io; });
-    mk('irChart', [
-        { label: getT('sab_chart_5_name'), data: ir, borderColor: 'rgba(186, 104, 200, 1)', borderWidth: 2, fill: false },
-        { label: 'Io (DC)', data: ioLine, borderColor: 'rgba(255, 255, 255, 0.6)', borderWidth: 1, borderDash: [5, 4], fill: false }
-    ], false);
-
-    var idCanvas = document.getElementById('idChart');
-    if (idCanvas) {
-        if (idCanvas.chart) idCanvas.chart.destroy();
-        idCanvas.chart = new Chart(idCanvas.getContext('2d'), {
-            type: 'line',
-            data: {
-                labels: t,
-                datasets: [
-                    { label: getT('col_v1'), data: vb, borderColor: 'rgba(100, 181, 246, 1)', borderWidth: 2, fill: false, pointRadius: 0, stepped: true },
-                    { label: getT('col_v3'), data: v2, borderColor: 'rgba(255, 167, 38, 1)', borderWidth: 2, fill: false, pointRadius: 0, stepped: true, borderDash: [6, 4] }
-                ]
-            },
-            options: { responsive: true, animation: false, scales: { x: { title: { display: true, text: getT('chart_time_us'), color: textColor }, ticks: { color: textColor, maxTicksLimit: 9 }, grid: { color: gridColor } }, y: { ticks: { color: textColor }, grid: { color: gridColor } } }, plugins: commonOpts.plugins }
-        });
-    }
-
-    var effCanvas = document.getElementById('effChart');
-    if (effCanvas) {
-        if (effCanvas.chart) effCanvas.chart.destroy();
-        effCanvas.chart = new Chart(effCanvas.getContext('2d'), {
-            type: 'line',
-            data: {
-                labels: p_arr,
-                datasets: [{
-                    label: getT('chart_eff_pct'), data: eff_arr,
-                    borderColor: 'rgba(129, 199, 132, 1)', backgroundColor: 'rgba(129, 199, 132, 0.15)',
-                    borderWidth: 2, fill: true, tension: 0.4, pointRadius: 2
-                }]
-            },
-            options: { responsive: true, animation: false, scales: { x: { title: { display: true, text: getT('chart_load_pct'), color: textColor }, ticks: { color: textColor }, grid: { color: gridColor } }, y: { min: 0, max: 100, title: { display: true, text: getT('chart_eff_pct'), color: textColor }, ticks: { color: textColor }, grid: { color: gridColor } } }, plugins: commonOpts.plugins }
-        });
-    }
-}
-
-function printPage() { window.print(); }
-
-// ================================================================
-// TABLO & MODAL Integration
-// ================================================================
-window.openSelectedTable = function () {
-    const modeElement = document.querySelector('input[name="coreSelectionMode"]:checked');
-    const mode = modeElement ? modeElement.value : "standard";
-    const isCustomDesign = sabEl("testOwnDesignCheck") ? sabEl("testOwnDesignCheck").checked : false;
-
-    var lOutputStr = sabEl('lOutput') ? sabEl('lOutput').innerText : "";
-    var veOptStr = sabEl('VeOpt') ? sabEl('VeOpt').innerText : "";
-
-    if (!lOutputStr || isNaN(parseFloat(lOutputStr)) || !veOptStr || isNaN(parseFloat(veOptStr))) {
-        var getT = window.getT || function (key) { return key; };
-        alert(getT('adv_alert_calc_first') || "Lütfen önce hesaplama yapın!");
-        return;
-    }
-
-    var L_H = window.lOutput_global * 1e-6;
-    var Wmax = window.wmax1_global;
-    var VeOpt = window.VeOpt_global;
-    var vin_test = sabNum('vin_nom', 800);
-    var f_hz = parseFloat(sabEl('f').innerText) || 100000;
-    var nOutput = parseFloat(sabEl('nOutput').innerText.split(':')[0]) || 1;   // N1/N2
-    var Imax = window.Imax_global;
-
-    if (mode === "advanced") {
-        if (isCustomDesign) {
-            if (typeof window.openAdvancedPreCheck === "function") window.openAdvancedPreCheck('trafo_coil');
-            else alert(getT("sab_alert_module_fail"));
-        } else {
-            window.customSelections = { core: null, coreL1: null, coreL2: null, coreTrafo: null, coreCoil: null, switch: null };
-            if (typeof window.openAdvancedTable === "function") window.openAdvancedTable();
-            else alert(getT("sab_alert_module_fail"));
-        }
-    } else {
-        var trafoParams = {
-            title: (window.getT && window.getT('btn_transformer')) ? window.getT('btn_transformer') : "Transformer Data",
-            topology: 'dab',                 // N1 = Vgiren/(4 f ΔB Amin)
-            vin_min: window.sabVeq || vin_test,   // SAB: V_eq = min(Vo/n, 2 d Vg)
-            VeOpt: VeOpt,
-            f_hz: f_hz,
-            vin1: vin_test,
-            nOutput: nOutput,
-            I1_rms_sq: Math.pow(window.i1_rms_global, 2),
-            I2_rms_sq: Math.pow(window.i2_rms_global, 2),
-            d1_req: window.d1_req,
-            d2_req: window.d2_req,
-            max_litz: window.max_wire_d_mm
-        };
-        var coilParams = {
-            title: (window.getT && window.getT('btn_coil')) ? window.getT('btn_coil') : "Coil Data",
-            L_H: L_H,
-            L_uH: window.lOutput_global,
-            Wmax: Wmax,
-            Imax: Imax,
-            Irms_sq: Math.pow(window.il_rms, 2),
-            d_wire_default: window.d_coil_req,
-            min_area: window.A_coil_req,
-            max_litz: window.max_wire_d_mm
-        };
-        if (typeof UIModal !== 'undefined' && UIModal.openDualModal) {
-            UIModal.openDualModal([
-                { type: 'trafo', title: trafoParams.title, params: trafoParams },
-                { type: 'inductor', title: coilParams.title, params: coilParams }
-            ]);
-        } else {
-            alert(getT("sab_alert_uimodal_fail"));
-        }
-    }
-};
-
-document.addEventListener("DOMContentLoaded", () => {
-    const printBtn = document.getElementById('printButton');
-    if (printBtn) printBtn.removeAttribute('data-dup');
-});
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title data-i18n="card_sab_title">Single Active Bridge (SAB) Converter Hesapla</title>
+    <meta content="" name="description">
+    <meta content="" name="keywords">
+    <!-- Facebook Opengraph integration: https://developers.facebook.com/docs/sharing/opengraph -->
+    <meta property="og:title" content="">
+    <meta property="og:image" content="">
+    <meta property="og:url" content="">
+    <meta property="og:site_name" content="">
+    <meta property="og:description" content="">
+    <!-- Twitter Cards integration: https://dev.twitter.com/cards/  -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:site" content="">
+    <meta name="twitter:title" content="">
+    <meta name="twitter:description" content="">
+    <meta name="twitter:image" content="">
+    <!-- Favicons -->
+    <link href="assets/img/favicon.png" rel="icon">
+    <link href="assets/img/apple-touch-icon.png" rel="apple-touch-icon">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,700,700i%7CRaleway:300,400,500,700,800"
+
+      rel="stylesheet">
+    <!-- Vendor CSS Files -->
+    <link href="assets/vendor/aos/aos.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+    <link href="assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
+    <link href="assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
+    <!-- Template Main CSS File -->
+    <link href="assets/css/style.css" rel="stylesheet">
+	<link href="assets/css/design.css" rel="stylesheet">
+	<style>
+	.dashed-box2 { fill: #5f5f5f; stroke: #e0e0e0; }
+	</style>
+  </head>
+  <body>
+      <!-- ======= Header ======= -->
+      <header id="header" class="d-flex align-items-center">
+          <div class="container d-flex align-items-center justify-content-between">
+              <a href="index.html" class="logo mr-auto">
+                  <img src="assets/img/logo.png"
+                       alt="">
+              </a>
+              <nav id="navbar" class="navbar">
+                  <ul>
+                      <li><a class="nav-link scrollto active" href="index.html" data-i18n="nav_home">Anasayfa</a></li>
+                      <li><a class="nav-link scrollto" href="yardim.html" data-i18n="nav_help">Yardım</a></li>
+                      <li><a class="nav-link scrollto" href="index.html#contact" data-i18n="nav_feedback">Feedback Formu</a></li>
+                      <li id="language" class="dropdown">
+                          <a href="javascript:void(0);" onclick="this.parentElement.classList.toggle('mobile-active');">
+                              <span>🌍 Dil / Language</span> <i class="bi bi-chevron-down"></i>
+                          </a>
+                          <ul>
+                              <li><a href="javascript:void(0);" onclick="changeLanguage('tr');">🇹🇷 Türkçe</a></li>
+                              <li><a href="javascript:void(0);" onclick="changeLanguage('en');">🇬🇧 English</a></li>
+                              <li><a href="javascript:void(0);" onclick="changeLanguage('de');">🇩🇪 Deutsch</a></li>
+                          </ul>
+                      </li>
+                  </ul>
+                  <i class="bi bi-list mobile-nav-toggle"></i>
+              </nav>
+              <!-- .navbar -->
+          </div>
+      </header>
+      <!-- End Header -->
+      <main id="main">
+          <!-- ======= Breadcrumbs ======= -->
+          <section class="breadcrumbs">
+              <div class="container">
+                  <div class="d-flex justify-content-between align-items-center">
+                      <h2 data-i18n="card_sab_title">Single Active Bridge (SAB) Converter Hesapla</h2>
+                      <ol>
+                          <li><a href="index.html" data-i18n="nav_home">Anasayfa</a></li>
+                          <li data-i18n="sab_breadcrumb">SAB Converter</li>
+                      </ol>
+                  </div>
+              </div>
+          </section>
+          <!-- End Breadcrumbs -->
+          <section class="inner-page">
+              <div id="container">
+                  <div class="row">
+
+                      <div class="col-md-4 d-flex align-items-center justify-content-center" style="margin-bottom: 20px;">
+
+                              <svg version="1.1"
+                                   id="svg1"
+                                   width="282.88"
+                                   height="104"
+                                   viewBox="0 0 282.88 104"
+                                   style="width: 100%; height: auto; max-width: 1100px;"
+                                   xmlns="http://www.w3.org/2000/svg"
+                                   xmlns:svg="http://www.w3.org/2000/svg">
+                                  <defs id="defs1" />
+                                  <g id="g1">
+                                      <g id="g2">
+                                          <path style="fill:#e0e0e0;fill-opacity:1"
+                                                d="m 16.32,98.88 c 0,-0.176 -0.072,-0.32 -0.16,-0.32 C 16.05423,98.56 16,92.106667 16,79.52 V 60.48 H 13.92 11.84 V 58.64 56.8 h 4.72 4.72 v 1.84 1.84 H 19.12 16.96 V 79.44 98.4 h 18.160001 18.16 V 94 89.6 h -4 -4 v 0.72 0.72 h -0.64 -0.64 v -1.76 -1.76 h 0.64 c 0.624762,0 0.64,0.01333 0.64,0.56 v 0.56 h 4 4 v -2.4 -2.4 h -2.56 -2.56 v 0.56 c 0,0.308 -0.0736,0.56 -0.163552,0.56 -0.08995,0 -0.737953,-0.288804 -1.44,-0.641786 L 45.280001,83.676429 V 84.558214 85.44 h -0.64 -0.64 V 83.6 81.76 h 0.64 0.64 v 0.721606 l 0,0.721605 1.44,-0.723211 1.44,-0.723211 V 82.398394 83.04 h 3.04 3.04 V 88 92.96 h 3.76 3.76 V 89.28 85.6 h -2 c -1.1,0 -2,-0.02731 -2,-0.06069 0,-0.03338 0.857319,-1.52738 1.905154,-3.32 l 1.905154,-3.25931 -1.745154,-0.04524 -1.745154,-0.04524 0,-0.63476 V 77.6 h 1.84 1.84 v -3.52 -3.52 h -3.76 -3.76 v 4.288 c 0,3.121778 -0.05222,4.340219 -0.192,4.48 -0.139781,0.139781 -1.358222,0.192 -4.48,0.192 h -4.288 v 0.64 0.64 h -0.64 -0.64 v -1.76 -1.76 h 0.64 0.64 v 0.64 0.64 h 4 4 V 58.64 38.72 h -4 -4 v 0.72 0.72 h -0.64 -0.64 V 38.4 36.64 h 0.64 c 0.624762,0 0.64,0.01333 0.64,0.56 v 0.56 h 4 4 v -2.4 -2.4 h -2.56 -2.56 v 0.56 c 0,0.308 -0.0376,0.56 -0.08355,0.56 -0.04595,0 -0.656355,-0.288 -1.356448,-0.64 -0.700093,-0.352 -1.310495,-0.64 -1.356449,-0.64 -0.04595,0 -0.08355,0.396 -0.08355,0.88 v 0.88 h -0.64 -0.64 V 32.8 31.04 h 0.64 c 0.624762,0 0.64,0.01333 0.64,0.56 0,0.308 0.0376,0.56 0.08355,0.56 0.04595,0 0.656356,-0.288 1.356449,-0.64 0.700093,-0.352 1.310495,-0.64 1.356448,-0.64 0.04595,0 0.08355,0.252 0.08355,0.56 V 32 l 2.68,0.0022 c 1.474,0.0012 2.842,0.0456 3.04,0.09866 l 0.36,0.09648 V 37.618661 43.04 h 3.68 3.68 v -3.6 -3.6 h -1.92 c -1.056,0 -1.92,-0.04535 -1.92,-0.100769 0,-0.05542 0.81,-1.511169 1.8,-3.234991 0.99,-1.723823 1.824,-3.190477 1.853333,-3.259232 0.02933,-0.06875 -0.708666,-0.125008 -1.64,-0.125008 l -1.693333,0 V 28.4 27.68 h 1.76 1.76 V 24.24 20.8 h -3.68 -3.68 v 3.728 c 0,2.686222 -0.05365,3.781654 -0.192,3.92 -0.139781,0.139781 -1.358222,0.192 -4.48,0.192 l -4.288,0 v 0.64 0.64 h -0.64 -0.64 V 28.16 26.4 h 0.64 0.64 v 0.64 0.64 h 4 4 V 18.4 9.12 h -7.282285 -7.282285 l -2.07543,1.04 c -1.141487,0.572 -2.148459,1.04 -2.237716,1.04 -0.08926,0 -0.162284,-0.324 -0.162284,-0.72 V 9.76 h -4.24 C 25.866667,9.76 25.76,9.7519497 25.76,9.44 c 0,-0.3122424 -0.106666,-0.32 -4.4,-0.32 h -4.4 v 22.56 22.56 h 4.88 4.88 v 0.48 0.48 H 16.56 6.4000001 V 54.72 54.24 H 11.2 16 V 31.52 C 16,11.431111 16.027794,8.8 16.24,8.8 c 0.133334,0 0.24,-0.1422222 0.24,-0.32 0,-0.3064458 0.10674,-0.3200093 2.52,-0.3202188 1.386,-1.204e-4 5.382,-0.047824 8.88,-0.1060077 L 34.240001,7.9479848 V 7.2539924 c 0,-0.3816958 0.03146,-0.6939924 0.0699,-0.6939924 0.03844,0 0.806062,0.36 1.705815,0.8 l 1.635916,0.8 h 33.974185 c 33.867523,0 33.974183,0.001 33.974183,0.32 0,0.176 0.072,0.32 0.16,0.32 0.10306,0 0.16,1.685183 0.16,4.735549 l 0,4.735549 4.24006,-0.05555 4.24006,-0.05555 -6e-5,3.96 -6e-5,3.96 h 1.76 1.76 v 0.72 0.72 l -1.61712,0 c -1.22892,0 -1.59826,0.04801 -1.53855,0.2 0.0432,0.11 0.87694,1.568 1.85275,3.24 l 1.77419,3.04 -1.99563,0.04478 -1.99564,0.04478 0,4.155219 V 42.4 h -4.24 -4.24 v 1.28 1.28 h -0.48 -0.48 v -3.2 -3.2 h -4 -3.999998 v 0.8 0.8 h -0.64 -0.64 v -1.84 -1.84 h 0.64 c 0.624762,0 0.64,0.01333 0.64,0.56 v 0.56 h 3.999998 4 v -2.32 -2.32 h -2.56 -2.559998 v 0.56 c 0,0.308 -0.0376,0.56 -0.08355,0.56 -0.04595,0 -0.656355,-0.288 -1.356448,-0.64 -0.700094,-0.352 -1.310495,-0.64 -1.356449,-0.64 -0.04595,0 -0.08355,0.396 -0.08355,0.88 v 0.88 h -0.64 -0.64 v -1.84 -1.84 h 0.64 0.64 v 0.64 c 0,0.352 0.0376,0.64 0.08355,0.64 0.04595,0 0.656355,-0.288 1.356449,-0.64 0.700093,-0.352 1.310495,-0.64 1.356448,-0.64 0.04595,0 0.08355,0.252 0.08355,0.56 V 32 h 3.039998 3.04 v 4.72 4.72 h 3.76 3.76 v -3.67522 l 0,-3.675219 -1.99487,-0.04478 L 109.45025,34 l 1.8979,-3.2 1.89789,-3.2 -1.66302,-0.04541 -1.66302,-0.04541 0,-0.714587 V 26.08 h 1.76 1.76 V 22.64 19.2 h -3.76 -3.76 v 4.386914 c 0,2.412803 -0.0437,4.500803 -0.0971,4.64 -0.0853,0.222258 -0.63098,0.253086 -4.48,0.253086 h -4.382878 v 0.72 0.72 h -0.64 -0.64 v -1.84 -1.84 h 0.64 0.64 v 0.72 0.72 h 3.999998 4 V 18.4 9.12 h -25.359999 -25.36 v 5.36 5.36 h 4.16 4.16 v 3.92 3.92 h 1.84 1.84 v 0.71476 0.71476 l -1.740252,0.04524 -1.740252,0.04524 1.895072,3.2 c 1.042289,1.76 1.897403,3.254 1.900252,3.32 0.0028,0.066 -0.89482,0.12 -1.99482,0.12 h -2 l 5.3e-5,4.12 5.2e-5,4.12 -4.160053,-0.05576 -4.160052,-0.05576 V 45.024243 46.08 h 28.48 H 111.2 v -0.4 -0.4 h 3.12 3.12 v -1.12 c 0,-0.647391 0.0682,-1.12 0.1616,-1.12 0.0889,0 1.52816,0.684 3.1984,1.52 l 3.0368,1.52 h 1.66874 1.66874 l 0.27091,-0.84 c 0.96828,-3.002418 3.07993,-4.208801 5.08109,-2.902817 l 0.60628,0.395666 0.50326,-0.358351 c 0.33679,-0.239818 0.80901,-0.380468 1.4276,-0.425213 0.78554,-0.05682 1.03417,-0.0025 1.6557,0.36174 l 0.73135,0.428602 0.52216,-0.322708 c 0.79015,-0.488344 1.74294,-0.587916 2.57715,-0.269328 0.38776,0.148087 0.78718,0.368245 0.88759,0.48924 0.15221,0.183402 0.27441,0.157669 0.73474,-0.154718 1.11649,-0.757672 2.52467,-0.665687 3.61656,0.236243 0.68827,0.568537 1.50868,2.114606 1.66097,3.130126 l 0.1067,0.711518 6.84874,0 c 3.76681,0 6.96264,0.0437 7.10184,0.09712 0.21309,0.08177 0.25308,0.430795 0.25308,2.208507 l 0,2.111388 1.11941,0.36053 c 1.31763,0.424372 2.33501,1.149939 2.84629,2.029898 0.50432,0.867978 0.43519,2.213375 -0.15292,2.975989 l -0.40872,0.530002 0.4153,0.62757 c 0.58308,0.881088 0.58466,2.193563 0.004,3.074712 l -0.4116,0.624286 0.38687,0.72 c 0.49128,0.914327 0.45325,2.237278 -0.0861,2.994705 l -0.35161,0.493779 0.39775,0.695758 c 0.74594,1.304827 0.46969,2.80336 -0.71391,3.872671 C 164.20808,70.515732 162.68048,71.2 162.074,71.2 c -0.2972,0 -0.31411,0.121936 -0.31618,2.28 -0.001,1.254 -0.0456,2.442 -0.0987,2.64 l -0.0965,0.36 h -4.36134 c -2.39873,0 -4.58634,-0.045 -4.86134,-0.1 l -0.5,-0.1 0,-3.66 v -3.66 h -22.96 -22.96 v 1.36 1.36 h 4.24 4.24 v 4 4 h 1.76 1.76 v 0.64 0.64 h -1.66876 -1.66877 l 1.84813,3.16 c 1.01647,1.738 1.88312,3.25 1.92588,3.36 0.0597,0.153536 -0.39086,0.2 -1.93936,0.2 H 114.4 v 4.08 4.08 h -4.24 -4.24 v 1.451429 c 0,1.044571 -0.0641,1.5155 -0.22857,1.68 C 105.49443,99.16843 99.306668,99.2 60.89143,99.2 16.426667,99.2 16.32,99.199234 16.32,98.88 Z m 88.64,-4.96 v -4.48 h -4 -3.999998 v 0.8 0.8 h -0.64 -0.64 V 89.2 87.36 h 0.64 0.64 V 88 88.64 h 3.999998 4 v -2.4 -2.4 h -2.56 -2.559998 v 0.56 c 0,0.308 -0.0736,0.56 -0.163552,0.56 -0.08995,0 -0.737953,-0.288804 -1.44,-0.641786 L 96.960002,83.676429 V 84.558214 85.44 h -0.64 -0.64 V 83.6 81.76 h 0.64 0.64 v 0.64 c 0,0.352 0.0376,0.64 0.08355,0.64 0.04595,0 0.656355,-0.288 1.356449,-0.64 0.700093,-0.352 1.310495,-0.64 1.356448,-0.64 0.04595,0 0.08355,0.252 0.08355,0.56 v 0.56 h 3.039998 3.04 v 6 6 h 3.76 3.76 v -3.6 -3.6 h -2.01712 c -1.5499,0 -1.9985,-0.04633 -1.93673,-0.2 0.0442,-0.11 0.91429,-1.604 1.93352,-3.32 l 1.85314,-3.12 -1.6764,-0.04541 -1.67641,-0.04541 V 80.314587 79.68 h 1.76 1.76 v -3.52 -3.52 h -3.76 -3.76 v 3.106914 c 0,1.708803 -0.0437,3.220803 -0.0971,3.36 -0.0853,0.222258 -0.63098,0.253086 -4.48,0.253086 h -4.382878 v 0.72 0.72 h -0.64 -0.64 v -1.84 -1.84 h 0.64 0.64 v 0.64 0.64 h 3.999998 4 V 63.52 48.64 h 0.48 0.48 V 58.32 68 h 23.2 c 15.36,0 23.2,0.05407 23.2,0.16 0,0.088 0.108,0.16 0.24,0.16 0.20622,0 0.24,0.506667 0.24,3.6 v 3.6 h 4 4 V 73.2 c 0,-1.44 0.0607,-2.32 0.16,-2.32 0.088,0 0.16,-0.09999 0.16,-0.222193 0,-0.130245 0.2483,-0.268389 0.6,-0.333825 1.77636,-0.330493 3.2405,-1.507647 3.2394,-2.604443 -3.2e-4,-0.329746 -0.13939,-0.827163 -0.30903,-1.105371 l -0.30843,-0.505831 -1.01097,0.413447 c -2.47602,1.012599 -6.25494,0.115485 -5.59693,-1.328706 0.54801,-1.202736 3.581,-1.644033 5.62499,-0.818428 l 0.96555,0.390002 0.31771,-0.403903 c 0.38258,-0.48637 0.41007,-1.318036 0.0656,-1.984186 -0.17433,-0.337123 -0.33477,-0.460379 -0.52,-0.399494 -0.14733,0.04843 -0.69988,0.243403 -1.22788,0.433277 -0.79232,0.284926 -1.19754,0.331769 -2.32,0.268191 -1.54501,-0.08751 -2.41631,-0.390502 -2.79797,-0.972981 -0.23582,-0.359917 -0.23834,-0.448586 -0.0244,-0.862215 0.30537,-0.590521 0.80406,-0.810628 2.31173,-1.020325 1.40594,-0.195549 2.35024,-0.09141 3.45336,0.380834 l 0.78267,0.335064 0.29936,-0.369689 c 0.58188,-0.718595 0.57955,-1.542738 -0.006,-2.266378 l -0.30578,-0.377617 -0.61625,0.294001 c -1.1755,0.5608 -2.46105,0.731164 -3.78389,0.501449 -1.3616,-0.236447 -1.7728,-0.41998 -2.11662,-0.944713 -0.38291,-0.584404 -0.0743,-1.163837 0.83392,-1.565574 0.58383,-0.258254 1.10922,-0.336439 2.36065,-0.35129 1.38769,-0.01647 1.72868,0.03462 2.47254,0.370432 l 0.86285,0.389535 0.37715,-0.438457 c 1.10411,-1.283607 -0.17452,-3.025169 -2.70478,-3.684037 -0.50705,-0.132036 -0.99305,-0.284029 -1.08,-0.337763 -0.0909,-0.0562 -0.15808,-0.97725 -0.15808,-2.168256 V 47.52 h -6.96 c -6.85333,0 -6.96,-0.0049 -6.96,-0.32 0,-0.176 -0.072,-0.32 -0.16,-0.32 -0.088,0 -0.16,-0.166932 -0.16,-0.37096 0,-0.860569 -0.50771,-2.052342 -1.16781,-2.741266 -0.94854,-0.989951 -1.83061,-1.140002 -2.64415,-0.449804 l -0.33243,0.28203 0.41074,1.2 c 0.3564,1.041238 0.4009,1.391241 0.3363,2.645486 -0.041,0.795017 -0.16629,1.623017 -0.27854,1.84 -0.87007,1.68183 -2.15763,1.392504 -2.56644,-0.576698 -0.27235,-1.311927 -0.13239,-3.156265 0.31817,-4.192604 0.35199,-0.809621 0.35537,-0.856502 0.0835,-1.156871 -0.37425,-0.413545 -1.24512,-0.565462 -1.83674,-0.320406 -0.78299,0.324327 -0.84697,0.51206 -0.47063,1.381009 0.69116,1.59587 0.54536,4.637257 -0.26096,5.443578 -0.87194,0.871944 -1.81464,0.159409 -2.15157,-1.626259 -0.26227,-1.389979 -0.13084,-2.721539 0.37842,-3.833907 l 0.40994,-0.895429 -0.51392,-0.313351 c -0.70044,-0.427081 -1.58961,-0.407897 -2.10666,0.04545 l -0.41058,0.36 0.42516,1.2 c 0.99834,2.817738 0.0478,6.182047 -1.51786,5.372401 -0.55875,-0.28894 -0.77313,-0.785631 -0.97836,-2.266758 -0.18074,-1.304351 -0.0234,-2.577685 0.45121,-3.650526 0.34396,-0.77758 0.28707,-0.913658 -0.56631,-1.354557 -1.35592,-0.700539 -2.86045,0.899155 -3.47937,3.69944 l -0.0972,0.44 -2.15856,0 h -2.15855 l -3.0368,1.52 c -1.67024,0.836 -3.07352,1.52 -3.1184,1.52 -0.0449,0 -0.0816,-0.504 -0.0816,-1.12 v -1.12 h -3.12 -3.12 v -0.4 -0.4 h -28.479999 -28.48 V 58.32 69.6 l 3.88,0.0022 c 2.134,0.0012 4.042,0.0456 4.24,0.09866 l 0.36,0.09648 V 73.698661 77.6 h 1.76 1.76 v 0.64 0.64 h -1.68 c -0.924,0 -1.68,0.03988 -1.68,0.08862 0,0.04874 0.828,1.514736 1.84,3.257773 1.012,1.743037 1.84,3.21516 1.84,3.271385 0,0.05623 -0.864,0.102227 -1.92,0.102227 h -1.92 l 5.8e-5,4.12 5.7e-5,4.12 -4.240058,-0.05555 -4.240057,-0.05555 V 96.064451 98.4 h 25.36 H 104.96 Z m -28.639999,2.031387 c 0,-0.209852 0.23658,-0.597916 0.54929,-0.901006 1.229588,-1.191764 1.057388,-2.45899 -0.239808,-1.764752 -0.258025,0.138091 -0.309482,0.112424 -0.309482,-0.15437 0,-0.415553 0.458122,-0.651259 1.265793,-0.651259 0.510545,0 0.701154,0.08291 0.90466,0.393498 0.362902,0.553858 0.178563,1.197601 -0.594398,2.07573 L 77.252806,95.68 h 0.813597 c 0.706932,0 0.813598,0.04195 0.813598,0.32 0,0.293333 -0.106666,0.32 -1.28,0.32 -1.229602,0 -1.28,-0.01451 -1.28,-0.368613 z m -3.453966,-1.855362 c -0.741194,-0.187502 -0.866034,-0.308962 -0.866034,-0.842586 0,-0.403166 0.04852,-0.467033 0.28,-0.368554 0.952902,0.405398 1.450092,0.451515 1.873913,0.173817 0.685205,-0.448964 0.49078,-0.896356 -0.633913,-1.458702 -0.730564,-0.365282 -1.029959,-0.62317 -1.252722,-1.079048 -0.693301,-1.418819 0.690151,-2.675563 2.429684,-2.207155 0.418082,0.112577 0.680737,0.289909 0.749283,0.505878 0.155711,0.490602 -0.146047,0.717343 -0.649433,0.487985 -0.558697,-0.254559 -1.117441,-0.236084 -1.350433,0.04465 -0.343543,0.413944 -0.10843,0.797028 0.741203,1.207686 1.083418,0.523655 1.464866,0.890427 1.583449,1.522529 0.113736,0.606263 -0.235918,1.395498 -0.77436,1.747877 -0.454493,0.29744 -1.493048,0.426913 -2.130637,0.265619 z m -6.387896,-0.203181 c -0.04751,-0.123821 -0.06653,-1.410364 -0.04226,-2.858986 L 66.480001,88.4 l 1.36,-0.04447 c 2.372748,-0.07758 3.36,0.751059 3.36,2.820187 0,1.203589 -0.396251,2.050778 -1.175081,2.512331 -0.667992,0.395868 -3.412645,0.554346 -3.546781,0.204794 z m 2.696755,-0.950517 C 69.712398,92.697424 70.000001,92.09011 70.000001,91.2 c 0,-1.328991 -0.568701,-1.92 -1.847528,-1.92 h -0.632472 v 1.92 1.92 h 0.632472 c 0.347859,0 0.807949,-0.07995 1.022421,-0.177673 z M 88.160002,90.803692 V 90.4 h 2.4 2.4 v -6.64 -6.64 h 0.481681 0.481682 l -0.04168,7 -0.04168,7 -2.84,0.04369 -2.84,0.04369 z M 100.64,76.72 c 0,-0.373333 -0.0533,-0.4 -0.799998,-0.4 -0.739009,0 -0.8,-0.02944 -0.8,-0.386138 0,-0.212376 0.278753,-0.878376 0.619451,-1.48 0.569687,-1.005979 0.666097,-1.097852 1.199997,-1.14352 l 0.58055,-0.04966 v 1.209659 c 0,0.699772 0.0674,1.209658 0.16,1.209658 0.088,0 0.16,0.144 0.16,0.32 0,0.176 -0.072,0.32 -0.16,0.32 -0.088,0 -0.16,0.18 -0.16,0.4 0,0.32 -0.08,0.4 -0.4,0.4 -0.32,0 -0.4,-0.08 -0.4,-0.4 z m -0.003,-1.88 -0.003,-0.84 -0.47696,0.759528 c -0.262326,0.41774 -0.476958,0.79574 -0.476958,0.84 0,0.04426 0.216,0.08047 0.479998,0.08047 0.47277,0 0.47996,-0.01266 0.47696,-0.84 z m -4.890925,0.05602 c -0.741193,-0.187502 -0.866033,-0.308962 -0.866033,-0.842586 0,-0.403166 0.04852,-0.467033 0.28,-0.368554 0.952902,0.405398 1.450091,0.451515 1.873912,0.173817 0.685205,-0.448964 0.490781,-0.896356 -0.633912,-1.458702 -0.730565,-0.365282 -1.02996,-0.62317 -1.252723,-1.079048 -0.6933,-1.418819 0.690151,-2.675563 2.429685,-2.207155 0.418082,0.112577 0.680736,0.289909 0.749282,0.505878 0.155711,0.490602 -0.146047,0.717343 -0.649433,0.487985 -0.558697,-0.254559 -1.117441,-0.236084 -1.350432,0.04465 -0.343544,0.413944 -0.10843,0.797028 0.741203,1.207686 1.083418,0.523655 1.464866,0.890427 1.583449,1.522529 0.113735,0.606263 -0.235919,1.395498 -0.774361,1.747877 -0.454493,0.29744 -1.493048,0.426913 -2.130637,0.265619 z M 120,61.12 v -2.56 h 0.48 0.48 v 2.16 2.16 h 0.88 c 0.832,0 0.88,0.02182 0.88,0.4 0,0.395294 -0.016,0.4 -1.36,0.4 H 120 Z m -2.88,-3.36 v -2.88 h 0.72 0.72 v 2.88 2.88 h -0.72 -0.72 z m 0.032,-3.872 c -0.1056,-0.1056 -0.192,-0.3792 -0.192,-0.608 0,-0.550206 0.27478,-0.8 0.88,-0.8 0.6132,0 0.88,0.250546 0.88,0.826371 0,0.670283 -1.07907,1.070552 -1.568,0.581629 z m 40.02285,-0.858606 c -0.32864,-0.328641 -0.39088,-0.509248 -0.31178,-0.904751 0.14067,-0.703329 0.37919,-0.924643 0.99652,-0.924643 1.08117,0 1.54565,1.089306 0.78769,1.847273 -0.50321,0.503206 -0.95685,0.497698 -1.47243,-0.01788 z M 116.40879,86.04 c -0.22515,-0.374 -0.85639,-1.454269 -1.40276,-2.400598 -0.77283,-1.338561 -1.03458,-1.676057 -1.17885,-1.52 -0.10199,0.110329 -0.76637,1.190598 -1.47639,2.400598 l -1.29094,2.2 h 2.87915 2.87914 z M 64.960001,84.699041 c 0,-0.129791 -2.757795,-4.87803 -2.800366,-4.821535 -0.06706,0.08899 -2.439845,4.21967 -2.620835,4.562494 l -0.190058,0.36 h 2.80563 c 1.543096,0 2.805629,-0.04543 2.805629,-0.100959 z M 162.68,65.750502 c 0.67629,-0.236448 0.65644,-0.398506 -0.08,-0.653163 -0.8126,-0.280994 -2.54062,-0.236929 -3.30456,0.08427 -0.72921,0.306588 -0.68646,0.391733 0.34197,0.681157 0.82309,0.231637 2.20479,0.180657 3.04259,-0.112261 z m 0.25718,-4.335268 0.45718,-0.242179 -0.53718,-0.226528 c -1.01204,-0.426777 -4.35183,-0.143292 -4.05077,0.343834 0.30305,0.490355 3.27143,0.580088 4.13077,0.124873 z m 0.20074,-4.423677 c 0.27846,-0.155833 0.26454,-0.185074 -0.17792,-0.373865 -0.70632,-0.301381 -3.24336,-0.270304 -3.82823,0.04689 l -0.46823,0.25394 0.35779,0.19148 c 0.91707,0.490802 3.14236,0.426773 4.11659,-0.118448 z M 142.1949,46.88 c -0.0298,-0.772591 -0.16007,-1.601874 -0.30169,-1.92 l -0.24928,-0.56 -0.28099,0.946404 c -0.32222,1.085253 -0.281,3.110278 0.0768,3.773596 l 0.21576,0.4 0.2959,-0.64 c 0.2321,-0.502021 0.28459,-0.933206 0.24349,-2 z m -8.76249,1.78819 c 0.33876,-1.258044 0.1673,-3.396926 -0.31447,-3.92292 -0.22533,-0.246018 -0.55073,1.078185 -0.54424,2.21473 0.006,1.127878 0.29037,2.32 0.55254,2.32 0.0778,0 0.21556,-0.275314 0.30617,-0.61181 z m 4.32078,-0.153971 c 0.24778,-0.892185 0.20051,-2.438332 -0.10168,-3.325192 l -0.26849,-0.787978 -0.2309,0.559476 c -0.37253,0.902674 -0.42687,2.380457 -0.12562,3.416693 0.29203,1.004558 0.4761,1.03926 0.72669,0.137001 z M 64.913914,34.84 c -0.04418,-0.11 -0.692108,-1.233872 -1.439844,-2.497494 l -1.359519,-2.297495 -0.63542,1.097495 c -1.547691,2.673166 -2.11913,3.696034 -2.11913,3.793216 0,0.05735 1.267703,0.104278 2.817118,0.104278 2.189868,0 2.799234,-0.04453 2.736795,-0.2 z m 51.837446,-1.68 c -1.18934,-2.113368 -2.72943,-4.679627 -2.80769,-4.678477 -0.057,8.37e-4 -0.55431,0.774837 -1.1051,1.72 C 112.28778,31.146685 111.6537,32.226 111.4295,32.6 l -0.40764,0.68 h 2.89852 c 1.59418,0 2.86812,-0.054 2.83098,-0.12 z m 10.76864,65 c 0,-0.373333 -0.0533,-0.4 -0.8,-0.4 -0.73901,0 -0.8,-0.02944 -0.8,-0.386138 0,-0.212376 0.27876,-0.878376 0.61945,-1.48 0.56969,-1.005979 0.6661,-1.097852 1.2,-1.14352 l 0.58055,-0.04966 v 1.209659 c 0,0.699772 0.0674,1.209658 0.16,1.209658 0.088,0 0.16,0.144 0.16,0.32 0,0.176 -0.072,0.32 -0.16,0.32 -0.088,0 -0.16,0.18 -0.16,0.4 0,0.32 -0.08,0.4 -0.4,0.4 -0.32,0 -0.4,-0.08 -0.4,-0.4 z m -0.003,-1.88 -0.003,-0.84 -0.47696,0.759528 c -0.26233,0.41774 -0.47696,0.79574 -0.47696,0.84 0,0.04426 0.216,0.08047 0.48,0.08047 0.47277,0 0.47996,-0.01266 0.47696,-0.84 z m -4.89092,0.05603 c -0.7412,-0.187502 -0.86604,-0.308962 -0.86604,-0.842586 0,-0.403166 0.0485,-0.467033 0.28,-0.368554 0.9529,0.405398 1.45009,0.451515 1.87391,0.173817 0.68521,-0.448964 0.49079,-0.896356 -0.63391,-1.458702 -0.73056,-0.365282 -1.02996,-0.62317 -1.25272,-1.079048 -0.6933,-1.418819 0.69015,-2.675563 2.42968,-2.207155 0.41809,0.112577 0.68074,0.289909 0.74929,0.505878 0.15571,0.490602 -0.14605,0.717343 -0.64944,0.487985 -0.55869,-0.254559 -1.11744,-0.236084 -1.35043,0.04465 -0.34354,0.413944 -0.10843,0.797028 0.7412,1.207686 1.08342,0.523655 1.46487,0.890427 1.58345,1.522529 0.11374,0.606263 -0.23592,1.395498 -0.77436,1.747877 -0.45449,0.29744 -1.49305,0.426913 -2.13063,0.265619 z m -6.2279,-0.203181 c -0.0475,-0.123821 -0.0665,-1.410364 -0.0423,-2.858986 L 116.4,90.64 l 1.36,-0.04447 c 2.37275,-0.07758 3.36,0.751059 3.36,2.820187 0,1.203589 -0.39625,2.050778 -1.17508,2.512331 -0.66799,0.395868 -3.41264,0.554346 -3.54678,0.204794 z m 2.69676,-0.950517 C 119.6324,94.937424 119.92,94.33011 119.92,93.44 c 0,-1.328991 -0.5687,-1.92 -1.84753,-1.92 H 117.44 v 1.92 1.92 h 0.63247 c 0.34786,0 0.80795,-0.07995 1.02243,-0.177673 z M 201.8,94.774035 c -0.15471,-0.06243 -0.2,-1.363743 -0.2,-5.747368 V 83.36 h -1.84 c -1.012,0 -1.84,-0.04714 -1.84,-0.104763 0,-0.05762 0.828,-1.522476 1.84,-3.255237 1.012,-1.732761 1.84,-3.197617 1.84,-3.255237 0,-0.05762 -0.756,-0.104763 -1.68,-0.104763 h -1.68 V 76 75.36 h 1.76 1.76 V 72.4 69.44 h 0.48 0.48 v 2.96 2.96 h 1.84 1.84 v 0.63476 0.63476 l -1.73984,0.04524 -1.73984,0.04524 1.89984,3.248386 c 1.04492,1.786612 1.89984,3.280612 1.89984,3.32 0,0.03939 -0.936,0.07161 -2.08,0.07161 h -2.08 v 5.28 5.28 h 5.76 5.76 v -5.28 -5.28 h -1.84 c -1.012,0 -1.84,-0.04714 -1.84,-0.104763 0,-0.05762 0.828,-1.522476 1.84,-3.255237 1.012,-1.732761 1.84,-3.197617 1.84,-3.255237 0,-0.05762 -0.756,-0.104763 -1.68,-0.104763 h -1.68 V 76 75.36 h 1.76 1.76 v -3.2 -3.2 H 203.2 192.16 v 3.44 c 0,2.186667 -0.0583,3.44 -0.16,3.44 -0.088,0 -0.16,0.108 -0.16,0.24 0,0.209612 -0.87111,0.24 -6.88,0.24 -6.00889,0 -6.88,-0.03039 -6.88,-0.24 0,-0.132 -0.072,-0.24 -0.16,-0.24 -0.0997,0 -0.16,-0.924589 -0.16,-2.453768 v -2.453768 l -0.92,-0.257932 c -2.7833,-0.780331 -4.04666,-2.949947 -2.87848,-4.943306 0.40224,-0.686371 0.40353,-0.699474 0.10495,-1.068206 -0.71006,-0.876882 -0.715,-2.431839 -0.0108,-3.384364 0.31493,-0.425975 0.31504,-0.435392 0.01,-0.894581 -0.7271,-1.093682 -0.70842,-2.408761 0.0493,-3.472899 l 0.32168,-0.451757 -0.32757,-0.34971 c -0.67159,-0.716998 -0.85784,-1.907735 -0.45078,-2.881973 0.3666,-0.877392 1.55697,-1.784062 2.90068,-2.209356 l 1.19548,-0.37838 0.005,-1.68 c 0.003,-0.924 0.0485,-1.842 0.10153,-2.04 l 0.0965,-0.36 H 189.77866 201.6 v -2.474922 -2.474923 l -1.84488,-0.04508 -1.84488,-0.04508 1.90646,-3.28 1.90646,-3.28 -1.66158,-0.04541 L 198.4,34.869174 V 34.154587 33.44 h 1.76 1.76 v -3.902882 c 0,-3.411319 0.0319,-3.915113 0.25309,-4 0.1392,-0.05342 4.8192,-0.09712 10.4,-0.09712 8.91281,0 10.14691,-0.02919 10.14691,-0.24 0,-0.207407 0.58667,-0.24 4.32,-0.24 h 4.32 v -0.8 c 0,-0.44 0.0471,-0.8 0.1047,-0.8 0.0576,0 1.00131,0.468 2.09717,1.04 l 1.99248,1.04 h 6.30283 c 6.19616,0 6.30282,-0.0054 6.30282,-0.32 0,-0.31195 0.10667,-0.32 4.24,-0.32 h 4.24 v -0.72 c 0,-0.396 0.073,-0.72 0.16229,-0.72 0.0893,0 1.09623,0.468 2.23771,1.04 l 2.07544,1.04 h 2.22919 c 1.22606,0 2.34309,0.0437 2.48229,0.09712 0.2275,0.0873 0.25381,1.280301 0.26022,11.8 l 0.007,11.702882 1.51285,0.707901 c 0.83208,0.389345 1.51286,0.789584 1.51286,0.889419 0,0.549705 -0.4418,0.740563 -2.48216,1.072291 -1.14281,0.185802 -2.12915,0.382063 -2.19187,0.436135 -0.0627,0.05407 0.85529,0.448187 2.04,0.875811 2.0863,0.753049 2.15403,0.791976 2.15403,1.23797 0,0.25326 -0.018,0.461226 -0.04,0.462146 -0.25281,0.01057 -4.15377,0.778773 -4.2026,0.827598 -0.0364,0.03638 0.92132,0.428605 2.12823,0.871604 2.1159,0.776648 2.1961,0.822715 2.24272,1.288213 l 0.0483,0.482763 -2.27695,0.371456 -2.27696,0.371456 0.81714,0.40009 c 0.48415,0.237057 0.85352,0.535595 0.90642,0.732619 0.0491,0.18289 0.0903,7.982528 0.0915,17.332528 0.002,16.894062 1.9e-4,17 -0.31782,17 -0.17777,0 -0.32,0.106667 -0.32,0.24 0,0.212569 -3.62549,0.238556 -31.72,0.227368 -17.446,-0.0069 -31.81,-0.04895 -31.92,-0.09333 z M 241.28,76.08 V 58.24 h -2.72 -2.72 V 57.6 56.96 h 5.68 5.68 v 0.64 0.64 h -2.56 -2.56 v 17.84 17.84 h 11.6 11.6 V 77.232036 60.544071 l -1.29482,-0.631298 c -0.71215,-0.347214 -1.32507,-0.680235 -1.36203,-0.740046 -0.13645,-0.220774 0.32235,-0.942748 0.64428,-1.013871 0.44325,-0.09792 3.16953,-0.555592 3.37257,-0.566165 0.14955,-0.0078 -0.22763,-0.160067 -3,-1.211191 -1.03293,-0.391633 -1.08,-0.432523 -1.08,-0.93837 0,-0.290891 0.09,-0.5634 0.2,-0.605574 0.11,-0.04218 0.974,-0.208462 1.92,-0.369529 0.946,-0.161066 1.71937,-0.332263 1.71859,-0.380437 -7.7e-4,-0.04818 -0.90077,-0.410921 -2,-0.806103 -1.09922,-0.395182 -1.99859,-0.75007 -1.99859,-0.78864 0,-0.03857 0.0835,-0.300885 0.18543,-0.582922 l 0.18543,-0.512794 2.23681,-0.364907 2.23681,-0.364907 -0.89721,-0.45368 c -0.63835,-0.322788 -0.87064,-0.522917 -0.80512,-0.693659 0.0507,-0.131988 0.0124,-0.239978 -0.085,-0.239978 -0.12785,0 -0.17712,-3.204406 -0.17712,-11.52 V 26.24 l -2.40246,0 -2.40246,0 -1.91754,0.961233 -1.91754,0.961234 V 27.361233 26.56 h -4.24 c -2.72,0 -4.24,-0.05736 -4.24,-0.16 0,-0.101197 -1.14666,-0.16 -3.12,-0.16 h -3.12 v 13.84 13.84 h 2.64 2.64 v 0.64 0.64 h -5.68 -5.68 v -0.64 -0.64 h 2.64 2.64 V 40.08 26.24 l -2.96246,0 -2.96246,0 -1.91754,0.961233 -1.91754,0.961234 V 27.361233 26.56 h -4.32 c -2.77333,0 -4.32,-0.05728 -4.32,-0.16 0,-0.102128 -1.36,-0.16 -3.76,-0.16 h -3.76 v 3.6 3.6 h 1.84 1.84 v 0.714587 0.714587 l -1.68287,0.04541 -1.68287,0.04541 1.91395,3.28 1.91395,3.28 -2.07108,0.04464 -2.07108,0.04464 V 58.484644 75.36 h 1.84 1.84 v 0.63476 0.63476 l -1.73362,0.04524 -1.73362,0.04524 1.95488,3.28 1.95488,3.28 -2.14126,0.04452 -2.14126,0.04451 V 88.644515 93.92 h 13.12 13.12 z m -13.44,8.32 c 0,-0.373333 -0.0533,-0.4 -0.8,-0.4 -0.739,0 -0.8,-0.02944 -0.8,-0.386138 0,-0.212376 0.27876,-0.878376 0.61946,-1.48 0.56968,-1.005979 0.66609,-1.097852 1.2,-1.14352 l 0.58054,-0.04966 v 1.209659 c 0,0.699772 0.0675,1.209658 0.16,1.209658 0.088,0 0.16,0.144 0.16,0.32 0,0.176 -0.072,0.32 -0.16,0.32 -0.088,0 -0.16,0.18 -0.16,0.4 0,0.32 -0.08,0.4 -0.4,0.4 -0.32,0 -0.4,-0.08 -0.4,-0.4 z m -0.003,-1.88 -0.003,-0.84 -0.47696,0.759528 c -0.26232,0.41774 -0.47696,0.79574 -0.47696,0.84 0,0.04426 0.216,0.08047 0.48,0.08047 0.47277,0 0.47996,-0.01266 0.47696,-0.84 z m -6.79882,-0.147156 c -0.0475,-0.123821 -0.0665,-1.410364 -0.0423,-2.858986 L 221.04,76.88 l 1.36,-0.04447 c 2.37275,-0.07758 3.36,0.751059 3.36,2.820187 0,1.203589 -0.39625,2.050778 -1.17508,2.512331 -0.66799,0.395868 -3.41264,0.554346 -3.54678,0.204794 z m 2.69676,-0.950517 C 224.2724,81.177424 224.56,80.57011 224.56,79.68 c 0,-1.328991 -0.5687,-1.92 -1.84752,-1.92 H 222.08 v 1.92 1.92 h 0.63248 c 0.34785,0 0.80794,-0.07995 1.02242,-0.177673 z M 243.68,61.12 v -0.48 h 2 2 v 0.48 0.48 h -2 -2 z m 11.60927,-0.56512 c -0.6915,-0.746138 -0.6092,-2.418818 0.15128,-3.07488 0.31313,-0.27013 0.61785,-0.36 1.22068,-0.36 0.67462,0 0.87835,0.07496 1.27108,0.467692 0.39529,0.395285 0.46769,0.594683 0.46769,1.287946 0,0.901316 -0.31455,1.664561 -0.79113,1.919619 -0.16931,0.09061 -0.676,0.164743 -1.12599,0.164743 -0.66993,0 -0.88617,-0.07339 -1.19361,-0.40512 z m 2.06166,-0.590481 c 0.32547,-0.464673 0.32407,-1.626546 -0.002,-1.95297 C 257.21029,57.873143 256.85282,57.76 256.55421,57.76 c -0.65071,0 -0.87421,0.327247 -0.87421,1.28 0,0.953912 0.22331,1.28 0.87656,1.28 0.38212,0 0.61983,-0.106414 0.79437,-0.355601 z m -6.99211,-3.925638 c -0.50666,-1.473318 -0.92066,-2.773107 -0.92,-2.888419 8.1e-4,-0.144108 0.18761,-0.194133 0.59746,-0.16 l 0.59628,0.04966 0.71953,2.300069 0.71954,2.300068 0.72837,-2.300068 0.72836,-2.300069 0.61714,-0.05093 c 0.45864,-0.03785 0.59677,0.0032 0.53784,0.16 -0.0436,0.116011 -0.495,1.416929 -1.00309,2.890929 l -0.92381,2.68 -0.73822,-0.0012 -0.73822,-0.0012 z m -5.45215,-3.985428 C 244.848,51.994667 244.8,51.634667 244.8,51.253333 V 50.56 h -0.70288 c -0.47718,0 -0.73245,-0.07706 -0.79498,-0.24 -0.1864,-0.485754 0.0694,-0.72 0.78622,-0.72 h 0.69411 l 0.0488,-0.76 c 0.0447,-0.695986 0.0858,-0.764264 0.48876,-0.810628 0.42877,-0.04933 0.44,-0.02993 0.44,0.76 V 49.6 h 0.8 c 0.78223,0 0.8,0.01067 0.8,0.48 0,0.469333 -0.0178,0.48 -0.8,0.48 h -0.8 v 0.8 c 0,0.731429 -0.032,0.8 -0.37333,0.8 -0.20533,0 -0.42133,-0.048 -0.48,-0.106667 z m -17.92,-8 c -0.0587,-0.05867 -0.10667,-0.23364 -0.10667,-0.388831 0,-0.231969 0.0785,-0.259641 0.44148,-0.155551 0.64418,0.184748 1.1931,-0.06205 1.12978,-0.50796 -0.0412,-0.290293 -0.16876,-0.370716 -0.65126,-0.410649 -0.47004,-0.0389 -0.6,-0.116878 -0.6,-0.36 0,-0.199265 0.10985,-0.310342 0.30692,-0.310342 0.54372,0 0.81308,-0.18552 0.81308,-0.56 0,-0.45137 -0.34836,-0.602128 -0.90358,-0.391035 -0.50207,0.190887 -0.66869,0.07707 -0.43428,-0.296639 0.23678,-0.377472 1.6851,-0.465088 1.97208,-0.119301 0.27761,0.334511 0.26015,1.021177 -0.0334,1.314767 -0.21229,0.212295 -0.19541,0.283024 0.14994,0.628378 0.73696,0.736963 0.0564,1.66383 -1.22177,1.66383 -0.41559,0 -0.80361,-0.048 -0.86228,-0.106667 z m -5.62853,-2.320489 c -0.0475,-0.123821 -0.0665,-1.410364 -0.0423,-2.858986 L 221.36,36.24 l 1.36,-0.04447 c 2.37275,-0.07758 3.36,0.751059 3.36,2.820187 0,1.203589 -0.39625,2.050778 -1.17508,2.512331 -0.66799,0.395868 -3.41264,0.554346 -3.54678,0.204794 z m 2.69676,-0.950517 C 224.5924,40.537424 224.88,39.93011 224.88,39.04 c 0,-1.328991 -0.5687,-1.92 -1.84752,-1.92 H 222.4 v 1.92 1.92 h 0.63248 c 0.34785,0 0.80794,-0.07995 1.02242,-0.177673 z M 203.85887,80.28 c -0.6823,-1.166 -1.31311,-2.250611 -1.4018,-2.410246 -0.13572,-0.244283 -0.34742,0.03443 -1.33681,1.76 -0.64656,1.127635 -1.2794,2.212246 -1.40631,2.410246 l -0.23075,0.36 h 2.80811 2.80811 z m 13.60171,1.84 c -0.19812,-0.368169 -2.59991,-4.427389 -2.6525,-4.482957 -0.0224,-0.02363 -0.56777,0.876373 -1.21202,2 -0.64425,1.123626 -1.2752,2.204957 -1.40211,2.402957 l -0.23075,0.36 h 2.82403 c 2.64029,0 2.81423,-0.01822 2.67335,-0.28 z M 191.2,71.84 c 0,-3.022222 0.0339,-3.52 0.24,-3.52 0.132,0 0.24,-0.072 0.24,-0.16 0,-0.105154 3.86667,-0.16 11.28,-0.16 h 11.28 V 54.8 41.6 h -1.92 c -1.056,0 -1.9199,-0.054 -1.91978,-0.12 1.2e-4,-0.066 0.85509,-1.56 1.89994,-3.32 l 1.89971,-3.2 -1.73993,-0.04524 L 210.72,34.86952 V 34.15476 33.44 h 1.76 1.76 v -3.6 -3.6 h -5.68 -5.68 v 3.6 3.6 h 1.76 1.76 v 0.714587 0.714587 l -1.6764,0.04541 -1.6764,0.04541 1.85313,3.12 c 1.01923,1.716 1.88932,3.21 1.93353,3.32 0.062,0.154139 -0.41884,0.2 -2.09674,0.2 H 202.56 v 12.88 12.88 h -0.48 -0.48 v -9.92 -9.92 h -11.44 -11.44 l -0.0189,1.88 c -0.0104,1.034 -0.0129,1.926459 -0.006,1.983241 0.007,0.05678 -0.25413,0.150312 -0.58105,0.207842 -2.1923,0.385782 -3.71058,1.493836 -3.71336,2.710032 -0.001,0.634409 0.60584,1.590109 0.94011,1.479451 0.14236,-0.04713 0.69083,-0.240991 1.21883,-0.430805 0.79857,-0.287083 1.20299,-0.33275 2.40498,-0.271567 1.69535,0.0863 2.51515,0.406124 2.79928,1.092088 0.71071,1.715798 -2.95434,2.500745 -5.8701,1.257204 -0.62288,-0.265655 -0.68152,-0.266651 -0.90886,-0.01544 -0.63306,0.699522 -0.68724,1.668793 -0.13385,2.394245 l 0.27942,0.366293 0.76215,-0.337133 c 1.12072,-0.49575 2.2494,-0.636563 3.57328,-0.445801 1.33954,0.193017 2.08203,0.588755 2.23297,1.190149 0.21934,0.873924 -0.54475,1.44516 -2.21444,1.65551 -1.39862,0.176202 -2.70942,0.0019 -3.66964,-0.487969 l -0.59496,-0.303528 -0.31905,0.405607 c -0.46637,0.592886 -0.56446,1.244094 -0.27246,1.808755 0.13695,0.264843 0.31653,0.523264 0.39906,0.574269 0.0825,0.05101 0.71304,-0.0965 1.40114,-0.327795 1.08825,-0.365799 1.40726,-0.406803 2.45108,-0.315053 1.61812,0.142232 2.2724,0.33395 2.70266,0.791942 0.90554,0.963907 -0.0502,1.878828 -2.24755,2.151635 -1.36896,0.169957 -2.33052,0.04307 -3.46006,-0.456575 l -0.74418,-0.329185 -0.27739,0.366293 c -0.66524,0.878455 -0.47368,1.890158 0.51873,2.739624 0.68466,0.586044 1.94908,1.066669 2.80617,1.066669 H 178.72 v 2.72 2.72 h 6.24 6.24 z M 180.4248,52.347401 c -0.35147,-0.388365 -0.33678,-1.192661 0.0278,-1.522603 0.6741,-0.610055 1.9474,-0.103193 1.9474,0.775202 0,0.896056 -1.37113,1.414885 -1.9752,0.747401 z m -0.30068,13.061373 c 0.88078,-0.222305 0.95992,-0.373343 0.31569,-0.602519 -0.97984,-0.348569 -2.56048,-0.391606 -3.45617,-0.0941 -0.45437,0.150916 -0.78602,0.339274 -0.73701,0.418574 0.049,0.0793 0.42757,0.245421 0.84124,0.369158 0.78664,0.235298 1.87207,0.202728 3.03625,-0.09111 z m 0.21821,-4.342657 0.53767,-0.229223 -0.64,-0.286325 c -0.86569,-0.387297 -2.6609,-0.385531 -3.52,0.0035 l -0.64,0.289789 0.88,0.29835 c 0.99941,0.338834 2.48765,0.30537 3.38233,-0.07605 z m -0.19434,-4.155148 c 0.759,-0.26451 0.77156,-0.504499 0.0379,-0.724311 -1.08749,-0.325817 -3.86589,-0.118094 -3.86589,0.289028 0,0.226448 1.52781,0.624577 2.4,0.625411 0.484,4.63e-4 1.1266,-0.0851 1.42799,-0.190128 z M 204.05778,38.6 c -0.66167,-1.122 -1.31105,-2.208159 -1.44306,-2.413687 -0.23496,-0.36579 -0.26702,-0.327476 -1.51743,1.81313 -0.70257,1.202749 -1.31658,2.288908 -1.36446,2.413687 -0.0731,0.190515 0.36283,0.22687 2.72046,0.22687 h 2.80752 z M 217.6,40.569918 c 0,-0.0678 -2.03775,-3.623178 -2.51414,-4.386567 -0.23102,-0.370189 -0.25222,-0.348064 -1.23607,1.289904 -0.55056,0.916605 -1.19884,2.004097 -1.44061,2.41665 L 211.9696,40.64 h 2.8152 c 1.54836,0 2.8152,-0.03154 2.8152,-0.07008 z M 36.480001,90.88 V 90.4 h 2.4 2.4 v -6.64 -6.64 h 0.48 0.48 v 6.928 c 0,5.175111 -0.04858,6.976579 -0.192,7.12 -0.134096,0.134095 -1.002667,0.192 -2.88,0.192 h -2.688 z M 196,89.231387 c 0,-0.209852 0.23658,-0.597916 0.54929,-0.901006 1.22959,-1.191764 1.05739,-2.45899 -0.23981,-1.764752 C 196.05146,86.70372 196,86.678053 196,86.411259 196,85.995706 196.45812,85.76 197.2658,85.76 c 0.51054,0 0.70115,0.08291 0.90466,0.393498 0.3629,0.553858 0.17856,1.197601 -0.5944,2.07573 L 196.93281,88.96 h 0.8136 c 0.70693,0 0.81359,0.04195 0.81359,0.32 0,0.293333 -0.10666,0.32 -1.28,0.32 -1.2296,0 -1.28,-0.01451 -1.28,-0.368613 z m -5.36186,-2.218543 c -0.0475,-0.123821 -0.0665,-1.410364 -0.0423,-2.858986 L 190.64,81.52 192,81.475532 c 2.37275,-0.07758 3.36,0.751059 3.36,2.820187 0,1.203589 -0.39625,2.050778 -1.17508,2.512331 -0.66799,0.395868 -3.41264,0.554346 -3.54678,0.204794 z m 2.69676,-0.950517 C 193.8724,85.817424 194.16,85.21011 194.16,84.32 c 0,-1.328991 -0.5687,-1.92 -1.84753,-1.92 H 191.68 v 1.92 1.92 h 0.63247 c 0.34786,0 0.80795,-0.07995 1.02243,-0.177673 z M 47.200001,77.071387 c 0,-0.209852 0.236579,-0.597916 0.549289,-0.901006 1.229589,-1.191764 1.057388,-2.45899 -0.239808,-1.764752 -0.258024,0.138091 -0.309481,0.112424 -0.309481,-0.15437 0,-0.415553 0.458121,-0.651259 1.265793,-0.651259 0.510544,0 0.701154,0.08291 0.904659,0.393498 0.362903,0.553858 0.178563,1.197601 -0.594397,2.07573 L 48.132805,76.8 h 0.813598 c 0.706931,0 0.813598,0.04195 0.813598,0.32 0,0.293333 -0.106667,0.32 -1.28,0.32 -1.229603,0 -1.28,-0.01451 -1.28,-0.368613 z M 167.36,61.84 V 46.4 h 0.8 0.8 v 15.44 15.44 h -0.8 -0.8 z m 2.88,-0.08 V 46.4 h 0.88 0.88 v 15.36 15.36 h -0.88 -0.88 z M 43.746034,75.216025 c -0.741193,-0.187502 -0.866033,-0.308962 -0.866033,-0.842586 0,-0.403166 0.04852,-0.467033 0.28,-0.368554 0.952902,0.405398 1.450091,0.451515 1.873913,0.173817 0.685204,-0.448964 0.49078,-0.896356 -0.633913,-1.458702 -0.730565,-0.365282 -1.02996,-0.62317 -1.252723,-1.079048 -0.6933,-1.418819 0.690151,-2.675563 2.429685,-2.207155 0.418082,0.112577 0.680736,0.289909 0.749282,0.505878 0.155711,0.490602 -0.146046,0.717343 -0.649433,0.487985 -0.558696,-0.254559 -1.117441,-0.236084 -1.350432,0.04465 -0.343543,0.413944 -0.10843,0.797028 0.741203,1.207686 1.083418,0.523655 1.464866,0.890427 1.583449,1.522529 0.113735,0.606263 -0.235919,1.395498 -0.774361,1.747877 -0.454492,0.29744 -1.493048,0.426913 -2.130637,0.265619 z M 8.0351572,69.593223 C 7.6955684,69.456869 7.6762506,69.377276 7.7560764,68.443364 7.8032457,67.891514 7.8389573,67.177611 7.8354357,66.856912 7.8261349,66.009927 8.1578777,65.76 9.2914287,65.76 10.133334,65.76 10.24,65.795984 10.24,66.08 c 0,0.176 -0.072,0.32 -0.16,0.32 -0.088,0 -0.1599998,0.175917 -0.1599998,0.390927 0,0.474911 -0.5427197,0.889073 -1.1650438,0.889073 -0.2618181,0 -0.4120026,0.0677 -0.3549563,0.16 0.054387,0.088 0.3774934,0.16 0.7180142,0.16 1.2601397,0 1.5713817,1.155397 0.4283136,1.58999 -0.5317997,0.20219 -1.013103,0.20322 -1.5111707,0.0032 z M 9.2633149,69.133698 C 9.6026324,68.918844 9.3453037,68.48 8.8800002,68.48 c -0.4653036,0 -0.7226323,0.438844 -0.3833148,0.653698 0.1228231,0.07777 0.2953148,0.141402 0.3833148,0.141402 0.088,0 0.2604916,-0.06363 0.3833147,-0.141402 z M 9.2000002,66.72 c 0,-0.4561 -0.5050042,-0.649489 -0.6576021,-0.251825 -0.1455674,0.379342 0.0604,0.762453 0.3771182,0.701459 C 9.09664,67.135523 9.2000002,66.96983 9.2000002,66.72 Z M 3.4788134,63.718761 c -0.5066527,-1.473318 -0.9206527,-2.773107 -0.92,-2.888419 8.156e-4,-0.144108 0.1876162,-0.194133 0.597463,-0.16 L 3.7525528,60.72 4.472089,63.020069 5.1916252,65.320137 5.9199922,63.020069 6.6483591,60.72 7.2654917,60.669071 c 0.458646,-0.03785 0.5967705,0.0032 0.5378444,0.16 C 7.7597276,60.945082 7.3083351,62.246 6.8002415,63.72 l -0.9238064,2.68 -0.7382175,-0.0012 -0.7382175,-0.0012 z M 277.76,61.268872 c 0,-1.911134 0.004,-1.930599 0.36,-1.88 0.34152,0.0485 0.36236,0.131236 0.4058,1.611128 l 0.0458,1.56 h 0.63421 c 0.52754,0 0.6342,0.05382 0.6342,0.32 0,0.287179 -0.10666,0.32 -1.04,0.32 h -1.04 z M 272.83631,58.12 l 0.0437,-2.84 1.04,-0.04947 c 2.05369,-0.0977 2.88,0.355061 2.88,1.578008 0,0.531694 -0.0959,0.752683 -0.4841,1.115296 -0.32199,0.30079 -0.42249,0.490294 -0.30011,0.565929 0.1926,0.11903 1.10421,2.023421 1.10421,2.306728 0,0.08993 -0.27377,0.163513 -0.60839,0.163513 -0.58858,0 -0.61818,-0.02724 -0.90917,-0.836448 C 275.26113,59.174399 274.72861,58.56 274.24728,58.56 c -0.30061,0 -0.32728,0.09778 -0.32728,1.2 v 1.2 h -0.56369 -0.56369 z m 2.27505,-0.458824 c 0.41164,-0.157958 0.589,-0.626797 0.41263,-1.0907 C 275.38819,56.213314 275.27389,56.16 274.64396,56.16 H 273.92 v 0.8 c 0,0.77724 0.0133,0.8 0.46692,0.8 0.2568,0 0.5828,-0.04447 0.72444,-0.09882 z M 163.73995,44.085443 C 163.56455,43.628345 163.80685,43.36 164.39498,43.36 H 164.96 v -1.844109 -1.844109 l -0.47205,0.244109 c -0.62517,0.323285 -0.80795,0.307855 -0.80795,-0.0682 0,-0.459284 1.27947,-1.287687 1.98883,-1.287687 H 166.24 v 2.389863 2.389862 l 0.52,0.05014 c 0.43463,0.04191 0.52,0.115806 0.52,0.450137 0,0.399089 -0.004,0.400103 -1.72293,0.445443 -1.42941,0.0377 -1.73898,0.0036 -1.81712,-0.2 z M 168.51034,43.72 c 0.0431,-0.521342 0.1075,-0.606652 0.49085,-0.650742 0.33856,-0.03894 0.47256,0.0341 0.57612,0.314033 0.23277,0.629248 0.0471,0.936709 -0.56563,0.936709 -0.53887,0 -0.5499,-0.01321 -0.50134,-0.6 z M 170.88,42.16 V 40 h 0.40502 c 0.22277,0 0.44746,0.110584 0.49933,0.245742 0.0848,0.220989 0.13207,0.220989 0.46935,0 0.60233,-0.394664 1.54363,-0.316941 1.99623,0.164829 0.34941,0.371925 0.39135,0.575237 0.44559,2.16 L 174.7554,44.32 H 174.1777 173.6 V 43.050416 C 173.6,41.487895 173.42544,40.96 172.90876,40.96 172.20643,40.96 172,41.408088 172,42.932599 V 44.32 h -0.56 -0.56 z m 22.88,0.08 c 0,-0.234667 0.10667,-0.32 0.4,-0.32 0.39111,0 0.4,-0.02667 0.4,-1.2 0,-1.093943 -0.14065,-1.459636 -0.4,-1.04 -0.15995,0.258803 -0.4,0.183485 -0.4,-0.125503 0,-0.327585 0.76823,-0.834497 1.26469,-0.834497 0.31806,0 0.33531,0.08231 0.33531,1.6 0,1.463191 0.0259,1.6 0.30289,1.6 0.30391,0 0.55851,0.365268 0.37942,0.544357 -0.0526,0.0526 -0.58764,0.09564 -1.18897,0.09564 -0.98667,0 -1.09334,-0.03122 -1.09334,-0.32 z m -25.21767,-1.028364 c -0.1944,-0.506581 0.009,-0.970596 0.44691,-1.021225 0.54226,-0.06265 0.87266,0.440231 0.61076,0.929589 -0.19918,0.372174 -0.92586,0.435134 -1.05767,0.09164 z M 36.480001,40 v -0.48 h 2.4 2.4 v -6.64 -6.64 h 0.48 0.48 v 6.868571 c 0,6.030823 -0.03067,6.899238 -0.251429,7.12 -0.208165,0.208166 -0.703723,0.251429 -2.88,0.251429 H 36.480001 Z M 88.160002,39.843692 V 39.36 h 2.4 2.4 V 32.8 26.24 h 0.481681 0.481682 l -0.04168,7 -0.04168,7 -2.84,0.04369 -2.84,0.04369 z m 100.078138,0.289152 c -0.0475,-0.123821 -0.0665,-1.410364 -0.0423,-2.858986 L 188.24,34.64 l 1.36,-0.04447 c 2.37275,-0.07758 3.36,0.751059 3.36,2.820187 0,1.203589 -0.39625,2.050778 -1.17508,2.512331 -0.66799,0.395868 -3.41264,0.554346 -3.54678,0.204794 z m 2.69676,-0.950517 C 191.4724,38.937424 191.76,38.33011 191.76,37.44 c 0,-1.328991 -0.5687,-1.92 -1.84753,-1.92 H 189.28 v 1.92 1.92 h 0.63247 c 0.34786,0 0.80795,-0.07995 1.02243,-0.177673 z m -54.50823,-2.328994 c -0.0587,-0.05867 -0.10667,-1.354666 -0.10667,-2.88 V 31.2 h 0.56 0.56 v 2.4 2.4 h 1.04 1.04 v 0.48 0.48 h -1.49333 c -0.82133,0 -1.54133,-0.048 -1.6,-0.106667 z M 74.080001,28.32 c 0,-0.234667 0.106667,-0.32 0.4,-0.32 0.391111,0 0.4,-0.02667 0.4,-1.2 0,-1.093943 -0.140651,-1.459636 -0.4,-1.04 -0.159949,0.258803 -0.4,0.183485 -0.4,-0.125503 0,-0.327585 0.768229,-0.834497 1.264687,-0.834497 0.318064,0 0.335313,0.08231 0.335313,1.6 0,1.463191 0.0259,1.6 0.302882,1.6 0.303918,0 0.558517,0.365268 0.379427,0.544357 -0.0526,0.0526 -0.587642,0.09564 -1.188975,0.09564 -0.986667,0 -1.093334,-0.03122 -1.093334,-0.32 z m 51.946669,-1.226667 c -0.0587,-0.05867 -0.10667,-0.23364 -0.10667,-0.388831 0,-0.231969 0.0785,-0.259641 0.44148,-0.155551 0.64418,0.184748 1.1931,-0.06205 1.12978,-0.50796 -0.0412,-0.290293 -0.16876,-0.370716 -0.65126,-0.410649 -0.47004,-0.0389 -0.6,-0.116878 -0.6,-0.36 0,-0.199265 0.10985,-0.310342 0.30692,-0.310342 0.54372,0 0.81308,-0.18552 0.81308,-0.56 0,-0.45137 -0.34836,-0.602128 -0.90358,-0.391035 -0.50207,0.190887 -0.66869,0.07707 -0.43428,-0.296639 0.23677,-0.377472 1.6851,-0.465088 1.97207,-0.119301 0.27762,0.334511 0.26016,1.021177 -0.0334,1.314767 -0.21229,0.212295 -0.19542,0.283024 0.14994,0.628378 0.73696,0.736963 0.0564,1.66383 -1.22178,1.66383 -0.41558,0 -0.8036,-0.048 -0.86227,-0.106667 z M 70.466035,26.256025 c -0.741194,-0.187502 -0.866034,-0.308962 -0.866034,-0.842586 0,-0.403166 0.04852,-0.467033 0.28,-0.368554 0.952902,0.405398 1.450092,0.451515 1.873913,0.173817 0.685205,-0.448964 0.49078,-0.896356 -0.633913,-1.458702 -0.730564,-0.365282 -1.029959,-0.62317 -1.252722,-1.079048 -0.693301,-1.418819 0.690151,-2.675563 2.429684,-2.207155 0.418082,0.112577 0.680737,0.289909 0.749283,0.505878 0.155711,0.490602 -0.146047,0.717343 -0.649433,0.487985 -0.558697,-0.254559 -1.117441,-0.236084 -1.350433,0.04465 -0.343543,0.413944 -0.10843,0.797028 0.741203,1.207686 1.083418,0.523655 1.464866,0.890427 1.583449,1.522529 0.113736,0.606263 -0.235918,1.395498 -0.77436,1.747877 -0.454493,0.29744 -1.493048,0.426913 -2.130637,0.265619 z m -6.227896,-0.203181 c -0.04751,-0.123821 -0.06653,-1.410364 -0.04226,-2.858986 l 0.04413,-2.633858 1.36,-0.04447 c 2.372748,-0.07758 3.36,0.751059 3.36,2.820187 0,1.203589 -0.396252,2.050778 -1.175081,2.512331 -0.667992,0.395868 -3.412645,0.554346 -3.546781,0.204794 z m 2.696755,-0.950517 c 0.537504,-0.244903 0.825107,-0.852217 0.825107,-1.742327 0,-1.328991 -0.568701,-1.92 -1.847528,-1.92 h -0.632472 v 1.92 1.92 h 0.632472 c 0.347859,0 0.807949,-0.07995 1.022421,-0.177673 z M 47.840001,25.28 c 0,-0.234667 0.106666,-0.32 0.4,-0.32 0.391111,0 0.4,-0.02667 0.4,-1.2 0,-1.093943 -0.140651,-1.459636 -0.4,-1.04 -0.159949,0.258803 -0.4,0.183485 -0.4,-0.125503 0,-0.327585 0.768228,-0.834497 1.264687,-0.834497 0.318063,0 0.335313,0.08231 0.335313,1.6 0,1.463191 0.0259,1.6 0.302882,1.6 0.303918,0 0.558517,0.365268 0.379427,0.544357 -0.0526,0.0526 -0.587642,0.09564 -1.188976,0.09564 -0.986667,0 -1.093333,-0.03122 -1.093333,-0.32 z M 27.2,25.073934 c -0.491104,-0.247208 -0.617669,-0.976614 -0.24157,-1.392199 0.172879,-0.191029 0.204268,-0.325904 0.09199,-0.395293 -0.222167,-0.137307 -0.21936,-0.773505 0.0044,-0.997265 0.12643,-0.12643 0.12643,-0.265244 0,-0.501481 -0.276901,-0.517394 -0.206041,-0.971023 0.217905,-1.394969 C 27.624613,20.040842 27.799327,20 28.952728,20 c 1.266424,0 1.287273,0.0065 1.287273,0.4 0,0.226667 -0.09244,0.4 -0.213334,0.4 -0.132746,0 -0.213333,0.190887 -0.213333,0.505322 0,0.751263 -0.711904,1.315782 -1.52224,1.207093 C 27.845518,22.452651 27.68,22.488676 27.68,22.645421 c 0,0.135961 0.279333,0.251189 0.76,0.313511 1.310439,0.169907 1.485902,0.238964 1.677911,0.660378 0.229157,0.502945 -0.0731,1.147531 -0.682747,1.456017 C 28.925827,25.333055 27.71327,25.3323 27.2,25.073934 Z m 1.834095,-0.690885 c 0.384964,-0.384965 0.02363,-0.731861 -0.699069,-0.671139 -0.41063,0.0345 -0.588492,0.133095 -0.629438,0.348918 -0.107293,0.565529 0.852424,0.798303 1.328507,0.322221 z M 28.88,21.2 c 0,-0.426177 -0.05358,-0.48 -0.477808,-0.48 -0.333727,0 -0.494612,0.08725 -0.533532,0.289346 -0.09995,0.518979 0.102644,0.775176 0.570431,0.721369 C 28.811054,21.687931 28.88,21.604941 28.88,21.2 Z m 93.42604,3.776025 c -0.7412,-0.187502 -0.86604,-0.308962 -0.86604,-0.842586 0,-0.403166 0.0485,-0.467033 0.28,-0.368554 0.9529,0.405398 1.45009,0.451515 1.87391,0.173817 0.68521,-0.448964 0.49079,-0.896356 -0.63391,-1.458702 -0.73056,-0.365282 -1.02996,-0.62317 -1.25272,-1.079048 -0.6933,-1.418819 0.69015,-2.675563 2.42968,-2.207155 0.41809,0.112577 0.68074,0.289909 0.74929,0.505878 0.15571,0.490602 -0.14605,0.717343 -0.64944,0.487985 -0.55869,-0.254559 -1.11744,-0.236084 -1.35043,0.04465 -0.34354,0.413944 -0.10843,0.797028 0.7412,1.207686 1.08342,0.523655 1.46487,0.890427 1.58345,1.522529 0.11374,0.606263 -0.23592,1.395498 -0.77436,1.747877 -0.45449,0.29744 -1.49305,0.426913 -2.13063,0.265619 z m -6.2279,-0.203181 c -0.0475,-0.123821 -0.0665,-1.410364 -0.0423,-2.858986 L 116.08,19.28 l 1.36,-0.04447 c 2.37275,-0.07758 3.36,0.751059 3.36,2.820187 0,1.203589 -0.39625,2.050778 -1.17508,2.512331 -0.66799,0.395868 -3.41264,0.554346 -3.54678,0.204794 z m 2.69676,-0.950517 C 119.3124,23.577424 119.6,22.97011 119.6,22.08 c 0,-1.328991 -0.5687,-1.92 -1.84753,-1.92 H 117.12 V 22.08 24 h 0.63247 c 0.34786,0 0.80795,-0.07995 1.02243,-0.177673 z m -19.788232,0.711006 c -0.05867,-0.05867 -0.106666,-0.23364 -0.106666,-0.388831 0,-0.231969 0.07854,-0.259641 0.441476,-0.155551 0.644178,0.184748 1.193102,-0.06205 1.129782,-0.50796 -0.0412,-0.290293 -0.16876,-0.370716 -0.651258,-0.410649 -0.470041,-0.0389 -0.6,-0.116878 -0.6,-0.36 0,-0.199265 0.10985,-0.310342 0.306914,-0.310342 0.543724,0 0.813084,-0.18552 0.813084,-0.56 0,-0.45137 -0.348361,-0.602128 -0.903578,-0.391035 -0.50207,0.190887 -0.668697,0.07707 -0.434282,-0.296639 0.236774,-0.377472 1.68509,-0.465088 1.97207,-0.119301 0.27762,0.334511 0.26016,1.021177 -0.0334,1.314767 -0.21229,0.212295 -0.19542,0.283024 0.14994,0.628378 0.73696,0.736963 0.0564,1.66383 -1.221777,1.66383 -0.415584,0 -0.803608,-0.048 -0.862275,-0.106667 z M 44.226034,23.376025 c -0.741193,-0.187502 -0.866033,-0.308962 -0.866033,-0.842586 0,-0.403166 0.04852,-0.467033 0.28,-0.368554 0.952902,0.405398 1.450091,0.451515 1.873913,0.173817 0.685204,-0.448964 0.49078,-0.896356 -0.633913,-1.458702 -0.730565,-0.365282 -1.02996,-0.62317 -1.252723,-1.079048 -0.6933,-1.418819 0.690151,-2.675563 2.429685,-2.207155 0.418082,0.112577 0.680736,0.289909 0.749282,0.505878 0.155711,0.490602 -0.146046,0.717343 -0.649433,0.487985 -0.558696,-0.254559 -1.117441,-0.236084 -1.350432,0.04465 -0.343543,0.413944 -0.10843,0.797028 0.741203,1.207686 1.083418,0.523655 1.464866,0.890427 1.583449,1.522529 0.113735,0.606263 -0.235919,1.395498 -0.774361,1.747877 -0.454492,0.29744 -1.493048,0.426913 -2.130637,0.265619 z M 252.51345,22.727368 c -1.4491,-0.356757 -2.08459,-2.277857 -1.31466,-3.974272 0.40259,-0.887044 1.43355,-1.401503 2.51228,-1.253647 1.46534,0.200847 1.96742,0.863264 1.96834,2.59689 4.8e-4,0.919437 -0.0693,1.240111 -0.36538,1.68 -0.56521,0.839637 -1.69486,1.223248 -2.80058,0.951029 z m 1.72403,-1.204685 c 0.29856,-0.317802 0.3758,-0.58398 0.38594,-1.330025 C 254.64122,18.882247 254.30703,18.4 253.38111,18.4 c -0.96007,0 -1.26943,0.37801 -1.34958,1.649056 -0.0525,0.833068 -0.007,1.061044 0.28461,1.430944 0.46967,0.595393 1.38304,0.615684 1.92134,0.04268 z M 95.426035,22.256025 c -0.741193,-0.187502 -0.866033,-0.308962 -0.866033,-0.842586 0,-0.403166 0.04852,-0.467033 0.28,-0.368554 0.952902,0.405398 1.450091,0.451515 1.873912,0.173817 0.685205,-0.448964 0.490781,-0.896356 -0.633912,-1.458702 -0.730565,-0.365282 -1.02996,-0.62317 -1.252723,-1.079048 -0.6933,-1.418819 0.690151,-2.675563 2.429685,-2.207155 0.418082,0.112577 0.680736,0.289909 0.749282,0.505878 0.155711,0.490602 -0.146047,0.717343 -0.649433,0.487985 -0.558697,-0.254559 -1.117441,-0.236084 -1.350432,0.04465 -0.343544,0.413944 -0.10843,0.797028 0.741203,1.207686 1.083418,0.523655 1.464866,0.890427 1.583449,1.522529 0.113735,0.606263 -0.235919,1.395498 -0.774361,1.747877 -0.454493,0.29744 -1.493048,0.426913 -2.130637,0.265619 z M 24.32,17.92 v -2.88 h 0.72 0.72 v 2.88 2.88 h -0.72 -0.72 z m 206.84053,2.713626 c -1.09444,-0.188193 -1.72345,-1.107145 -1.71701,-2.508487 0.005,-1.174896 0.48646,-2.072758 1.31108,-2.447029 0.7909,-0.358962 1.15973,-0.387107 1.86249,-0.142122 0.31462,0.109676 0.5403,0.317259 0.59894,0.550907 0.14111,0.562202 -0.0528,0.761488 -0.46213,0.474821 -0.48453,-0.339376 -1.33066,-0.304954 -1.70497,0.06936 -0.63305,0.633046 -0.61666,2.288398 0.0286,2.889556 0.40351,0.375925 1.19299,0.416217 1.66585,0.08502 0.36658,-0.256769 0.53661,-0.180272 0.53661,0.241427 0,0.58418 -1.04375,0.971525 -2.11947,0.78655 z M 225.12,18.08 v -2.56 h 1.29231 c 1.21501,0 1.32028,0.02798 1.76,0.467692 0.6679,0.667896 0.58071,1.471211 -0.23103,2.12875 -0.1877,0.152044 -0.25971,0.278044 -0.16001,0.28 0.19679,0.0039 1.01873,1.623926 1.01873,2.007932 0,0.154966 -0.16377,0.235626 -0.4784,0.235626 -0.43378,0 -0.5224,-0.09702 -0.94997,-1.04 -0.40208,-0.886782 -0.53197,-1.04 -0.88159,-1.04 -0.39799,0 -0.41004,0.03055 -0.41004,1.04 v 1.04 h -0.48 -0.48 z m 2.14858,-0.571429 C 227.81647,16.960679 227.4604,16.32 226.608,16.32 c -0.51911,0 -0.528,0.01212 -0.528,0.72 0,0.689431 0.0199,0.72 0.46858,0.72 0.25771,0 0.58171,-0.113143 0.72,-0.251429 z M 248.32,16.8 v -2.88 h 0.72 0.72 v 2.88 2.88 h -0.72 -0.72 z M 222.4,14.88 V 12 h 0.72 0.72 v 2.88 2.88 h -0.72 -0.72 z M 24.352,14.048 C 24.2464,13.9424 24.16,13.6688 24.16,13.44 c 0,-0.550206 0.274773,-0.8 0.88,-0.8 0.613195,0 0.88,0.250546 0.88,0.826371 0,0.670283 -1.079076,1.070552 -1.568,0.581629 z m 224,-1.12 c -0.1056,-0.1056 -0.192,-0.3792 -0.192,-0.608 0,-0.550206 0.27478,-0.8 0.88,-0.8 0.6132,0 0.88,0.250546 0.88,0.826371 0,0.670283 -1.07907,1.070552 -1.568,0.581629 z m -25.92,-1.92 c -0.1056,-0.1056 -0.192,-0.3792 -0.192,-0.608 0,-0.5502063 0.27478,-0.8 0.88,-0.8 0.6132,0 0.88,0.2505459 0.88,0.826371 0,0.670283 -1.07907,1.070552 -1.568,0.581629 z"
+                                                id="path1" />
+                                          <path style="opacity:1;fill:#00aeef;fill-opacity:1"
+                                                d="m 111.17694,45.275136 -0.0398,2.508649 6.41099,0.07964 v 2.30955 l 6.96847,-3.703243 -6.88883,-3.464325 -0.1991,-0.159279 -0.0796,2.429009 z"
+                                                id="path2" />
+                                          <path style="fill:#00aeef;fill-opacity:1;stroke-width:1.22338"
+                                                d="m 23.042931,7.3745736 -0.05957,2.5086486 9.595062,0.07964 V 12.272412 L 43.007844,8.5691696 32.697619,5.1048446 32.399635,4.9455656 32.280501,7.3745746 Z"
+                                                id="path2-2" />
+                                          <path style="opacity:1;fill:#00aeef;fill-opacity:1;stroke-width:1.11269"
+                                                d="m 221.56278,24.607746 -0.0493,2.508649 7.93741,0.07964 v 2.30955 l 8.62763,-3.703243 -8.52902,-3.464325 -0.24651,-0.159279 -0.0986,2.429009 z"
+                                                id="path2-8" />
+                                          <path style="fill:#00aeef;fill-opacity:1;stroke-width:1.11269"
+                                                d="m 247.78191,24.747567 -0.0493,2.508649 7.93741,0.07964 v 2.30955 l 8.62763,-3.703243 -8.52902,-3.464325 -0.24651,-0.159279 -0.0986,2.429009 z"
+                                                id="path2-8-1" />
+                                      </g>
+                                  </g>
+                              </svg>
+
+                      </div>
+
+                      <div class="col-md-8">
+                          <div id="inputs">
+                              <h2 data-i18n="input_header">Giriş Bilgileri</h2>
+                              <div class="input-group mb-3">
+                                  <label class="input-group-text" data-i18n="label_vin_min">Min. Giriş Gerilimi [V]</label>
+                                  <input id="vin_min" type="number" class="form-control" placeholder="760">
+                                  <label class="input-group-text" data-i18n="label_vin_max">Max. Giriş Gerilimi [V]</label>
+                                  <input id="vin_max" type="number" class="form-control" placeholder="840">
+                                  <label class="input-group-text" data-i18n="label_vin_nom">Nominal Giriş [V]</label>
+                                  <input id="vin_nom" type="number" class="form-control" placeholder="800">
+                              </div>
+                              <div class="input-group mb-3">
+                                  <label class="input-group-text" data-i18n="label_vout_min">Min. Çıkış Gerilimi [V]</label>
+                                  <input id="vout_min" type="number" class="form-control" placeholder="350">
+                                  <label class="input-group-text" data-i18n="label_vout_max">Max. Çıkış Gerilimi [V]</label>
+                                  <input id="vout_max" type="number" class="form-control" placeholder="400">
+                                  <label class="input-group-text" data-i18n="label_vout_nom">Nominal Çıkış [V]</label>
+                                  <input id="vout_nom" type="number" class="form-control" placeholder="380">
+                              </div>
+                              <div class="input-group mb-3">
+                                  <label class="input-group-text" data-i18n="label_iout">Max. Çıkış Akımı [A]:</label>
+                                  <input id="ilout" type="number" class="form-control" placeholder="5.5">
+                                  <label class="input-group-text" data-i18n="label_fsw">Anahtarlama Frekansı [kHz]</label>
+                                  <input id="f_khz" type="number" class="form-control" placeholder="33">
+                                  <label class="input-group-text" data-i18n="label_dmax">Maks. Duty (d_max)</label>
+                                  <input id="d_max" type="number" step="0.01" min="0.1" max="0.49" class="form-control" placeholder="0.45" value="0.45">
+                              </div>
+                              <div class="input-group mb-3" id="inductance" style="display:none;">
+                                  <label class="input-group-text bg-warning text-dark border-warning" data-i18n="label_custom_coil_l">Bobin L (μH) [Opsiyonel]</label>
+                                  <input id="custom_L_uH" type="number" step="0.1" class="form-control border-warning" placeholder="e. g. 209">
+                              </div>
+                              <div class="input-group mb-3 flex-wrap flex-md-nowrap">
+                                  <label class="input-group-text" data-i18n="label_sab_mode">Tasarım Modu:</label>
+                                  <select id="mode" class="form-select">
+                                      <option value="ccm" data-i18n="opt_sab_ccm">CCM</option>
+                                      <option value="crm" data-i18n="opt_sab_crm">CRM</option>
+                                      <option value="dcm" data-i18n="opt_sab_dcm">DCM</option>
+                                  </select>
+                                  <label class="input-group-text" data-i18n="label_eff_mode">Verim Modu</label>
+                                  <select id="effMode" class="form-select" onchange="toggleEffMode()">
+                                      <option value="ideal" data-i18n="opt_ideal">İdeal</option>
+                                      <option value="real" data-i18n="opt_real">Gerçek (Power Loss)</option>
+                                  </select>
+                                  <div id="idealInputGroup" style="display: contents;">
+                                      <label style="border-radius: 0;" class="input-group-text" data-i18n="label_eff">Verim [%]</label>
+                                      <input id="verim" type="number" class="form-control eff-input" placeholder="96" style="border-bottom-left-radius: 0; border-top-left-radius: 0; min-width: 25% !important;">
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                      <div id="inputs">
+                          <div id="realInputGroup" style="display:none; margin-top:15px; margin-bottom: 30px; padding:15px; border:1px solid var(--border-color); border-radius:8px; background:var(--surface-dark);">
+                              <center><h4 data-i18n="real_power_loss_title" style="font-size:16px; margin-bottom:15px;">Gerçek Güç Kaybı (Power Loss) Analizi</h4></center>
+                              <div class="row">
+                                  <div class="col-md-4">
+                                      <h5 style="margin-top:30px;" data-i18n="sab_mosfet_header">Primer MOSFET & Sekonder Diyot</h5>
+                                      <div style="margin-top:8px;">
+                                          <label style="font-size:12px;" data-i18n="sab_p_ron_pri">Pri Ron_SW [Ω]</label><input id="p_ron_pri" type="number" class="form-control form-control-sm" value="0.099" step="0.001">
+                                          <label style="font-size:12px; margin-top:5px;" data-i18n="sab_p_vf_body">Body Diyot Vf [V]</label><input id="p_vf_body" type="number" class="form-control form-control-sm" value="0.9" step="0.1">
+                                          <label style="font-size:12px; margin-top:5px;" data-i18n="sab_p_coss">Pri Coss [pF]</label><input id="p_coss_pri" type="number" class="form-control form-control-sm" value="100">
+                                          <label style="font-size:12px; margin-top:5px;" data-i18n="sab_p_qg">Qg (Each) [nC]</label><input id="p_qg" type="number" class="form-control form-control-sm" value="30">
+                                          <label style="font-size:12px; margin-top:5px;" data-i18n="sab_p_vgs">Vgs [V]</label><input id="p_vgs" type="number" class="form-control form-control-sm" value="10">
+                                          <label style="font-size:12px; margin-top:5px;" data-i18n="sab_p_vf_d">Rectifier Diode Vf [V]</label><input id="p_vf_d" type="number" class="form-control form-control-sm" value="0.8" step="0.1">
+                                          <label style="font-size:12px; margin-top:5px;" data-i18n="sab_p_rd">Rectifier Diode Rd [Ω]</label><input id="p_rd" type="number" class="form-control form-control-sm" value="0.010" step="0.001">
+                                          <label style="font-size:12px; margin-top:5px;" data-i18n="sab_p_qrr">Rectifier Diode Qrr [nC]</label><input id="p_qrr" type="number" class="form-control form-control-sm" value="0" step="1">
+                                      </div>
+                                  </div>
+                                  <div class="col-md-4">
+                                      <h5 style="margin-top:30px;" data-i18n="switching_header">Anahtarlama Süreleri & Ölü Zaman</h5>
+                                      <div style="margin-top:8px;">
+                                          <label style="font-size:12px;" data-i18n="sab_p_tr">tr (Rise Time) [ns]</label><input id="p_tr" type="number" class="form-control form-control-sm" value="20">
+                                          <label style="font-size:12px; margin-top:5px;" data-i18n="sab_p_tf">tf (Fall Time) [ns]</label><input id="p_tf" type="number" class="form-control form-control-sm" value="20">
+                                      </div>
+                                  </div>
+                                  <div class="col-md-4">
+                                      <h5 style="margin-top:30px;" data-i18n="pasif_comp">Manyetikler & Pasif Komponentler</h5>
+                                      <div style="margin-top:8px;">
+                                          <label style="font-size:12px;" data-i18n="sab_p_dcr_pri">Transformer DCR_Pri [Ω]</label><input id="p_dcr_pri" type="number" class="form-control form-control-sm" value="0.050" step="0.001">
+                                          <label style="font-size:12px; margin-top:5px;" data-i18n="sab_p_dcr_sec">Transformer DCR_Sec [Ω]</label><input id="p_dcr_sec" type="number" class="form-control form-control-sm" value="0.005" step="0.001">
+                                          <label style="font-size:12px; margin-top:5px;" data-i18n="sab_p_dcr_ind">Serial Bobin DCR [Ω]</label><input id="p_dcr_ind" type="number" class="form-control form-control-sm" value="0.020" step="0.001">
+                                          <label style="font-size:12px; margin-top:5px;" data-i18n="sab_p_esrcout">Cout ESR [Ω]</label><input id="p_esrcout" type="number" class="form-control form-control-sm" value="0.003" step="0.001">
+                                          <label style="font-size:12px; margin-top:5px;" data-i18n="sab_p_icc">IC Icc [mA]</label><input id="p_icc" type="number" class="form-control form-control-sm" value="5">
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div class="form-check form-switch mt-4 mb-2 d-flex justify-content-center align-items-center gap-2">
+                      <input class="form-check-input" type="checkbox" id="testOwnDesignCheck" onchange="toggleCustomDesign()" style="width: 40px; height: 20px; cursor: pointer; margin:0;">
+                      <label class="form-check-label text-warning" for="testOwnDesignCheck" data-i18n="label_test_own_design" style="cursor: pointer; font-weight: bold; margin:0;">
+                          Zaten kendi tasarımım var, onu test etmek istiyorum
+                      </label>
+                  </div>
+
+                  <div id="coreSelectionGroup" class="param-group mt-3" style="text-align: center">
+                      <h5 style="border-bottom: none; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                          <span data-i18n="core_selection_mode">Çekirdek & Tel Seçim Modu</span>
+                          <button type="button" class="btn btn-sm btn-outline-warning" onclick="showModeInfo()" style="border-radius: 50%; width: 24px; height: 24px; padding: 0; line-height: 1; font-weight: bold;">i</button>
+                      </h5>
+                      <div class="btn-group w-75" role="group">
+                          <input type="radio" class="btn-check" name="coreSelectionMode" id="modeStandard" value="standard" checked>
+                          <label data-i18n="mod1" class="btn btn-outline-info" for="modeStandard" style="border-color: #3f51b5; color: #e0e0e0;">Standart Mod</label>
+
+                          <input type="radio" class="btn-check" name="coreSelectionMode" id="modeAdvanced" value="advanced">
+                          <label data-i18n="mod2" class="btn btn-outline-info" for="modeAdvanced" style="border-color: #3f51b5; color: #e0e0e0; ">Advanced Mod (AI)</label>
+                      </div>
+                  </div>
+
+                  <button id="calculateButton" onclick="hesapla()" class="btn btn-primary d-block mx-auto w-25 mt-3" data-i18n="btn_calc">Hesapla</button>
+              </div>
+              <br>
+              <div id="modeWarning" style="display:none; padding:8px; margin:8px 0; border-radius:4px; background:#fff3cd;"></div>
+              <div class="row mt-4">
+                  <div class="col-md-7">
+                      <h2 data-i18n="results_title">Sonuçlar</h2>
+                      <table id="outputsTable" class="table">
+                          <tr>
+                              <th data-i18n="res_L">Seri Endüktans (L)</th>
+                              <th data-i18n="res_C">Çıkış Kapasitörü (C)</th>
+                              <th data-i18n="res_R">Yük Direnci (R)</th>
+                              <th data-i18n="sab_th_ipeak">I_peak (Max)</th>
+                              <th>N1/N2</th>
+                          </tr>
+                          <tr>
+                              <td><span id="lOutput">-</span> μH</td>
+                              <td><span id="cOutput">-</span> μF</td>
+                              <td><span id="rOutput">-</span> Ω</td>
+                              <td><span id="Ipeak">-</span> A</td>
+                              <td><span id="nOutput">-</span></td>
+                          </tr>
+                          <tr>
+                              <th data-i18n="res_Wmax">Bobin Wmax (W)</th>
+                              <th data-i18n="res_Vin">Vin (V)</th>
+                              <th data-i18n="res_Ve">Trafo Ve (mm³)</th>
+                              <th data-i18n="sab_th_ap">Trafo Ap (mm⁴)</th>
+                              <th data-i18n="freq1">Frekans (Hz)</th>
+                          </tr>
+                          <tr>
+                              <td><span id="wmax1">-</span> µWs</td>
+                              <td><span id="vin1">-</span> V</td>
+                              <td><span id="VeOpt">-</span></td>
+                              <td><span id="ApOpt">-</span></td>
+                              <td><span id="f">-</span> Hz</td>
+                          </tr>
+                      </table>
+                  </div>
+
+                  <div style="display: none;">
+                      <p><span data-i18n="label_loss_est">Tahmini Verim Kaybı:</span> <span id="loss">-</span> %</p>
+                      <p> <span data-i18n="curr_in">Giriş Akımı:</span> <span id="iin">-</span> A</p>
+                  </div>
+
+                  <div class="col-md-5 d-flex align-items-center justify-content-end">
+                      <div id="buttons" class="d-flex gap-2 flex-wrap">
+                          <button id="printButton" onclick="printPage()" class="btn btn-primary" data-i18n="btn_print">Yazdır</button>
+                          <button id="openButton" onclick="openSelectedTable()" class="btn btn-primary" data-i18n="btn_transcoil">Transformer & Coil</button>
+                          <button id="filterButton" onclick="openFilterDesign()" class="btn btn-primary" data-i18n="btn_filter">Filtre Tasarımı</button>
+                      </div>
+                  </div>
+              </div>
+
+              <div class="row mt-3">
+                  <div class="col-md-12">
+                      <div class="param-group">
+                          <h2 data-i18n="sab_res_title">SAB Tasarım Özeti</h2>
+                          <div class="table-responsive">
+                              <table class="table table-sm text-center">
+                                  <thead>
+                                      <tr>
+                                          <th data-i18n="sab_n">n = N2/N1</th>
+                                          <th data-i18n="sab_vr">Yansıyan Çıkış (Vo+2Vf)/n</th>
+                                          <th data-i18n="sab_dnom">d (nominal)</th>
+                                          <th data-i18n="sab_dworst">d (en kötü köşe / d_max)</th>
+                                          <th data-i18n="sab_mode_nom">Nominal Çalışma Modu</th>
+                                          <th data-i18n="sab_icrit">CCM/DCM Sınır Akımı</th>
+                                      </tr>
+                                  </thead>
+                                  <tbody>
+                                      <tr>
+                                          <td id="sab_n">-</td><td id="sab_vr">-</td><td id="sab_dnom">-</td>
+                                          <td id="sab_dworst">-</td><td id="sab_mode_nom">-</td><td id="sab_icrit">-</td>
+                                      </tr>
+                                  </tbody>
+                                  <thead>
+                                      <tr>
+                                          <th data-i18n="sab_zvs_lag">ZVS – Lagging Kol (S1,S2)</th>
+                                          <th data-i18n="sab_zvs_lead">ZVS – Leading Kol (S3,S4)</th>
+                                          <th data-i18n="sab_vsw">Anahtar Gerilimi (Vds,max)</th>
+                                          <th data-i18n="sab_vd">Diyot Ters Gerilimi</th>
+                                          <th data-i18n="sab_idpk">Diyot Tepe Akımı</th>
+                                          <th data-i18n="sab_ilrms">Primer / Seri L I_rms (en kötü)</th>
+                                      </tr>
+                                  </thead>
+                                  <tbody>
+                                      <tr>
+                                          <td id="sab_zvs_lag">-</td><td id="sab_zvs_lead">-</td><td id="sab_vsw">-</td>
+                                          <td id="sab_vd">-</td><td id="sab_idpk">-</td><td id="sab_ilrms">-</td>
+                                      </tr>
+                                  </tbody>
+                                  <thead>
+                                      <tr>
+                                          <th data-i18n="sab_icout">Cout I_rms</th>
+                                          <th data-i18n="sab_veq" colspan="2">Trafo Eşdeğer Volt-Saniye Gerilimi (V_eq)</th>
+                                          <th colspan="3"></th>
+                                      </tr>
+                                  </thead>
+                                  <tbody>
+                                      <tr>
+                                          <td id="sab_icout">-</td><td id="sab_veq" colspan="2">-</td><td colspan="3"></td>
+                                      </tr>
+                                  </tbody>
+                              </table>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+              <br>
+              <div id="charts">
+                  <h2 data-i18n="charts_title">Grafikler</h2>
+                  <div class="row">
+                      <div class="col-md-4"><canvas id="vinChart" width="400" height="300"></canvas></div>
+                      <div class="col-md-4"><canvas id="v3Chart" width="400" height="300"></canvas></div>
+                      <div class="col-md-4"><canvas id="ilChart" width="400" height="300"></canvas></div>
+                      <div class="col-md-4"><canvas id="irChart" width="400" height="300"></canvas></div>
+                      <div class="col-md-4"><canvas id="idChart" width="400" height="300"></canvas></div>
+                      <div class="col-md-4"><canvas id="effChart" width="400" height="300"></canvas></div>
+                  </div>
+              </div>
+
+              <br>
+
+              <button data-i18n="simm" id="btnFalstad" onclick="openFalstadSabSimulation()" class="btn btn-primary">
+                  Simülasyon İçin Tıkla
+              </button>
+              <br>
+
+              <div id="simulationContainer" style="display: none; margin-top: 20px; border: 1px solid #333; border-radius: 12px; overflow: hidden; background: #000;">
+                  <iframe id="circuitFrame" style="width: 100%; height: 600px; border: none;"></iframe>
+              </div>
+
+              <div id="liveDataBox" style="display: none; padding: 15px; background: #121212; color: #81c784; font-family: 'Consolas', monospace; border-radius: 0 0 12px 12px; border: 1px solid #333; border-top: none;">
+                  Loading...
+              </div>
+
+              <br>
+
+              <div class="row mt-3" id="powerLossSection" style="display: none;">
+                  <div class="col-md-12">
+                      <div class="param-group">
+                          <h2 data-i18n="real_power_loss_title">Gerçek Güç Kaybı (Power Loss) Analizi</h2>
+                          <div class="table-responsive">
+                              <table class="table table-sm ploss-table text-center">
+                                  <thead>
+                                      <tr>
+                                          <th data-i18n="dab_ploss_pon_pri">Pri İletim (Pon_Pri)</th>
+                                          <th data-i18n="sab_ploss_pbody">Body Diyot İletim (Pbody)</th>
+                                          <th data-i18n="dab_ploss_psw_pri">Pri Anahtarlama (Psw_Pri)</th>
+                                          <th data-i18n="dab_ploss_pcoss">Anahtar Çıkış Kap. (Pcoss)</th>
+                                          <th data-i18n="sab_ploss_pdiode">Sekonder Diyot (Pdiode)</th>
+                                          <th data-i18n="sab_ploss_prr">Ters Toparlanma (Prr)</th>
+                                      </tr>
+                                  </thead>
+                                  <tbody>
+                                      <tr>
+                                          <td id="res_pon_pri">-</td><td id="res_pbody">-</td><td id="res_psw_pri">-</td>
+                                          <td id="res_pcoss">-</td><td id="res_pdiode">-</td><td id="res_prr">-</td>
+                                      </tr>
+                                  </tbody>
+                                  <thead class="mt-2">
+                                      <tr>
+                                          <th data-i18n="dab_ploss_ptr_dcr">Trafo DCR (Ptr_dcr)</th>
+                                          <th data-i18n="dab_ploss_pl_dcr">Bobin DCR (Pl_dcr)</th>
+                                          <th data-i18n="dab_ploss_pcout">Çıkış Cap ESR (Pcout)</th>
+                                          <th data-i18n="dab_ploss_pgate">Gate Şarj (Pgate)</th>
+                                          <th data-i18n="dab_ploss_pic">IC Tüketim (Pic)</th>
+                                      </tr>
+                                  </thead>
+                                  <tbody>
+                                      <tr>
+                                          <td id="res_ptr_dcr">-</td><td id="res_pl_dcr">-</td><td id="res_pcout">-</td>
+                                          <td id="res_pgate">-</td><td id="res_pic">-</td>
+                                      </tr>
+                                  </tbody>
+                              </table>
+                              <table class="table table-sm ploss-table mt-2">
+                                  <tr class="total-row text-center" style="font-size: 1.2em;">
+                                      <td width="50%"><span data-i18n="total_power_loss">Toplam Güç Kaybı (Ptotal):</span> <span id="res_ptotal">-</span></td>
+                                      <td width="50%"><span data-i18n="calc_efficiency">Hesaplanan Genel Verim (η):</span> <span id="res_peff">-</span></td>
+                                  </tr>
+                              </table>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+              <br>
+
+              <div id="table">
+                  <h2 data-i18n="table_header">Tablo</h2>
+                  <div class="table-responsive">
+                      <table id="resultTable" class="table table-bordered">
+                          <thead>
+                              <tr>
+                                  <th data-i18n="col_time">Zaman</th>
+                                  <th data-i18n="sab_th_v1">V1 (Primer)</th>
+                                  <th>V2' (V2·N1/N2)</th>
+                                  <th>IL</th>
+                                  <th data-i18n="sab_col_irect">I_rect (Diyot Köprüsü Çıkışı)</th>
+                                  <th data-i18n="aci">Faz Açısı φ (°)</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+                          </tbody>
+                      </table>
+                  </div>
+              </div>
+          </section>
+      </main>
+      <!-- ======= Footer ======= -->
+      <footer id="footer">
+          <div class="container">
+              <div class="row">
+                  <div class="col-md-12">
+                      <div class="copyright"> © Copyright <strong>ATAQ Advanced Technology</strong>. <span data-i18n="footer_rights">Tüm hakları saklıdır.</span> </div>
+                      <div class="credits"> Designed and developed by <a style="color: #00AEEF !important;" href="https://www.linkedin.com/in/yasemin-algin/">Yasemin Tuğba Algın</a> </div>
+                  </div>
+              </div>
+          </div>
+      </footer>
+      <div id="preloader"></div>
+      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+      <script src="assets/vendor/aos/aos.js"></script>
+      <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+      <script src="assets/vendor/glightbox/js/glightbox.min.js"></script>
+      <script src="assets/vendor/isotope-layout/isotope.pkgd.min.js"></script>
+      <script src="assets/vendor/swiper/swiper-bundle.min.js"></script>
+      <script src="assets/vendor/typed.js/typed.min.js"></script>
+
+      <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+      <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+      <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
+
+      <script src="assets/js/common/language.js"></script>
+      <script src="assets/js/main.js"></script>
+
+      <script src="assets/js/common/firebase_config.js"></script>
+      <script src="assets/js/common/api_service.js"></script>
+      <script src="assets/js/common/core_database.js"></script>
+      <script src="assets/js/common/magnetic_utils.js"></script>
+      <script src="assets/js/common/ui_modal.js"></script>
+      <script src="assets/js/common/smps_filter.js"></script>
+
+      <script src="assets/js/common/advanced_optimizer.js" defer="defer"></script>
+
+      <script src="assets/js/topologies/sab.js" defer="defer"></script>
+  </body>
+</html>
