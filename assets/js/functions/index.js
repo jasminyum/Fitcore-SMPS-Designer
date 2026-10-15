@@ -507,6 +507,13 @@ function getEffectiveWaveformParams(topology, mode, D_switch, extra = {}) {
             const phaseShift = extra.phaseShift || 0;
             const modulation = (extra.dabMode || "sps").toLowerCase();
 
+            // SAB (istemci topology:"dab" + sabDutyEff gönderir): sargı gerilimi yalnızca doğrultucu iletirken vardır.
+            // CCM'de etkin duty 0.5 (sürekli kare dalga), DCM'de <0.5 ve Dz>0 (sıfır-gerilim aralığı).
+            if (extra.sabDutyEff > 0) {
+                const Dsab = Math.max(0.05, Math.min(0.5, extra.sabDutyEff));
+                return { D1: Dsab, D2: Dsab, Dz: Math.max(0, 1 - 2 * Dsab), confidence: "medium", note: `SAB: winding conducts only while the rectifier conducts (D=${Dsab.toFixed(2)}).` };
+            }
+
             if (modulation === "sps") {
                 return { D1: 0.5, D2: 0.5, Dz: 0, confidence: "high", note: "DAB-SPS: Pure 50% square wave. Phase shift controls power, no zero-voltage period on transformer." };
             } else {
@@ -2167,7 +2174,7 @@ exports.runSmpsOptimization = onCall({
         isLinearTrafo,
         vin_nom, vout,
         calculateSwitches,
-        sw_Irms, sw_Vmax, turnsRatio,
+        sw_Irms, sw_Vmax, sw_Ipeak, turnsRatio,
         topology, smpsMode, D_switch, extraModeParams
     } = data;
 
@@ -2221,7 +2228,7 @@ exports.runSmpsOptimization = onCall({
 
             let v_switch_max = sw_Vmax || v_in;
             let actual_sw_Irms = sw_Irms || pri_Irms || coilWire_Irms || 1;
-            let i_peak = actual_sw_Irms * Math.SQRT2;
+            let i_peak = (sw_Ipeak > 0) ? sw_Ipeak : actual_sw_Irms * Math.SQRT2;
             let P_est = v_in * actual_sw_Irms;
             if (isNaN(P_est) || P_est <= 0) P_est = 150;
 
