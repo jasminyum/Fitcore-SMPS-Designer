@@ -1,4 +1,3 @@
-```md
 ![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)
 
 # FitCore SMPS Calculation & Design Suite
@@ -350,5 +349,3 @@ The ferrite core recommendations implemented in ATAQ Fitcore SMPS Designer are g
 
 This project is licensed under the [GNU Affero General Public License v3.0 (AGPL v3)](https://www.google.com/search?q=LICENSE).
 Copyright © ATAQ İleri Teknoloji. All rights reserved.
-
-```
