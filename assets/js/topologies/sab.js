@@ -13,7 +13,9 @@
 //   line: N = 2 d_crit                                (26)
 //   design: n = Vxmax/(2 Vgmin dcritmax) (59),  L = [Vgmin dmax(1-dmax) - Vxmax^2/(4 Vgmin n^2)]/(2 n f Iomax) (60),  Vx = Vo + 2·Vf
 //   Mode (CCM/CRM/DCM)
-// Also Jha et al., Energies 2022, 15, 666 pu equations (Po,pu=(pi/4)Vo,pu[2b-Vo,pu^2-b^2]) (b = 2*pi*d).
+// Jha et al., Energies 2022, 15, 666: NOT verified against the source; only used for the informational dabPhaseShift value.
+// NOTE: sabDesignByMode uses the Eq.(59) form n = Vxmax/(2 Vgmin dc) and Eq.(60) for L, but dc is found by bisection so
+//       that Icrit/Io hits the mode target. This is a design choice of this code, not a fixed dcrit procedure from the paper.
 // ================================================================
 
 window.il_rms = 0;
@@ -117,7 +119,7 @@ function sabIcrit(Vg, Vx, n, L, f) {
     return (N / 2) * (N / 2) * Vg * (Vg - Vr) / (Vx * L * f);
 }
 
-// Rodriguez Eq.(60)
+// Rodriguez Eq.(60) (n from Eq.(59) form, see sabDesignByMode note)
 function sabLForDmax(Vgmin, Vxmax, Iomax, f, n, dmax) {
     var Vr = Vxmax / n;
     if (Vr / Vgmin >= 2 * dmax) return Vgmin * (Vgmin - Vr) * dmax * dmax / (Vxmax * f * Iomax);
@@ -127,7 +129,7 @@ function sabLForDmax(Vgmin, Vxmax, Iomax, f, n, dmax) {
 function sabDesignByMode(sp, mode) {
     var target = SAB_MODE_TARGET[mode] || 0.5;
     var Vxmax = sp.Vomax + 2 * sp.Vf, Vxn = sp.Von + 2 * sp.Vf;
-    var hiLim = Math.min(0.449, 0.999 * Math.sqrt(sp.dmax * (1 - sp.dmax)));
+    var hiLim = Math.min(0.499, 0.999 * Math.sqrt(sp.dmax * (1 - sp.dmax)));
     function ratio(dc) {
         var n = Vxmax / (2 * sp.Vgmin * dc);
         var L = sabLForDmax(sp.Vgmin, Vxmax, sp.Io, sp.f, n, sp.dmax);
@@ -194,10 +196,10 @@ function sabWaveforms(pt, count) {
     return { t: t_arr, vb: vb, v2: v2, il: il, ir: ir, phi: phiA, dQ: dQ };
 }
 
-// real loss model (Gil et al., Electronics 2022, 11, 601; Rodriguez et al., Electronics 2022, 11, 601)
+// real loss model (own model: linear switching overlap, Coss-based ZVS criterion, diode conduction + reverse recovery)
 function sabRealLosses(pt, p) {
     var Vg = pt.Vg, f = pt.f, Pout = pt.Vo * pt.Io;
-    var Ec = p.Coss_pri * (Vg * Vg + 2 * Vg * pt.Vr);              // Gil et al. Eq.(17) ZVS
+    var Ec = p.Coss_pri * Vg * Vg;              // energy to commutate one bridge leg (own criterion, not from the paper)
     var zvsLead = (pt.shape === "CCM") && (0.5 * pt.L * pt.I0 * pt.I0 > Ec);
     var zvsLag = (0.5 * pt.L * pt.iL2 * pt.iL2 > Ec);
 
@@ -213,6 +215,8 @@ function sabRealLosses(pt, p) {
 
     var iDrms = pt.iLrms / (pt.n * Math.SQRT2);
     var Pdiode = 4 * (p.Vf_d * pt.Io / 2 + p.Rd * iDrms * iDrms);
+    // reverse recovery: 4 secondary diodes commutate per period in CCM at non-zero current; DCM/CRM turn off at zero current
+    var Prr = (pt.shape === "CCM") ? 4 * p.Qrr * pt.Vo * f : 0;
     var I2rms = pt.iLrms / pt.n;
     var Ptr = pt.iLrms * pt.iLrms * p.DCR_pri + I2rms * I2rms * p.DCR_sec;
     var Pl = pt.iLrms * pt.iLrms * p.DCR_ind;
@@ -221,17 +225,17 @@ function sabRealLosses(pt, p) {
     var icout2 = I2rms * I2rms - pt.Io * pt.Io; if (icout2 < 0) icout2 = 0;
     var Pcout = icout2 * p.ESR_Cout;
 
-    var Ptotal = Pon_pri + Pbody + Psw_pri + Pcoss + Pdiode + Ptr + Pl + Pgate + Pic + Pcout;
+    var Ptotal = Pon_pri + Pbody + Psw_pri + Pcoss + Pdiode + Prr + Ptr + Pl + Pgate + Pic + Pcout;
     return {
         totalLossW: Ptotal,
         efficiencyPercent: Math.max(0, Pout / (Pout + Ptotal) * 100),
         zvsLead: zvsLead, zvsLag: zvsLag, Icout_rms: Math.sqrt(icout2),
-        breakdown: { Pon_pri: Pon_pri, Pbody: Pbody, Psw_pri: Psw_pri, Pcoss: Pcoss, Pdiode: Pdiode, Ptr_dcr: Ptr, Pl_dcr: Pl, Pgate: Pgate, Pic: Pic, Pcout: Pcout }
+        breakdown: { Pon_pri: Pon_pri, Pbody: Pbody, Psw_pri: Psw_pri, Pcoss: Pcoss, Pdiode: Pdiode, Prr: Prr, Ptr_dcr: Ptr, Pl_dcr: Pl, Pgate: Pgate, Pic: Pic, Pcout: Pcout }
     };
 }
 
 // ================================================================
-// UI YARDIMCILARI
+// UI helpers
 // ================================================================
 function sabEl(id) { return document.getElementById(id); }
 function sabNum(id, def) { var e = sabEl(id); var v = e ? parseFloat(e.value) : NaN; return isNaN(v) ? def : v; }
@@ -301,7 +305,8 @@ function getRealParamsSAB() {
         DCR_sec: sabNum('p_dcr_sec', 0.005),
         DCR_ind: sabNum('p_dcr_ind', 0.020),
         ESR_Cout: sabNum('p_esrcout', 0.003),
-        Icc: sabNum('p_icc', 5.0) * 1e-3
+        Icc: sabNum('p_icc', 5.0) * 1e-3,
+        Qrr: sabNum('p_qrr', 0) * 1e-9        // nC -> C; 0 when the input does not exist
     };
 }
 
@@ -317,6 +322,7 @@ function generateEfficiencyVsPowerCurve(spec, design, verim_pct, isIdeal) {
         var P = spec.Vo_nom * Io_p;
         labels.push(percent + "%");
         if (isIdeal) {
+            // EMPIRICAL assumption (no literature source): load-dependent loss shape around the user's verim at nominal load
             var loss = lossNom * (0.3 + 0.7 * Math.pow(percent / 100, 2));
             values.push((P / (P + loss) * 100).toFixed(2));
         } else {
@@ -413,6 +419,9 @@ function updateChartsAndTable() {
     if (effMode === "ideal") {
         effData = generateEfficiencyVsPowerCurve(spec, dsg, verim, true);
         sabEl('loss').innerText = Math.abs(100 - verim).toFixed(2);
+        // clear the loss table so stale real-mode values are not shown
+        ["res_pon_pri","res_pbody","res_psw_pri","res_pcoss","res_pdiode","res_prr","res_ptr_dcr","res_pl_dcr","res_pcout","res_pgate","res_pic","res_ptotal","res_peff"]
+            .forEach(function (id) { sabEl(id).innerText = "-"; });
     } else {
         var params = getRealParamsSAB();
         effData = generateEfficiencyVsPowerCurve(spec, dsg, verim, false);
@@ -422,19 +431,21 @@ function updateChartsAndTable() {
         var setR = function (id, v) { sabEl(id).innerText = v.toFixed(4) + " W"; };
         setR("res_pon_pri", b.Pon_pri); setR("res_pbody", b.Pbody); setR("res_psw_pri", b.Psw_pri);
         setR("res_pcoss", b.Pcoss); setR("res_pdiode", b.Pdiode); setR("res_ptr_dcr", b.Ptr_dcr);
-        setR("res_pl_dcr", b.Pl_dcr); setR("res_pcout", b.Pcout); setR("res_pgate", b.Pgate); setR("res_pic", b.Pic);
+        setR("res_pl_dcr", b.Pl_dcr); setR("res_pcout", b.Pcout); setR("res_pgate", b.Pgate); setR("res_pic", b.Pic); setR("res_prr", b.Prr);
         sabEl("res_ptotal").innerText = real.totalLossW.toFixed(4) + " W";
         sabEl("res_peff").innerText = real.efficiencyPercent.toFixed(2) + " %";
         sabEl('loss').innerText = Math.abs(100 - finalVerim).toFixed(2);
     }
 
+    var J = MagneticUtils.getCurrentDensity(f_khz);
+
     var wmax1 = 0.5 * L_H * Ipeak_max * Ipeak_max * 1e6;
-    var Bmax_nom = 0.2 * Math.pow(50000 / Fs, 0.6);
-    var Ap_req = (pOutput * 1e6) / (4 * Fs * Bmax_nom * 0.4 * 5);
-    var VeOpt = 52000 * Math.pow(pOutput / 800, 1.2) * Math.sqrt(50000 / Fs);
+    var Bmax_nom = 0.2 * Math.pow(50000 / Fs, 0.6);   // empirical estimate
+    var Ku = 0.4;                                      // window utilisation factor (assumed)
+    var Ap_req = (pOutput * 1e6) / (4 * Fs * Bmax_nom * Ku * J);   // mm^4, J in A/mm^2 (assumed, same unit as d1_req)
+    var VeOpt = 52000 * Math.pow(pOutput / 800, 1.2) * Math.sqrt(50000 / Fs);   // empirical
     var iin = (pOutput / (finalVerim / 100)) / vin_nom;
 
-    var J = MagneticUtils.getCurrentDensity(f_khz);
     window.il_rms = IrmsWorst;
     window.i1_rms_global = IrmsWorst;
     window.i2_rms_global = IrmsWorst / n;
@@ -455,7 +466,7 @@ function updateChartsAndTable() {
     window.sabDutyNom = nom.d;
     window.sabDutyEff = Math.min(0.5, nom.d / nom.N);   // iGSE effective duty: CCM 0.5, DCM <0.5
     window.sabN_paper = n;
-    window.dabPhaseShift = 2 * Math.PI * nom.d;      // β = 2π·d (Jha et al.)
+    window.dabPhaseShift = 2 * Math.PI * nom.d;      // β = 2π·d (Jha et al., unverified)
 
     // ---- Sonuç tabloları
     sabEl('lOutput').innerText = lOutput.toFixed(2);
@@ -743,7 +754,7 @@ function drawCharts(t, vb, v2, il, ir, Io, p_arr, eff_arr) {
 function printPage() { window.print(); }
 
 // ================================================================
-// TABLO & MODAL ENTEGRASYONU (dab.js ile aynı mimari)
+// TABLO & MODAL Integration
 // ================================================================
 window.openSelectedTable = function () {
     const modeElement = document.querySelector('input[name="coreSelectionMode"]:checked');
@@ -770,11 +781,11 @@ window.openSelectedTable = function () {
     if (mode === "advanced") {
         if (isCustomDesign) {
             if (typeof window.openAdvancedPreCheck === "function") window.openAdvancedPreCheck('trafo_coil');
-            else alert("Advanced modül yüklenemedi.");
+            else alert(getT("sab_alert_module_fail"));
         } else {
             window.customSelections = { core: null, coreL1: null, coreL2: null, coreTrafo: null, coreCoil: null, switch: null };
             if (typeof window.openAdvancedTable === "function") window.openAdvancedTable();
-            else alert("Advanced modül yüklenemedi.");
+            else alert(getT("sab_alert_module_fail"));
         }
     } else {
         var trafoParams = {
@@ -808,7 +819,7 @@ window.openSelectedTable = function () {
                 { type: 'inductor', title: coilParams.title, params: coilParams }
             ]);
         } else {
-            alert("Arayüz modülü (UIModal) yüklenemedi.");
+            alert(getT("sab_alert_uimodal_fail"));
         }
     }
 };
