@@ -1,0 +1,948 @@
+// ================================================================
+// Flyback Converter
+// SPDX-License-Identifier: AGPL-3.0-only
+// ================================================================
+
+window.il_rms = 0;
+window.i2_rms_calc = 0;
+window.Imax_global = 0;
+window.A1_req = 0;
+window.A2_req = 0;
+window.d1_req = 0;
+window.d2_req = 0;
+window.max_wire_d_mm = 0;
+
+// ================================================================
+// UI MODE SWITCHING
+// ================================================================
+function toggleEffMode() {
+    var mode = document.getElementById("effMode").value;
+    if (mode === "ideal") {
+        document.getElementById("idealInputGroup").style.display = "contents";
+        document.getElementById("realInputGroup").style.display = "none";
+        document.getElementById("powerLossSection").style.display = "none";
+    } else {
+        document.getElementById("idealInputGroup").style.display = "none";
+        document.getElementById("realInputGroup").style.display = "block";
+    }
+}
+
+window.toggleCustomDesign = function () {
+    var isChecked = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
+    var lblCustomL = document.getElementById("inductance");
+
+    if (isChecked) {
+        if (lblCustomL) lblCustomL.style.display = "flex";
+    } else {
+        if (lblCustomL) lblCustomL.style.display = "none";
+    }
+};
+
+window.addEventListener('DOMContentLoaded', (event) => {
+    window.toggleEffMode();
+    window.toggleCustomDesign();
+});
+
+// ================================================================
+// INPUT VALIDATION
+// ================================================================
+function checkUserInput() {
+    var vin_min = parseFloat(document.getElementById('vin_min').value);
+    var vin_max = parseFloat(document.getElementById('vin_max').value);
+    var vin_nom = parseFloat(document.getElementById('vin_nom').value);
+    var vout = parseFloat(document.getElementById('vout').value);
+    var ilout = parseFloat(document.getElementById('ilout').value);
+    var f_khz = parseFloat(document.getElementById('f_khz').value);
+    var verim = parseFloat(document.getElementById('verim').value);
+
+    if (isNaN(vin_min) || vin_min <= 0) vin_min = 9.0;
+    if (isNaN(vin_max) || vin_max <= 0) vin_max = 75.0;
+    if (isNaN(vout) || vout <= 0) vout = 24.0;
+    if (isNaN(ilout) || ilout <= 0) ilout = 3.125;
+    if (isNaN(f_khz) || f_khz <= 0) f_khz = 200.0;
+    if (isNaN(verim) || verim <= 0) verim = 85.0;
+
+    if (vin_min > vin_max) vin_max = vin_min;
+
+    var Uem = (vin_min + vin_max) / 2;
+    if (isNaN(vin_nom) || vin_nom <= 0 || vin_nom < vin_min || vin_nom > vin_max) {
+        vin_nom = 36.0;
+    }
+
+    if (f_khz < 0.1 || f_khz > 2000) {
+        alert(window.getT ? window.getT('alert_freq_warning') : "Uyarı: Anahtarlama frekansı 100 Hz ile 2 MHz arasında olmalıdır!");
+        f_khz = 200.0;
+    }
+
+    document.getElementById('vin_min').value = vin_min;
+    document.getElementById('vin_max').value = vin_max;
+    document.getElementById('vin_nom').value = vin_nom;
+    document.getElementById('vout').value = vout;
+    document.getElementById('ilout').value = ilout;
+    document.getElementById('f_khz').value = f_khz;
+    document.getElementById('verim').value = verim;
+
+    return true;
+}
+
+function setDefaultValues() {
+
+    if (document.getElementById('vin_min')) document.getElementById('vin_min').value = 9;
+    if (document.getElementById('vin_max')) document.getElementById('vin_max').value = 75;
+    if (document.getElementById('vin_nom')) document.getElementById('vin_nom').value = 36;
+    if (document.getElementById('vout')) document.getElementById('vout').value = 24;
+    if (document.getElementById('ilout')) document.getElementById('ilout').value = 3.125;
+    if (document.getElementById('f_khz')) document.getElementById('f_khz').value = 200;
+    if (document.getElementById('verim')) document.getElementById('verim').value = 85;
+    if (document.getElementById('custom_nRatio')) document.getElementById('custom_nRatio').value = 0.5;
+
+    if (document.getElementById('mode')) document.getElementById('mode').value = "continuous";
+    if (document.getElementById('effMode')) {
+        document.getElementById('effMode').value = "real";
+        toggleEffMode();
+    }
+
+    if (document.getElementById('p_ron_h')) document.getElementById('p_ron_h').value = 0.033;
+    if (document.getElementById('p_coss_h')) document.getElementById('p_coss_h').value = 140;
+    if (document.getElementById('p_qg_h')) document.getElementById('p_qg_h').value = 10.6;
+    if (document.getElementById('p_vgs')) document.getElementById('p_vgs').value = 10.0;
+
+    if (document.getElementById('p_tr_h')) document.getElementById('p_tr_h').value = 5.8;
+    if (document.getElementById('p_tf_h')) document.getElementById('p_tf_h').value = 5.1;
+    if (document.getElementById('p_vd')) document.getElementById('p_vd').value = 1.1;
+    if (document.getElementById('p_trr')) document.getElementById('p_trr').value = 15;
+    if (document.getElementById('p_irr')) document.getElementById('p_irr').value = 1.3;
+
+    if (document.getElementById('p_dcr')) document.getElementById('p_dcr').value = 0.04;
+    if (document.getElementById('p_dcr_sec')) document.getElementById('p_dcr_sec').value = 0.13;
+    if (document.getElementById('p_icc')) document.getElementById('p_icc').value = 6.0;
+    if (document.getElementById('p_esrcin')) document.getElementById('p_esrcin').value = 0.005;
+    if (document.getElementById('p_esrcout')) document.getElementById('p_esrcout').value = 0.004;
+    if (document.getElementById('custom_L_uH')) document.getElementById('custom_L_uH').value = "";
+}
+
+// ================================================================
+// main
+// ================================================================
+function updateChartsAndTable() {
+    var vin_min = parseFloat(document.getElementById('vin_min').value);
+    var vin_max = parseFloat(document.getElementById('vin_max').value);
+    var vin_nom = parseFloat(document.getElementById('vin_nom').value);
+    var vout = parseFloat(document.getElementById('vout').value);
+    var ilout = parseFloat(document.getElementById('ilout').value);
+    var f_khz = parseFloat(document.getElementById('f_khz').value);
+    var verim = parseFloat(document.getElementById('verim').value);
+    var modeEl = document.getElementById("mode");
+    var userMode = modeEl ? modeEl.value : "continuous";
+    var effMode = document.getElementById("effMode").value;
+
+    var Uf = 0.7;
+    var f_hz = f_khz * 1000;
+    var Uem = (vin_min + vin_max) / 2;
+
+    var isCustomDesignActive = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
+    var customRatioEl = document.getElementById('custom_nRatio');
+    var userRatio = (isCustomDesignActive && customRatioEl) ? parseFloat(customRatioEl.value) : 0;
+
+    var nOutput;
+    if (userRatio > 0) {
+        nOutput = userRatio;
+    } else {
+        var Dmax = 0.45;
+        nOutput = (vin_min * Dmax) / ((vout + Uf) * (1 - Dmax));
+    }
+
+    var D_nom = ((vout + Uf) * nOutput) / (((vout + Uf) * nOutput) + vin_nom);
+
+    var K_r;
+    if (userMode === "continuous") {
+        K_r = 0.4;
+    } else if (userMode === "discontinuous") {
+        K_r = 2.5;
+    } else {
+        K_r = 2.0;
+    }
+
+    var customLEl = document.getElementById('custom_L_uH');
+    var userL_uH = (isCustomDesignActive && customLEl) ? parseFloat(customLEl.value) : 0;
+
+    var lOutput_H;
+    if (userL_uH > 0) {
+        lOutput_H = userL_uH * 1e-6;
+    } else {
+        lOutput_H = (vin_nom * vin_nom * D_nom * D_nom) / (K_r * (vout + Uf) * ilout * f_hz);
+    }
+
+    var lOutput = lOutput_H * 1e6;
+
+    var Ue = vin_nom;
+    var ILs_nom = ilout * (vout + Uf) / Ue;
+    var actual_deltaIL = (1 / f_hz) * (1 / lOutput_H) * (vout + Uf) * nOutput * Ue / ((vout + Uf) * nOutput + Ue);
+
+    var actualMode;
+    var tolerance = 0.03 * ILs_nom;
+
+    var D = (vout + Uf) * nOutput / ((vout + Uf) * nOutput + Ue);
+    var I_critical = (2 * ILs_nom) / D;
+    var currentDiff = actual_deltaIL - I_critical;
+
+    if (Math.abs(currentDiff) <= tolerance) {
+        actualMode = "critical";
+    } else if (actual_deltaIL > I_critical) {
+        actualMode = "discontinuous";
+    } else {
+        actualMode = "continuous";
+    }
+
+    var modeWarnEl = document.getElementById('modeWarning');
+    var modeNames = { "continuous": "CCM", "discontinuous": "DCM", "critical": "CRM" };
+    var condition = (actualMode === "discontinuous") ? " (ΔIL > I_Critical)" : (actualMode === "critical" ? " (ΔIL = I_Critical)" : " (ΔIL < I_Critical)");
+
+    if (userMode !== actualMode) {
+        modeWarnEl.style.display = 'block';
+        modeWarnEl.style.color = '#856404';
+        modeWarnEl.style.border = '1px solid #ffeeba';
+        modeWarnEl.style.backgroundColor = '#fff3cd';
+        modeWarnEl.textContent = (window.getT ? window.getT('warning_mode_1') : "⚠️ Uyarı: Seçilen mod ") + modeNames[userMode] +
+            (window.getT ? window.getT('warning_mode_2') : ", ancak girilen frekans ve gerilim değerlerine göre devre ") + modeNames[actualMode] +
+            (window.getT ? window.getT('warning_mode_4') : " modunda çalışacak!") + condition + (window.getT ? window.getT('warning_mode_5') : " Lütfen parametreleri veya modu düzeltin.");
+    } else if (userMode === "critical") {
+        modeWarnEl.style.display = 'block';
+        modeWarnEl.style.color = '#004085';
+        modeWarnEl.style.border = '1px solid #b8daff';
+        modeWarnEl.style.backgroundColor = '#cce5ff';
+
+        var t1_crm_info = (lOutput_H * I_critical) / Ue;
+        var t2_crm_info = (lOutput_H * I_critical) / ((vout + Uf) * nOutput);
+        var f_crm_info = 1.0 / (t1_crm_info + t2_crm_info);
+
+        modeWarnEl.textContent = (window.getT ? window.getT('info_crm_mode') : "Bilgi: CRM modu aktif ve parametreler kusursuz uyumlu. Nominal yükte ideal çalışma frekansı ") + (f_crm_info / 1000).toFixed(1) + " kHz.";
+    } else {
+        modeWarnEl.style.display = 'none';
+        modeWarnEl.textContent = '';
+    }
+
+    var t1, Imax, Imin, i1_rms_calc, i2_rms_calc, dIL;
+    var D1, D2;
+
+    if (actualMode === "continuous") {
+        var D = (vout + Uf) * nOutput / ((vout + Uf) * nOutput + Ue);
+        t1 = D / f_hz;
+
+        dIL = (1 / f_hz) * (1 / lOutput_H) * (vout + Uf) * nOutput * Ue / ((vout + Uf) * nOutput + Ue);
+        var I_center = ILs_nom / D;
+        Imax = I_center + 0.5 * dIL;
+        Imin = Math.max(0, Imax - dIL);
+
+        D1 = D; D2 = 1 - D;
+
+        i1_rms_calc = Math.sqrt(D1 * (Imin * Imin + Imin * Imax + Imax * Imax) / 3);
+        var imax2 = Imax * nOutput;
+        var imin2 = Imin * nOutput;
+        i2_rms_calc = Math.sqrt(D2 * (imin2 * imin2 + imin2 * imax2 + imax2 * imax2) / 3);
+    } else {
+        t1 = Math.sqrt(2 * ilout * lOutput_H * (vout + Uf) / (f_hz * Ue * Ue));
+        dIL = (1.0 / lOutput_H) * Ue * t1;
+        Imax = dIL; Imin = 0;
+        D1 = t1 * f_hz;
+        var t2 = Imax * lOutput_H / ((vout + Uf) * nOutput);
+        D2 = t2 * f_hz;
+
+        i1_rms_calc = Math.sqrt(D1 * Imax * Imax / 3);
+        var imax2_d = Imax * nOutput;
+        i2_rms_calc = Math.sqrt(D2 * imax2_d * imax2_d / 3);
+    }
+
+    var J = MagneticUtils.getCurrentDensity(f_khz);
+
+    window.Imax_global = Imax;
+    window.il_rms = i1_rms_calc;
+    window.i2_rms_calc = i2_rms_calc;
+    window.A1_req = i1_rms_calc / J;
+    window.A2_req = i2_rms_calc / J;
+    window.d1_req = 2 * Math.sqrt(window.A1_req / Math.PI);
+    window.d2_req = 2 * Math.sqrt(window.A2_req / Math.PI);
+    window.max_wire_d_mm = 2 * (65.6 / Math.sqrt(f_hz));
+
+    var wmax1 = 0.5 * lOutput_H * Imax * Imax * 1e6;
+    var Vripple = vout * 0.01;
+    var cOutput = ilout * D1 / (f_hz * Vripple) * 1e6;
+    var rOutput = vout / ilout;
+    var Pout = vout * ilout;
+
+    var finalKullanilacakVerim = verim;
+    var effData;
+    var calculated_Iin;
+
+    if (effMode === "ideal") {
+        effData = generateIdealEffCurve(verim / 100, f_hz);
+        document.getElementById("powerLossSection").style.display = "none";
+        calculated_Iin = Pout / (Ue * (verim / 100));
+        var loss = Math.abs(100 - verim);
+        document.getElementById('loss').innerText = loss.toFixed(2);
+    } else {
+        var params = getRealParams();
+        effData = generateRealEffCurve(vin_nom, vout, ilout, f_hz, lOutput_H, nOutput, actualMode, params);
+        var realRes = calculateRealEfficiency(vin_nom, vout, ilout, f_hz, Imax, Imin, nOutput, i1_rms_calc, i2_rms_calc, actualMode, params);
+
+        finalKullanilacakVerim = realRes.efficiencyPercent;
+        document.getElementById("powerLossSection").style.display = "block";
+
+        const setText = (id, text) => {
+            let el = document.getElementById(id);
+            if (el) el.innerText = text;
+        };
+
+        setText("res_pon_h", realRes.breakdown.Pon_H.toFixed(4) + " W");
+        setText("res_pon_d", realRes.breakdown.Pdiode_cond.toFixed(4) + " W");
+        setText("res_psw_h", realRes.breakdown.Psw_H.toFixed(4) + " W");
+        setText("res_prr", realRes.breakdown.Prr.toFixed(4) + " W");
+        setText("res_pcoss", realRes.breakdown.Pcoss.toFixed(4) + " W");
+        setText("res_pg", realRes.breakdown.Pg.toFixed(4) + " W");
+        setText("res_pic", realRes.breakdown.Pic.toFixed(4) + " W");
+        setText("res_pl_dcr", realRes.breakdown.Pl_pri.toFixed(4) + " W");
+        setText("res_pcin", realRes.breakdown.Pl_sec.toFixed(4) + " W");
+        setText("res_pcout", realRes.breakdown.Pcout.toFixed(4) + " W");
+        setText("res_ptotal", realRes.totalLossW.toFixed(4) + " W");
+        setText("res_peff", realRes.efficiencyPercent.toFixed(2) + " %");
+
+        var loss = Math.abs(100 - finalKullanilacakVerim);
+        setText("loss", loss.toFixed(2));
+        calculated_Iin = Pout / (Ue * (finalKullanilacakVerim / 100));
+    }
+
+    document.getElementById('lOutput').innerText = lOutput.toFixed(2);
+    document.getElementById('cOutput').innerText = cOutput.toFixed(2);
+    document.getElementById('rOutput').innerText = rOutput.toFixed(2);
+    document.getElementById('deltaILMax').innerText = dIL.toFixed(2);
+    document.getElementById('nOutput').innerText = nOutput.toFixed(2);
+    document.getElementById('wmax1').innerText = wmax1.toFixed(2);
+
+    var iinEl = document.getElementById('iin');
+    if (iinEl) {
+        iinEl.innerText = calculated_Iin.toFixed(2);
+        document.getElementById('iin_container').style.display = "inline";
+    }
+
+    var wf = generateAllWaveforms(Ue, vout, nOutput, f_hz, t1, lOutput_H, dIL, Imax, actualMode);
+    drawCharts(wf, ilout, vin_min, vin_max, Uem, effData);
+    updateResultTable(wf);
+
+    // Closed Loop (BETA)
+    var esr_cout = 0.01;
+    var esrEl = document.getElementById('p_esrcout');
+    if (esrEl && !isNaN(parseFloat(esrEl.value))) {
+        esr_cout = parseFloat(esrEl.value);
+    }
+
+    window.flybackLastCalc = {
+        Vin: vin_nom,
+        Vo: vout,
+        Io: ilout,
+        fs: f_hz,
+        Lm: lOutput_H,
+        nOutput: nOutput,
+        Co: cOutput * 1e-6,
+        ESR_Cout: esr_cout,
+        mode: actualMode === "continuous" ? "CCM" : (actualMode === "critical" ? "CRM" : "DCM"),
+        Vd: Uf
+    };
+
+    var clContainer = document.getElementById("closedLoopContainer");
+    if (clContainer) {
+        clContainer.style.display = "flex";
+    }
+}
+
+// ================================================================
+// EFFICIENCY AND LOSS CALCULATIONS
+// ================================================================
+function getRealParams() {
+    const getVal = (id, def) => {
+        var el = document.getElementById(id);
+        var val = el ? parseFloat(el.value) : NaN;
+        return isNaN(val) ? def : val;
+    };
+
+    return {
+        Ron_H: getVal('p_ron_h', 0.033),
+        tr_H: getVal('p_tr_h', 5.8) * 1e-9,
+        tf_H: getVal('p_tf_h', 5.1) * 1e-9,
+        Coss_H: getVal('p_coss_h', 140) * 1e-12,
+        Qg_H: getVal('p_qg_h', 10.6) * 1e-9,
+        Vgs: getVal('p_vgs', 10.0),
+        Vd: getVal('p_vd', 1.1),
+        trr: getVal('p_trr', 15) * 1e-9,
+        Irr: getVal('p_irr', 1.3),
+        DCR_pri: getVal('p_dcr', 0.04),
+        DCR_sec: getVal('p_dcr_sec', 0.13),
+        Icc: getVal('p_icc', 6.0) * 1e-3,
+        ESR_Cin: getVal('p_esrcin', 0.005),
+        ESR_Cout: getVal('p_esrcout', 0.004)
+    };
+}
+
+function calculateRealEfficiency(vin, vout, iout, f_sw_hz, Imax, Imin, nOutput, i1_rms, i2_rms, mode, p) {
+    var Pon_SW = Math.pow(i1_rms, 2) * p.Ron_H;
+    var Pdiode_cond = p.Vd * iout;
+
+    var V_stress = vin + nOutput * (vout + p.Vd);
+
+    var Psw_H_on = 0;
+    var Psw_H_off = 0;
+    var Prr = 0;
+    var Pcoss = 0.5 * p.Coss_H * Math.pow(V_stress, 2) * f_sw_hz;
+
+    if (mode === "continuous") {
+        Psw_H_on = 0.5 * V_stress * Imin * p.tr_H * f_sw_hz;
+        Psw_H_off = 0.5 * V_stress * Imax * p.tf_H * f_sw_hz;
+        Prr = 0.5 * V_stress * p.Irr * p.trr * f_sw_hz;
+    } else {
+        Psw_H_on = 0;
+        Psw_H_off = 0.5 * V_stress * Imax * p.tf_H * f_sw_hz;
+        Prr = 0;
+    }
+
+    var Psw_H = Psw_H_on + Psw_H_off;
+    var Pg = p.Qg_H * p.Vgs * f_sw_hz;
+    var Pic = vin * p.Icc;
+
+    var Pl_pri = Math.pow(i1_rms, 2) * p.DCR_pri;
+    var Pl_sec = Math.pow(i2_rms, 2) * p.DCR_sec;
+
+    var Icin_rms_sq = Math.max(0, Math.pow(i1_rms, 2) - Math.pow(iout * (vout / vin), 2));
+    var Pcin = Icin_rms_sq * p.ESR_Cin;
+
+    var Icout_rms_sq = Math.max(0, Math.pow(i2_rms, 2) - Math.pow(iout, 2));
+    var Pcout = Icout_rms_sq * p.ESR_Cout;
+
+    var Ptotal = Pon_SW + Pdiode_cond + Psw_H + Prr + Pcoss + Pg + Pic + Pl_pri + Pl_sec + Pcin + Pcout;
+    var efficiency = (vout * iout) / ((vout * iout) + Ptotal) * 100;
+
+    return {
+        totalLossW: Ptotal,
+        efficiencyPercent: efficiency,
+        breakdown: { Pon_H: Pon_SW, Pdiode_cond: Pdiode_cond, Psw_H: Psw_H, Prr: Prr, Pcoss: Pcoss, Pg: Pg, Pic: Pic, Pl_pri: Pl_pri, Pl_sec: Pl_sec, Pcin: Pcin, Pcout: Pcout }
+    };
+}
+
+function generateIdealEffCurve(eff_full_load, f_hz) {
+    var values = [], labels = [];
+    var k_fix = 0.028 * (f_hz / 50000);
+    var k_cond = 0.038;
+    function raw_eff(p) {
+        if (p < 0.001) p = 0.001;
+        return p / (p + k_fix + k_cond * p * p);
+    }
+    var scale = eff_full_load / raw_eff(1.0);
+    for (var pct = 10; pct <= 120; pct += 5) {
+        var p = pct / 100.0;
+        var e = Math.min(99.5, Math.max(0, raw_eff(p) * scale * 100));
+        values.push(parseFloat(e.toFixed(1)));
+        labels.push(pct + "%");
+    }
+    return { values: values, labels: labels };
+}
+
+function generateRealEffCurve(vin, vout, max_iout, f_hz, L_H, nOutput, mode, params) {
+    var values = [], labels = [];
+    var Uf = 0.7;
+
+    for (var pct = 10; pct <= 120; pct += 5) {
+        var currentLoad = max_iout * (pct / 100);
+        if (currentLoad <= 0.001) currentLoad = 0.001;
+
+        var t1_c, Imax_c, actual_deltaIL_c;
+        var f_current = f_hz;
+        var ILs_nom_c = currentLoad * (1.0 / nOutput) * (vin + (vout + Uf) * nOutput) / vin;
+
+        if (mode === "continuous") {
+            t1_c = (1.0 / f_hz) * (vout + Uf) * nOutput / ((vout + Uf) * nOutput + vin);
+            actual_deltaIL_c = (1 / f_hz) * (1 / L_H) * (vout + Uf) * nOutput * vin / ((vout + Uf) * nOutput + vin);
+            Imax_c = ILs_nom_c + 0.5 * actual_deltaIL_c;
+        } else if (mode === "critical") {
+            Imax_c = 2 * ILs_nom_c;
+            actual_deltaIL_c = Imax_c;
+            t1_c = (L_H * Imax_c) / vin;
+            var t2_c = (L_H * Imax_c) / ((vout + Uf) * nOutput);
+            f_current = 1.0 / (t1_c + t2_c);
+        } else {
+            t1_c = Math.sqrt(2 * currentLoad * L_H * (vout + Uf) / (f_hz * vin * vin));
+            actual_deltaIL_c = (1.0 / L_H) * vin * t1_c;
+            Imax_c = actual_deltaIL_c;
+        }
+
+        var D_c = t1_c * f_current;
+        var imax2_c = Imax_c * nOutput;
+        var IL_min_safe_c = Math.max(0, Imax_c - actual_deltaIL_c);
+        var i1_rms_c, i2_rms_c;
+
+        if (mode === "continuous") {
+            i1_rms_c = Math.sqrt(D_c * (IL_min_safe_c * IL_min_safe_c + IL_min_safe_c * Imax_c + Imax_c * Imax_c) / 3);
+            var imin2_c = IL_min_safe_c * nOutput;
+            i2_rms_c = Math.sqrt((1 - D_c) * (imin2_c * imin2_c + imin2_c * imax2_c + imax2_c * imax2_c) / 3);
+        } else {
+            i1_rms_c = Math.sqrt(D_c * Imax_c * Imax_c / 3);
+            var t2_c_inner = Imax_c * L_H / ((vout + Uf) * nOutput);
+            i2_rms_c = Math.sqrt((t2_c_inner * f_current) * imax2_c * imax2_c / 3);
+        }
+
+        var Imin_c = 0;
+        if (mode === "continuous") {
+            Imin_c = IL_min_safe_c;
+        }
+
+        var res = calculateRealEfficiency(vin, vout, currentLoad, f_current, Imax_c, Imin_c, nOutput, i1_rms_c, i2_rms_c, mode, params);
+        var e = res.efficiencyPercent;
+        if (e > 99.5) e = 99.5; if (e < 0) e = 0;
+        values.push(parseFloat(e.toFixed(1)));
+        labels.push(pct + "%");
+    }
+    return { values: values, labels: labels };
+}
+
+// ================================================================
+// WAVEFORM GENERATOR
+// ================================================================
+function generateAllWaveforms(Ue, vout, nOutput, f_hz, t1_s, L_H, deltaIL, Imax, mode) {
+    var Uf = 0.7;
+    var nUa = (vout + Uf) * nOutput;
+
+    var Imin = Math.max(0, Imax - deltaIL);
+    if (mode !== "continuous") Imin = 0;
+
+    var slope_on = Ue / L_H;
+    var imax2 = Imax * nOutput;
+    var imin2 = Imin * nOutput;
+
+    var T = 1.0 / f_hz;
+    var t_off = T - t1_s;
+    if (t_off <= 0) t_off = t1_s * 0.5;
+
+    var t2_s = 0;
+    if (mode !== "continuous") {
+        t2_s = (Imax * L_H) / nUa;
+        if (t2_s > t_off) t2_s = t_off * 0.99;
+    }
+
+    var PTS = 100;
+    var labels = [], i1 = [], i2 = [], vl1 = [], vds = [];
+
+    for (var cycle = 0; cycle < 2; cycle++) {
+        var t0 = cycle * T;
+
+        if (mode === "continuous") {
+            for (var k = 0; k < PTS; k++) {
+                var frac = k / PTS;
+                labels.push(((t0 + frac * t1_s) * 1e6).toFixed(2));
+                i1.push(Imin + slope_on * frac * t1_s);
+                i2.push(0);
+                vl1.push(Ue);
+                vds.push(0);
+            }
+            for (var k = 0; k < PTS; k++) {
+                var frac = k / PTS;
+                var current_i2 = imax2 - (imax2 - imin2) * frac;
+                labels.push(((t0 + t1_s + frac * t_off) * 1e6).toFixed(2));
+                i1.push(0);
+                i2.push(Math.max(0, current_i2));
+                vl1.push(-nUa);
+                vds.push(Ue + nUa);
+            }
+        } else {
+            for (var k = 0; k < PTS; k++) {
+                var frac = k / PTS;
+                labels.push(((t0 + frac * t1_s) * 1e6).toFixed(2));
+                i1.push(Imax * frac);
+                i2.push(0);
+                vl1.push(Ue);
+                vds.push(0);
+            }
+            var PTS2 = Math.max(Math.round(PTS * t2_s / t_off), 10);
+            for (var k = 0; k < PTS2; k++) {
+                var frac = k / PTS2;
+                labels.push(((t0 + t1_s + frac * t2_s) * 1e6).toFixed(2));
+                i1.push(0);
+                i2.push(imax2 * (1 - frac));
+                vl1.push(-nUa);
+                vds.push(Ue + nUa);
+            }
+            var PTS3 = Math.max(PTS - PTS2, 5);
+            var t_rest = t_off - t2_s;
+            for (var k = 0; k < PTS3; k++) {
+                var frac = k / PTS3;
+                var decay = Math.exp(-6 * frac);
+                labels.push(((t0 + t1_s + t2_s + frac * t_rest) * 1e6).toFixed(2));
+                i1.push(0);
+                i2.push(0);
+
+                var ring_vds = Ue + nUa * decay * Math.cos(2 * Math.PI * 3 * frac);
+                vds.push(ring_vds);
+                vl1.push(0);
+            }
+        }
+    }
+
+    return { labels: labels, i1: i1, i2: i2, vl1: vl1, vds: vds };
+}
+
+// ================================================================
+// CHARTS
+// ================================================================
+function drawCharts(wf, ilout, vin_min, vin_max, Uem, effData) {
+    var N = wf.labels.length;
+    var tickStep = Math.max(1, Math.floor(N / 8));
+    var textColor = '#e0e0e0';
+    var gridColor = 'rgba(255, 255, 255, 0.1)';
+    var refLineColor = 'rgba(255, 255, 255, 0.5)';
+
+    function baseOpts(yTitle) {
+        return {
+            responsive: true,
+            animation: false,
+            elements: { point: { radius: 0 }, line: { tension: 0 } },
+            scales: {
+                x: { type: 'category', ticks: { color: textColor, maxTicksLimit: 9, callback: function (v, i) { return (i % tickStep === 0) ? wf.labels[i] + "µs" : ''; } }, title: { display: true, text: 'Time (µs)', color: textColor }, grid: { color: gridColor, borderColor: gridColor } },
+                y: { title: { display: true, text: yTitle, color: textColor }, ticks: { color: textColor }, grid: { color: gridColor, borderColor: gridColor } }
+            },
+            plugins: { legend: { display: true, position: 'top', labels: { color: textColor } } }
+        };
+    }
+
+    function mk(id, datasets, yTitle, extraOpts = {}) {
+        var canvas = document.getElementById(id);
+        if (!canvas) return;
+        if (canvas.chart) { canvas.chart.destroy(); canvas.chart = null; }
+        var finalOptions = baseOpts(yTitle);
+        if (extraOpts.scales && extraOpts.scales.y) { finalOptions.scales.y = { ...finalOptions.scales.y, ...extraOpts.scales.y }; }
+        canvas.chart = new Chart(canvas.getContext('2d'), { type: 'line', data: { labels: wf.labels, datasets: datasets }, options: finalOptions });
+    }
+
+    mk('vinChart', [
+        { label: 'V_L1 (Primer)', data: wf.vl1, borderColor: 'rgba(100, 181, 246, 1)', borderWidth: 2, fill: false },
+        { label: 'Vin (avg.)', data: Array(N).fill(Uem), borderColor: refLineColor, borderWidth: 1.5, borderDash: [6, 3], fill: false, pointRadius: 0 }
+    ], 'Voltage (V)');
+
+    mk('vdsChart', [
+        { label: 'Vds (MOSFET)', data: wf.vds, borderColor: 'rgba(255, 167, 38, 1)', borderWidth: 2, fill: false }
+    ], 'Voltage (V)');
+
+    mk('ilChart', [
+        { label: 'I1 (Primer)', data: wf.i1, borderColor: 'rgba(239, 83, 80, 1)', borderWidth: 2, fill: false }
+    ], 'Current (A)');
+
+    mk('idChart', [
+        { label: 'I2 (Secondary)', data: wf.i2, borderColor: 'rgba(105, 240, 174, 1)', borderWidth: 2, fill: false },
+        { label: 'Iout', data: Array(N).fill(ilout), borderColor: refLineColor, borderWidth: 1.5, borderDash: [6, 3], fill: false, pointRadius: 0 }
+    ], 'Current (A)');
+
+    var effCanvas = document.getElementById('effChart');
+    if (effCanvas) {
+        if (effCanvas.chart) { effCanvas.chart.destroy(); effCanvas.chart = null; }
+        effCanvas.chart = new Chart(effCanvas.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: effData.labels,
+                datasets: [{ label: 'Efficiency vs Load', data: effData.values, borderColor: 'rgba(129, 199, 132, 1)', backgroundColor: 'rgba(129, 199, 132, 0.15)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: 'rgba(129, 199, 132, 1)' }]
+            },
+            options: {
+                responsive: true, animation: false,
+                scales: { x: { title: { display: true, text: 'Load (%)', color: textColor }, ticks: { color: textColor }, grid: { color: gridColor, borderColor: gridColor } }, y: { min: 0, max: 100, title: { display: true, text: 'Efficiency (%)', color: textColor }, ticks: { color: textColor }, grid: { color: gridColor, borderColor: gridColor } } },
+                plugins: { legend: { display: true, position: 'top', labels: { color: textColor } } }
+            }
+        });
+    }
+}
+
+// ================================================================
+// RESULT TABLE
+// ================================================================
+function updateResultTable(wf) {
+    var table = document.getElementById('resultTable');
+    if (!table) return;
+    var tbody = table.getElementsByTagName('tbody')[0];
+    tbody.innerHTML = "";
+
+    var N = wf.labels.length;
+    var step = Math.max(1, Math.floor(N / 20));
+
+    document.getElementById('resultTable').rows[0].cells[3].innerHTML = "I1 (Primary)";
+    document.getElementById('resultTable').rows[0].cells[4].innerHTML = "I2 (Secondary)";
+
+    for (var i = 0; i <= 20; i++) {
+        var idx = Math.min(i * step, N - 1);
+        var row = tbody.insertRow(-1);
+        row.insertCell(0).innerHTML = wf.labels[idx] + " µs";
+        row.insertCell(1).innerHTML = (wf.vl1[idx] || 0).toFixed(2) + " V";
+        row.insertCell(2).innerHTML = (wf.vds[idx] || 0).toFixed(2) + " V";
+        row.insertCell(3).innerHTML = (wf.i1[idx] || 0).toFixed(2) + " A";
+        row.insertCell(4).innerHTML = (wf.i2[idx] || 0).toFixed(2) + " A";
+    }
+}
+
+// ================================================================
+// FALSTAD API & IFRAME MANAGEMENT
+// ================================================================
+var falstadSim = null;
+
+function embedFalstadSimulation(circuitString) {
+    var encodedCircuit = encodeURIComponent(circuitString);
+    var iframe = document.getElementById("circuitFrame");
+
+    iframe.src = "/falstad/circuitjs.html?hideHeader=true&hideControls=false&noPowerCheck=true&cct=" + encodedCircuit;
+
+    iframe.contentWindow.oncircuitjsloaded = function () {
+        falstadSim = iframe.contentWindow.CircuitJS1;
+    };
+}
+
+// ================================================================
+// CIRCUITJS (FALSTAD) FLYBACK CONVERTER ENTEGRASYONU (DÜZELTİLDİ)
+// ================================================================
+function openFalstadFlybackSimulation() {
+    var vin_nom = parseFloat(document.getElementById('vin_nom')?.value) || 36.0;
+    var vin_min = parseFloat(document.getElementById('vin_min')?.value) || 9.0;
+    var vout = parseFloat(document.getElementById('vout')?.value) || 24.0;
+    var ilout = parseFloat(document.getElementById('ilout')?.value) || 3.125;
+    var f_khz = parseFloat(document.getElementById('f_khz')?.value) || 200.0;
+
+    document.getElementById("simulationContainer").style.display = "block";
+    document.getElementById("liveDataBox").style.display = "block";
+    document.getElementById("liveDataBox").innerHTML = "Fitcore SMPS Designer: FLYBACK Converter & Snubber Network";
+
+    if (document.getElementById("simulationContainer").scrollIntoView) {
+        document.getElementById("simulationContainer").scrollIntoView({ behavior: 'smooth' });
+    }
+
+    var Uf = 0.7;
+    var freq_hz = f_khz * 1000;
+
+    var l_uH = parseFloat(document.getElementById('lOutput')?.innerText) || 100.0;
+    var l_henry = l_uH * 1e-6;
+
+    var c_uF = parseFloat(document.getElementById('cOutput')?.innerText) || 10.0;
+    var c_farad = c_uF * 1e-6;
+    var r_load = vout / ilout;
+
+    var isCustomDesignActiveFalstad = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
+    var customRatioEl = document.getElementById('custom_nRatio');
+    var userRatio = (isCustomDesignActiveFalstad && customRatioEl) ? parseFloat(customRatioEl.value) : 0;
+    var nOutput = (userRatio > 0) ? userRatio : ((vin_min * 0.45) / ((vout + Uf) * 0.55));
+    var ratio = 1 / nOutput;
+
+    var v_f = (vout + Uf) * nOutput;
+    var D_ccm = v_f / (v_f + vin_nom);
+    var ILs_nom = ilout * (vout + Uf) / vin_nom;
+
+    var delta_I = (vin_nom * D_ccm) / (l_henry * freq_hz);
+    var I_critical = (2 * ILs_nom) / D_ccm;
+    var tolerance = 0.03 * ILs_nom;
+
+    var actualMode;
+    if (Math.abs(delta_I - I_critical) <= tolerance) {
+        actualMode = "critical";
+    } else if (delta_I > I_critical) {
+        actualMode = "discontinuous";
+    } else {
+        actualMode = "continuous";
+    }
+
+    var duty_cycle;
+    if (actualMode === "continuous" || actualMode === "critical") {
+        duty_cycle = D_ccm;
+    } else {
+        var P_sec = (vout + Uf) * ilout;
+        duty_cycle = Math.sqrt((2 * P_sec * l_henry * freq_hz)) / vin_nom;
+    }
+
+    if (duty_cycle > 0.90) duty_cycle = 0.90;
+    if (duty_cycle < 0.02) duty_cycle = 0.02;
+
+    var Pout = (vout + Uf) * ilout;
+    var I_in_avg = Pout / vin_nom;
+    var I_center = I_in_avg / D_ccm;
+    var Imax = (actualMode === "discontinuous") ? (vin_nom * duty_cycle / (l_henry * freq_hz)) : (I_center + 0.5 * delta_I);
+
+    var leakage_ratio = 0.025;
+    var coupling = Math.sqrt(1 - leakage_ratio).toFixed(4);
+    var L_leakage = leakage_ratio * l_henry;
+
+    var v_x = 0.2 * v_f;
+    var v_clamp = v_f + v_x;
+    var p_leak = 0.5 * L_leakage * Imax * Imax * freq_hz;
+    var r_snub = (v_clamp * v_clamp) / Math.max(p_leak * 2, 0.001);
+    if (r_snub > 100000) r_snub = 100000;
+    if (r_snub < 10) r_snub = 10;
+
+    var c_snub = 100e-9;
+
+    var c_oss = 150e-12;
+
+    var Vgs_on = 15;
+    var Vt_mos = 1.5;
+    var Ron_target = (0.005 * vin_nom) / Math.max(Imax, 0.01);
+    var beta_dyn = Math.min(Math.max(1 / (Ron_target * (Vgs_on - Vt_mos)), 0.02), 200);
+
+    var v_gate_max = 15;
+    var v_amp = v_gate_max / 2;
+    var v_offset = v_amp;
+
+    var sim_timestep = 1.0 / (freq_hz * 50);
+    var timestep_str = sim_timestep.toExponential(2).toUpperCase();
+
+    var vscale_in = Math.max(50, Math.ceil(vin_nom / 50) * 50);
+    var vscale_out = Math.max(50, Math.ceil(vout / 50) * 50);
+    var iscale = Math.max(0.5, Math.ceil((I_in_avg + ilout) / 2) * 0.5);
+    var expected_vds = vin_nom + v_clamp;
+    var vscale_ds = Math.max(50, Math.ceil((expected_vds + 50) / 50) * 50);
+    var iscale_out = Math.max(0.1, Math.ceil(ilout * 1.5 * 10) / 10);
+
+    var falstadTemplate = `
+$ 1 {TIMESTEP} 10.0 50 5.0 50
+v 80 320 80 192 0 0 40 {VIN} 0 0 0.5
+f 176 288 224 288 32 {VT_MOS} {BETA_MOS}
+T 224 224 352 272 0 {L_PRI} {RATIO} {COUPLING} 48
+w 352 224 352 304 0
+w 352 272 384 272 0
+w 384 272 384 208 0
+w 384 208 400 208 0
+d 400 208 464 208 1 {UF}
+r 528 208 528 304 0 {R_VAL}
+c 464 208 464 304 0 {C_VAL} {V_INIT}
+g 528 304 528 320 0
+R 176 288 144 288 0 2 {FREQ} {V_AMP} {V_OFFSET} 0 {DUTY}
+r 256 224 256 272 0 100000000
+c 256 272 256 304 0 {C_OSS} 0
+d 208 272 208 240 1 0.7
+c 208 240 208 192 0 {C_SNUB} {V_CLAMP}
+r 192 240 192 192 0 {R_SNUB}
+w 464 208 528 208 0
+w 464 304 528 304 0
+w 464 304 352 304 0
+w 224 224 224 192 0
+w 224 192 80 192 0
+w 80 320 224 320 0
+w 224 320 224 304 0
+w 224 224 256 224 0
+w 224 272 256 272 0
+w 224 304 256 304 0
+w 224 272 208 272 0
+w 208 192 224 192 0
+w 208 240 192 240 0
+w 192 192 208 192 0
+o 0 1 0 34 {VSCALE_IN} 0.05 0 -1
+o 5 1 0 34 {VSCALE_OUT} 0.05 1 -1
+o 8 1 0 34 {VSCALE_DS} 0.05 2 -1
+o 9 1 0 34 {VSCALE_DS} 0.05 3 -1
+o 3 1 0 33 {ISCALE} 0.1 4 -1
+o 4 1 0 33 {ISCALE_OUT} 0.1 5 -1
+`.trim();
+
+    var circuitString = falstadTemplate
+        .replace('{TIMESTEP}', timestep_str)
+        .replace('{VIN}', vin_nom)
+        .replace('{UF}', Uf)
+        .replace('{L_PRI}', l_henry)
+        .replace('{RATIO}', ratio.toFixed(4))
+        .replace('{COUPLING}', coupling)
+        .replace('{C_SNUB}', c_snub)
+        .replace('{R_SNUB}', r_snub.toFixed(2))
+        .replace('{C_OSS}', c_oss)
+        .replace('{C_VAL}', c_farad)
+        .replace('{R_VAL}', r_load.toFixed(4))
+        .replace('{FREQ}', freq_hz)
+        .replace('{VT_MOS}', Vt_mos)
+        .replace('{BETA_MOS}', beta_dyn.toFixed(5))
+        .replace(/{V_AMP}/g, v_amp)
+        .replace(/{V_OFFSET}/g, v_offset)
+        .replace('{DUTY}', duty_cycle.toFixed(4))
+        .replace('{V_INIT}', vout)
+        .replace('{V_CLAMP}', v_clamp.toFixed(2))
+        .replace(/{VSCALE_IN}/g, vscale_in)
+        .replace(/{VSCALE_OUT}/g, vscale_out)
+        .replace(/{VSCALE_DS}/g, vscale_ds)
+        .replace(/{ISCALE}/g, iscale)
+        .replace(/{ISCALE_OUT}/g, iscale_out);
+
+    embedFalstadSimulation(circuitString);
+}
+
+// ================================================================
+// MAIN TRIGGER AND UI MODAL INTEGRATION
+// ================================================================
+function hesapla() {
+    if (!checkUserInput()) { setDefaultValues(); }
+    updateChartsAndTable();
+    if (typeof window.openSelectedTable === "function") {
+        window.openSelectedTable();
+    }
+}
+
+window.openSelectedTable = function () {
+    const modeElement = document.querySelector('input[name="coreSelectionMode"]:checked');
+    const mode = modeElement ? modeElement.value : "standard";
+
+    const isCustomDesign = document.getElementById("testOwnDesignCheck") ? document.getElementById("testOwnDesignCheck").checked : false;
+
+    var lOutputStr = document.getElementById('lOutput')?.innerText;
+    var wmax1Str = document.getElementById('wmax1')?.innerText;
+
+    if (!lOutputStr || isNaN(parseFloat(lOutputStr))) {
+        alert(window.getT ? window.getT('adv_alert_calc_first') : "Lütfen önce hesaplama yapın!");
+        return;
+    }
+
+    var L_uH = parseFloat(lOutputStr);
+    var Wmax = parseFloat(wmax1Str);
+    var nOutput = parseFloat(document.getElementById('nOutput')?.innerText) || 1;
+    var Imax = window.Imax_global || parseFloat(document.getElementById('deltaILMax')?.innerText) || 0;
+
+    var i1_rms_sq = Math.pow(window.il_rms || 1, 2);
+    var ilout = parseFloat(document.getElementById('ilout')?.value) || 0.25;
+    var i2_rms_sq = Math.pow(window.i2_rms_calc || ilout * 1.5, 2);
+
+    const params = {
+        title: (window.getT ? window.getT('title_transformer_data') : "Flyback Trafo Verileri"),
+        L_uH: L_uH,
+        L_H: L_uH * 1e-6,
+        Wmax: Wmax,
+        Imax: Imax,
+        nOutput: nOutput,
+        I1_rms_sq: i1_rms_sq,
+        I2_rms_sq: i2_rms_sq,
+        d1_req: window.d1_req || 0.5,
+        d2_req: window.d2_req || 0.5,
+        max_litz: window.max_wire_d_mm || 0.5,
+        userMode: document.getElementById("mode")?.value || "continuous"
+    };
+
+    if (mode === "advanced") {
+        if (isCustomDesign) {
+            if (typeof window.openAdvancedPreCheck === "function") {
+                window.openAdvancedPreCheck('flyback');
+            } else {
+                alert("Advanced modül yüklenemedi.");
+            }
+        } else {
+            window.customSelections = { core: null, coreL1: null, coreL2: null, coreTrafo: null, coreCoil: null, switch: null };
+            if (typeof window.openAdvancedTable === "function") {
+                window.openAdvancedTable();
+            } else {
+                alert("Advanced modül yüklenemedi.");
+            }
+        }
+    } else {
+        if (typeof UIModal !== 'undefined' && UIModal.openFlybackModal) {
+            UIModal.openFlybackModal(params);
+        } else {
+            alert("Arayüz modülü yüklenemedi.");
+        }
+    }
+};
+
+// ================================================================
+// EVENT LISTENERS
+// ================================================================
+document.getElementById('calculateButton').addEventListener('click', updateChartsAndTable);
+document.getElementById('printButton').addEventListener('click', function () { window.print(); });
+document.getElementById('openButton').addEventListener('click', window.openSelectedTable);

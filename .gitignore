@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Firebase
+.firebase/
+.firebaserc.local
+firebase-debug.log
+firebase-debug.*.log
+ui-debug.log
+
+# Environment / secrets
+.env
+.env.*
+*.local
+
+# Visual Studio local state
+.vs/
+*.user
+*.suo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+npm-debug.log*
+forms/error_log

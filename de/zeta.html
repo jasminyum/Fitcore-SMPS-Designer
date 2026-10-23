@@ -1,0 +1,472 @@
+﻿<!DOCTYPE html>
+
+<html lang="de">
+<head>
+<meta content="text/html; charset=utf-8" http-equiv="content-type"/>
+<meta content="IE=edge" http-equiv="X-UA-Compatible"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Zeta-Wandler Rechner | DC-DC-Entwurfswerkzeug</title>
+<meta content="Berechnen Sie Ströme, Spannungen und Bauteilwerte für einen Zeta-Wandler." name="description"/>
+<meta content="Zeta-Wandler Rechner, Zeta Converter Design, Zeta DC-DC-Wandler" name="keywords"/>
+<meta content="index, follow, max-image-preview:large" name="robots"/>
+<link href="https://www.ataqileriteknoloji.com/de/zeta" rel="canonical"/>
+<link href="https://www.ataqileriteknoloji.com/tr/zeta" hreflang="tr" rel="alternate"/>
+<link href="https://www.ataqileriteknoloji.com/zeta" hreflang="en" rel="alternate"/>
+<link href="https://www.ataqileriteknoloji.com/de/zeta" hreflang="de" rel="alternate"/>
+<link href="https://www.ataqileriteknoloji.com/zeta" hreflang="x-default" rel="alternate"/>
+<meta content="website" property="og:type"/>
+<meta content="SMPS-Rechner" property="og:site_name"/>
+<meta content="de_DE" property="og:locale"/>
+<meta content="tr_TR" property="og:locale:alternate"/>
+<meta content="en_US" property="og:locale:alternate"/>
+<meta content="https://www.ataqileriteknoloji.com/de/zeta" property="og:url"/>
+<meta content="Zeta-Wandler Rechner | DC-DC-Entwurfswerkzeug" property="og:title"/>
+<meta content="Berechnen Sie Ströme, Spannungen und Bauteilwerte für einen Zeta-Wandler." property="og:description"/>
+<meta content="https://www.ataqileriteknoloji.com/assets/img/og-image.jpg" property="og:image"/>
+<meta content="1200" property="og:image:width"/>
+<meta content="630" property="og:image:height"/>
+<meta content="SMPS-Rechner" property="og:image:alt"/>
+<meta content="summary_large_image" name="twitter:card"/>
+<meta content="https://www.ataqileriteknoloji.com/assets/img/og-image.jpg" name="twitter:image"/>
+<meta content="Zeta-Wandler Rechner | DC-DC-Entwurfswerkzeug" name="twitter:title"/>
+<meta content="Berechnen Sie Ströme, Spannungen und Bauteilwerte für einen Zeta-Wandler." name="twitter:description"/>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebApplication", "name": "Zeta-Wandler Rechner | DC-DC-Entwurfswerkzeug", "url": "https://www.ataqileriteknoloji.com/de/zeta", "applicationCategory": "EngineeringApplication", "operatingSystem": "Any", "browserRequirements": "Requires JavaScript", "inLanguage": "de", "description": "Berechnen Sie Ströme, Spannungen und Bauteilwerte für einen Zeta-Wandler."}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Startseite", "item": "https://www.ataqileriteknoloji.com/de/"}, {"@type": "ListItem", "position": 2, "name": "Zeta-Wandler Rechner", "item": "https://www.ataqileriteknoloji.com/de/zeta"}]}</script>
+<link href="/assets/img/favicon.png" rel="icon"/>
+<link href="/assets/img/apple-touch-icon.png" rel="apple-touch-icon"/>
+<link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,700,700i%7CRaleway:300,400,500,700,800" rel="stylesheet"/>
+<link href="/assets/vendor/aos/aos.css" rel="stylesheet"/>
+<link href="/assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet"/>
+<link href="/assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet"/>
+<link href="/assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet"/>
+<link href="/assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet"/>
+<link href="/assets/css/style.css" rel="stylesheet"/>
+<link href="/assets/css/design.css" rel="stylesheet"/>
+</head>
+<body>
+<header class="d-flex align-items-center" id="header">
+<div class="container d-flex align-items-center justify-content-between">
+<a class="logo mr-auto" href="/de/"><img alt="" src="/assets/img/logo.png"/></a>
+<nav class="navbar" id="navbar">
+<ul>
+<li><a class="nav-link scrollto active" data-i18n="nav_home" href="/de/">Startseite</a></li>
+<li><a class="nav-link scrollto" data-i18n="nav_help" href="/de/yardim">Hilfe</a></li>
+<li><a class="nav-link scrollto" data-i18n="nav_feedback" href="/de/#contact">Feedback-Formular</a></li>
+<li class="dropdown" id="language">
+<a href="javascript:void(0);" onclick="this.parentElement.classList.toggle('mobile-active');">
+<span>🌍 Dil / Language</span> <i class="bi bi-chevron-down"></i>
+</a>
+<ul>
+<li><a href="https://www.ataqileriteknoloji.com/tr/zeta" hreflang="tr" lang="tr">🇹🇷 Türkçe</a></li>
+<li><a href="https://www.ataqileriteknoloji.com/zeta" hreflang="en" lang="en">🇬🇧 English</a></li>
+<li><a href="https://www.ataqileriteknoloji.com/de/zeta" hreflang="de" lang="de">🇩🇪 Deutsch</a></li>
+</ul>
+</li>
+</ul>
+<i class="bi bi-list mobile-nav-toggle"></i>
+</nav>
+</div>
+</header>
+<main id="main">
+<section class="breadcrumbs">
+<div class="container">
+<div class="d-flex justify-content-between align-items-center">
+<h2 data-i18n="zeta_title">Zeta-Wandler berechnen</h2>
+<ol>
+<li data-i18n="nav_home">Startseite</li>
+<li data-i18n="zeta_breadcrumb">Zeta-Wandler</li>
+</ol>
+</div>
+</div>
+</section>
+<section class="inner-page">
+<div id="container">
+<div class="row">
+<div class="col-md-4 d-flex align-items-center justify-content-center p-3">
+<svg style="width: 100%; height: auto; max-width: 550px;" viewbox="-30 10 880 300" xmlns="http://www.w3.org/2000/svg">
+<g fill="none" stroke="#e0e0e0" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5">
+<line x1="80" x2="120" y1="185" y2="185"></line>
+<line stroke-width="5" x1="90" x2="110" y1="215" y2="215"></line>
+<line x1="100" x2="100" y1="185" y2="100"></line>
+<line x1="100" x2="100" y1="215" y2="300"></line>
+<line x1="100" x2="175" y1="100" y2="100"></line>
+<line x1="225" x2="365" y1="100" y2="100"></line>
+<line x1="450" x2="490" y1="100" y2="100"></line>
+<line x1="570" x2="620" y1="100" y2="100"></line>
+<line x1="620" x2="720" y1="100" y2="100"></line>
+<line x1="100" x2="720" y1="300" y2="300"></line>
+<circle cx="200" cy="100" r="35"></circle>
+<line x1="175" x2="190" y1="95" y2="95"></line>
+<line x1="195" x2="205" y1="95" y2="95"></line>
+<line x1="210" x2="225" y1="95" y2="95"></line>
+<line x1="175" x2="175" y1="100" y2="95"></line>
+<line x1="225" x2="225" y1="100" y2="95"></line>
+<line x1="175" x2="225" y1="115" y2="115"></line>
+<line x1="200" x2="200" y1="115" y2="135"></line>
+<line x1="300" x2="300" y1="100" y2="150"></line>
+<path d="M 300,150 C 330,150 330,175 300,175 C 330,175 330,200 300,200 C 330,200 330,225 300,225 C 330,225 330,250 300,250"></path>
+<line x1="300" x2="300" y1="250" y2="300"></line>
+<line x1="365" x2="365" y1="80" y2="120"></line>
+<path d="M 385,80 Q 365,100 385,120"></path>
+<line x1="376" x2="450" y1="100" y2="100"></line>
+<line x1="450" x2="450" y1="100" y2="185"></line>
+<line x1="450" x2="450" y1="215" y2="300"></line>
+<line x1="435" x2="465" y1="185" y2="185"></line>
+<polygon points="435,215 465,215 450,185"></polygon>
+<path d="M 490,100 C 490,70 510,70 510,100 C 510,70 530,70 530,100 C 530,70 550,70 550,100 C 550,70 570,70 570,100"></path>
+<line x1="620" x2="620" y1="100" y2="195"></line>
+<line x1="600" x2="640" y1="195" y2="195"></line>
+<path d="M 600,215 Q 620,195 640,215"></path>
+<line x1="620" x2="620" y1="207" y2="300"></line>
+<line x1="720" x2="720" y1="100" y2="150"></line>
+<path d="M 720,150 L 705,155 L 735,165 L 705,175 L 735,185 L 705,195 L 735,205 L 705,215 L 735,225 L 705,235 L 720,240"></path>
+<line x1="720" x2="720" y1="240" y2="300"></line>
+<g fill="#e0e0e0" stroke="none">
+<circle cx="300" cy="100" r="4"></circle>
+<circle cx="450" cy="100" r="4"></circle>
+<circle cx="620" cy="100" r="4"></circle>
+<circle cx="300" cy="300" r="4"></circle>
+<circle cx="450" cy="300" r="4"></circle>
+<circle cx="620" cy="300" r="4"></circle>
+</g>
+</g>
+<g fill="#00AEEF" stroke="#00AEEF" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+<line x1="200" x2="200" y1="115" y2="102"></line>
+<polygon points="195,106 205,106 200,97" stroke="none"></polygon>
+</g>
+<g fill="#00AEEF" font-size="18px" font-weight="bold" stroke="none">
+<text x="65" y="175">+</text>
+<text x="67" y="235">-</text>
+<text x="45" y="205">Vs</text>
+<text x="187" y="55">Q1</text>
+<text x="335" y="205">L1</text>
+<text x="365" y="65">C1</text>
+<text x="395" y="205">D1</text>
+<text x="508" y="55">L2</text>
+<text x="570" y="205">C2</text>
+<text x="745" y="205">R1</text>
+</g>
+</svg>
+</div>
+<div class="col-md-8">
+<div id="inputs">
+<h2 data-i18n="input_header">Eingabedaten</h2>
+<div class="input-group mb-3">
+<label class="input-group-text" data-i18n="label_vin_min">Min. Eingangsspannung [V]</label>
+<input class="form-control" id="vin_min" placeholder="4" type="number"/>
+<label class="input-group-text" data-i18n="label_vin_max">Max. Eingangsspannung [V]</label>
+<input class="form-control" id="vin_max" placeholder="6" type="number"/>
+<label class="input-group-text" data-i18n="label_vin_nom">Nominaleingang [V]</label>
+<input class="form-control" id="vin_nom" placeholder="5" type="number"/>
+</div>
+<div class="input-group mb-3">
+<label class="input-group-text" data-i18n="label_vout">Ausgangsspannung [V]</label>
+<input class="form-control" id="vout" placeholder="12" type="number"/>
+<label class="input-group-text" data-i18n="label_iout">Ausgangsstrom [A]</label>
+<input class="form-control" id="ilout" placeholder="1" type="number"/>
+<label class="input-group-text" data-i18n="label_fsw">Schaltfrequenz [kHz]</label>
+<input class="form-control" id="f_khz" placeholder="100" type="number"/>
+</div>
+<div class="input-group mb-3" id="inductance" style="display:none;">
+<label class="input-group-text bg-warning text-dark border-warning" data-i18n="label_custom_l1">L1 (μH) [Optional]</label>
+<input class="form-control border-warning" id="custom_L1_uH" placeholder="Örn: 47" step="1" type="number"/>
+<label class="input-group-text bg-warning text-dark border-warning" data-i18n="label_custom_l2">L2 (μH) [Optional]</label>
+<input class="form-control border-warning" id="custom_L2_uH" placeholder="Örn: 47" step="1" type="number"/>
+</div>
+<div class="input-group mb-3 flex-wrap flex-md-nowrap">
+<label class="input-group-text" data-i18n="label_mode">Betriebsmodus</label>
+<select class="form-select" id="mode">
+<option data-i18n="mode_continuous" value="continuous">CCM</option>
+<option data-i18n="mode_discontinuous" value="discontinuous">DCM</option>
+<option data-i18n="mode_critical" value="critical">CRM</option>
+</select>
+<label class="input-group-text" data-i18n="label_rect_type">Gleichrichter</label>
+<select class="form-select" id="rectifierMode" onchange="toggleEffMode()">
+<option data-i18n="opt_diode_async" value="async">Diode Asynchron</option>
+<option data-i18n="opt_sr_sync" value="sync">MOSFET SR Synchron</option>
+</select>
+<label class="input-group-text" data-i18n="label_eff_mode">Effizienzmodus</label>
+<select class="form-select" id="effMode" onchange="toggleEffMode()">
+<option data-i18n="opt_ideal" value="ideal">Ideal</option>
+<option data-i18n="opt_real" value="real">Wirkleistungsverlust</option>
+</select>
+<div id="idealInputGroup" style="display: contents;">
+<label class="input-group-text" data-i18n="label_eff" style="border-radius: 0;">Wirkungsgrad [Beispiel: 80 für 80 %]</label>
+<input class="form-control eff-input" id="verim" placeholder="85" style="border-bottom-left-radius: 0; border-top-left-radius: 0;" type="number"/>
+</div>
+</div>
+</div>
+</div>
+<div id="inputs">
+<div id="realInputGroup" style="display:none;">
+<div class="row">
+<div class="col-md-6">
+<div class="param-group">
+<h5 data-i18n="mosfet_header">MOSFET (Leitung &amp; Kapazität)</h5>
+<div class="input-group input-group-sm mb-2" id="wrap_ron_h"><span class="input-group-text" data-i18n="lbl_ron_h">Ron_Sync (High) [Ω]</span><input class="form-control" id="p_ron_h" type="number" value="0.100"/></div>
+<div class="input-group input-group-sm mb-2"><span class="input-group-text" data-i18n="lbl_ron_l">Ron_Main (Low) [Ω]</span><input class="form-control" id="p_ron_l" type="number" value="0.050"/></div>
+<div class="input-group input-group-sm mb-2"><span class="input-group-text" data-i18n="lbl_coss_l">Coss_L [pF]</span><input class="form-control" id="p_coss_l" type="number" value="120"/></div>
+<div class="input-group input-group-sm mb-2"><span class="input-group-text" data-i18n="lbl_qg_l">Qg_L [nC]</span><input class="form-control" id="p_qg_l" type="number" value="15"/></div>
+<div class="input-group input-group-sm"><span class="input-group-text" data-i18n="lbl_vgs">Vgs [V]</span><input class="form-control" id="p_vgs" type="number" value="5.0"/></div>
+</div>
+</div>
+<div class="col-md-6">
+<div class="param-group">
+<h5 data-i18n="switching_header">Schaltzeiten &amp; Totzeit</h5>
+<div class="input-group input-group-sm mb-2"><span class="input-group-text" data-i18n="lbl_tr_tf">tr_L / tf_L [ns]</span><input class="form-control" id="p_tr_l" type="number" value="10"/><input class="form-control" id="p_tf_l" type="number" value="10"/></div>
+<div class="input-group input-group-sm mb-2" id="wrap_deadtime"><span class="input-group-text" data-i18n="lbl_tdr_tdf">tDr / tDf [ns]</span><input class="form-control" id="p_tdr" type="number" value="30"/><input class="form-control" id="p_tdf" type="number" value="30"/></div>
+<div class="input-group input-group-sm mb-2">
+<span class="input-group-text" data-i18n="lbl_diode_vd" id="lbl_vd">Diode Vd [V]</span>
+<input class="form-control" id="p_vd" type="number" value="0.5"/>
+</div>
+<div class="input-group input-group-sm">
+<span class="input-group-text" data-i18n="lbl_trr_irr" id="lbl_trr">trr [ns] / Irr [A]</span>
+<input class="form-control" id="p_trr" type="number" value="25"/>
+<input class="form-control" id="p_irr" type="number" value="0.5"/>
+</div>
+</div>
+</div>
+<div class="col-md-12 mt-2">
+<div class="param-group">
+<h5 data-i18n="pasif_comp">Passive Bauelemente und ICs</h5>
+<div class="input-group input-group-sm mb-2">
+<span class="input-group-text" data-i18n="lbl_l1_dcr">L1 DCR [Ω]</span><input class="form-control" id="p_dcr1" type="number" value="0.080"/>
+<span class="input-group-text" data-i18n="lbl_l2_dcr">L2 DCR [Ω]</span><input class="form-control" id="p_dcr2" type="number" value="0.080"/>
+<span class="input-group-text" data-i18n="lbl_ic_icc">IC Icc [mA]</span><input class="form-control" id="p_icc" type="number" value="2.0"/>
+</div>
+<div class="input-group input-group-sm">
+<span class="input-group-text" data-i18n="lbl_esr_c1">ESR_C1 (AC) [Ω]</span><input class="form-control" id="p_esrc1" type="number" value="0.005"/>
+<span class="input-group-text" data-i18n="lbl_esr_cout">ESR_Cout [Ω]</span><input class="form-control" id="p_esrcout" type="number" value="0.005"/>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="form-check form-switch mt-4 mb-2 d-flex justify-content-center align-items-center gap-2">
+<input class="form-check-input" id="testOwnDesignCheck" onchange="toggleCustomDesign()" style="width: 40px; height: 20px; cursor: pointer; margin:0;" type="checkbox"/>
+<label class="form-check-label text-warning" data-i18n="label_test_own_design" for="testOwnDesignCheck" style="cursor: pointer; font-weight: bold; margin:0;">Ich habe bereits mein eigenes Design, ich möchte es testen</label>
+</div>
+<div class="param-group mt-3" id="coreSelectionGroup" style="text-align: center">
+<h5 style="border-bottom: none; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+<span data-i18n="core_selection_mode">Kernauswahlmodus</span>
+<button class="btn btn-sm btn-outline-warning" onclick="showModeInfo()" style="border-radius: 50%; width: 24px; height: 24px; padding: 0; line-height: 1; font-weight: bold;" type="button">i</button>
+</h5>
+<div class="btn-group w-75" role="group">
+<input checked="" class="btn-check" id="modeStandard" name="coreSelectionMode" type="radio" value="standard"/>
+<label class="btn btn-outline-info" data-i18n="mod1" for="modeStandard" style="border-color: #3f51b5; color: #e0e0e0;">Standardmodus</label>
+<input class="btn-check" id="modeAdvanced" name="coreSelectionMode" type="radio" value="advanced"/>
+<label class="btn btn-outline-info" data-i18n="mod2" for="modeAdvanced" style="border-color: #3f51b5; color: #e0e0e0; ">Erweiterter Modus (KI)</label>
+</div>
+</div>
+<button class="btn btn-primary d-block mx-auto w-25" data-i18n="btn_calc" id="calculateButton" onclick="hesapla()">Berechnen</button>
+</div>
+<br/>
+<div id="modeWarning" style="display:none; padding:8px; margin:8px 0; border-radius:4px;"></div>
+<div class="row mt-4">
+<div class="col-md-7">
+<h2 data-i18n="results_title">Ergebnisse</h2>
+<table class="table" id="outputsTable">
+<tr>
+<th data-i18n="res_L111">Induktivitätswert (L1)</th>
+<th data-i18n="res_L222">Induktivitätswert (L2)</th>
+<th data-i18n="res_C1">C1 (Kopplungs-/AC-Kondensator)</th>
+<th colspan="2" data-i18n="res_C">Ausgangskondensator (C)</th>
+</tr>
+<tr>
+<td><span id="lOutput1">-</span> μH</td>
+<td><span id="lOutput2">-</span> μH</td>
+<td><span id="c1Output">-</span> μF</td>
+<td colspan="2"><span id="c2Output">-</span> μF</td>
+</tr>
+<tr>
+<th data-i18n="res_deltaIL1">ΔIL1 (Max)</th>
+<th data-i18n="res_deltaIL2">ΔIL2 (Max)</th>
+<th data-i18n="res_wmax_l1">Wmax (L1)</th>
+<th data-i18n="res_wmax_l2">Wmax (L2)</th>
+<th data-i18n="res_R">Lastwiderstand (R)</th>
+</tr>
+<tr>
+<td><span id="deltaIL1Max">-</span> A</td>
+<td><span id="deltaIL2Max">-</span> A</td>
+<td><span id="wmaxL1">-</span> µWs</td>
+<td><span id="wmaxL2">-</span> µWs</td>
+<td><span id="rOutput">-</span> Ω</td>
+</tr>
+</table>
+</div>
+<div class="col-md-2 d-flex align-items-center justify-content-end">
+<p><span data-i18n="label_loss_est">Geschätzter Wirkungsgradverlust:</span> <span id="loss">-</span> %</p>
+</div>
+<div class="col-md-3 d-flex align-items-center justify-content-end">
+<div class="d-flex flex-wrap gap-2 justify-content-end" id="buttons">
+<button class="btn btn-primary" data-i18n="btn_print" id="printButton">Drucken</button>
+<button class="btn btn-primary" data-i18n="btn_inductors" id="openButton" onclick="window.openSelectedTable()">L1 &amp; L2 Spulendaten</button>
+<button class="btn btn-primary" data-i18n="btn_filter" id="filterButton" onclick="openFilterDesign()">Filterdesign</button>
+</div>
+</div>
+</div>
+</div>
+<br/>
+<div id="charts">
+<h2 data-i18n="charts_title">Diagramme</h2>
+<div class="row">
+<div class="col-md-6">
+<canvas height="300" id="ilChart" width="600"></canvas>
+</div>
+<div class="col-md-6">
+<canvas height="300" id="vinChart" width="600"></canvas>
+</div>
+<div class="col-md-6">
+<canvas height="300" id="idChart" width="600"></canvas>
+</div>
+<div class="col-md-6">
+<canvas height="300" id="effChart" width="600"></canvas>
+</div>
+</div>
+</div>
+<br/>
+<button class="btn btn-primary" data-i18n="simm" id="btnFalstad" onclick="openFalstadZetaSimulation()">Klicken Sie, um zu simulieren</button>
+<br/>
+<div id="simulationContainer" style="display: none; margin-top: 20px; border: 1px solid #333; border-radius: 12px; overflow: hidden; background: #000;">
+<iframe id="circuitFrame" style="width: 100%; height: 600px; border: none;"></iframe>
+</div>
+<div id="liveDataBox" style="display: none; padding: 15px; background: #121212; color: #81c784; font-family: 'Consolas', monospace; border-radius: 0 0 12px 12px; border: 1px solid #333; border-top: none;">
+                Loading...
+            </div>
+<br/>
+<div class="row mt-3" id="powerLossSection" style="display: none;">
+<div class="col-md-12">
+<div class="param-group">
+<h2 data-i18n="real_power_loss_title">Wirkleistungsverlustanalyse</h2>
+<div class="table-responsive">
+<table class="table table-sm ploss-table text-center">
+<thead>
+<tr>
+<th data-i18n="res_pon_h_title" id="th_pon_h">High-Side Leitung (Pon_H)</th>
+<th data-i18n="res_pon_l_title">Low-Side Leitung (Pon_L)</th>
+<th data-i18n="res_psw_l_title">Schaltverlust L (Psw_L)</th>
+<th data-i18n="res_pdiode_title" id="th_pdiode">Diode Rev. Rec. (Pdiode)</th>
+<th data-i18n="res_pcoss_title">Ausgangskapazität (Pcoss)</th>
+<th data-i18n="res_pd_title">Totzeit (Pd)</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td id="res_pon_h">-</td>
+<td id="res_pon_l">-</td>
+<td id="res_psw_l">-</td>
+<td id="res_pdiode">-</td>
+<td id="res_pcoss">-</td>
+<td id="res_pd">-</td>
+<td></td>
+</tr>
+</tbody>
+<thead class="mt-2">
+<tr>
+<th data-i18n="res_pg_title">Gate-Ladung (Pg)</th>
+<th data-i18n="res_pic_title">IC-Verbrauch (Pic)</th>
+<th data-i18n="res_pl1_dcr_title">L1 Conduction (Pl1)</th>
+<th data-i18n="res_pl2_dcr_title">L2 Conduction (Pl2)</th>
+<th data-i18n="res_pc1_title">C1 (AC) ESR</th>
+<th data-i18n="res_pcout_title">Ausgang Cap ESR (Pcout)</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td id="res_pg">-</td>
+<td id="res_pic">-</td>
+<td id="res_pl1_dcr">-</td>
+<td id="res_pl2_dcr">-</td>
+<td id="res_pc1">-</td>
+<td id="res_pcout">-</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<table class="table table-sm ploss-table mt-2">
+<tr class="total-row text-center" style="font-size: 1.2em;">
+<td width="50%"><span data-i18n="total_power_loss">Gesamtverlustleistung (Ptotal):</span> <span id="res_ptotal">-</span></td>
+<td width="50%"><span data-i18n="calc_efficiency">Berechneter Wirkungsgrad (η):</span> <span id="res_peff">-</span></td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+</div>
+<br/>
+<div id="table">
+<h2 data-i18n="table_header">Tabelle</h2>
+<div class="table-responsive">
+<table class="table table-bordered" id="resultTable">
+<thead>
+<tr>
+<th data-i18n="col_time">Zeit [µs]</th>
+<th>Vds (Q1)</th>
+<th>IL1</th>
+<th>IL2</th>
+<th>Id1</th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+</main>
+<footer id="footer">
+<div class="container">
+<div class="row">
+<div class="col-md-12">
+<div class="copyright"> © Copyright <strong>ATAQ İleri Teknoloji A.Ş.</strong>. <span data-i18n="footer_rights">Alle Rechte vorbehalten.</span> </div>
+<div class="credits"> Designed and developed by <a href="https://www.linkedin.com/in/yasemin-algin/" style="color: #00AEEF !important;">Yasemin Tuğba Algın</a> </div>
+</div>
+</div>
+</div>
+</footer>
+<div aria-hidden="true" aria-labelledby="zetaWarningModalLabel" class="modal fade" id="zetaWarningModal" tabindex="-1">
+<div class="modal-dialog modal-dialog-centered">
+<div class="modal-content" style="background-color: #1e1e1e; color: #e0e0e0; border: 1px solid #333;">
+<div class="modal-header text-white" style="background-color: #00AEEF; border-bottom: 1px solid #333;">
+<h5 class="modal-title" id="zetaWarningModalLabel" style="color:#333 !important;">
+<i class="bi bi-exclamation-triangle-fill"></i> <span data-i18n="modal_warn_title" style="color:#333 !important;">Warnung: Topologiefehler!</span>
+</h5>
+<button aria-label="Close" class="btn-close btn-close-white" data-bs-dismiss="modal" type="button"></button>
+</div>
+<div class="modal-body text-start">
+<p data-i18n="modal_zeta_error_desc">Bei Zeta-Wandlern muss die Ausgangsspannung (Vout) positiv sein. Suchen Sie einen negativen (invertierenden) Ausgang?</p>
+<p data-i18n="modal_ask_cuk">Möchten Sie zur Cuk-Wandler-Seite wechseln?</p>
+</div>
+<div class="modal-footer" style="border-top: 1px solid #333;">
+<button class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="modal_btn_close" type="button">Schließen und Korrigieren</button>
+<a class="btn btn-primary" data-i18n="modal_btn_go_cuk" href="/de/cuk" style="background-color: #00AEEF; border-color: #00AEEF;">Zur Cuk-Wandler-Seite</a>
+</div>
+</div>
+</div>
+</div>
+<div id="preloader"></div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/assets/vendor/aos/aos.js"></script>
+<script src="/assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="/assets/vendor/glightbox/js/glightbox.min.js"></script>
+<script src="/assets/vendor/isotope-layout/isotope.pkgd.min.js"></script>
+<script src="/assets/vendor/swiper/swiper-bundle.min.js"></script>
+<script src="/assets/vendor/typed.js/typed.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
+<script src="/assets/js/common/lang-v6.js"></script>
+<script src="/assets/js/main.js?v5"></script>
+<script src="/assets/js/common/firebase_config.js"></script>
+<script src="/assets/js/common/api_service.js"></script>
+<script src="/assets/js/common/core_database.js"></script>
+<script src="/assets/js/common/magnetic_utils.js"></script>
+<script src="/assets/js/common/ui_modal.js"></script>
+<script src="/assets/js/common/smps_filter.js"></script>
+<script defer="defer" src="/assets/js/common/advanced_optimizer.js"></script>
+<script defer="defer" src="/assets/js/topologies/zeta.js"></script>
+</body>
+</html>

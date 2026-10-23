@@ -1,0 +1,150 @@
+<meta name="viewport" content="width=820">
+<title>Circuit Simulator Applet</title>
+<link rel="SHORTCUT ICON" href="favicon.ico">
+<link rel="stylesheet" href="pong.css" type="text/css">
+<body>
+<hr>
+<div class="split">
+<div id="split-0">
+<iframe id="circuitFrame" src="../circuitjs.html?startCircuit=paddles.txt&mouseMode=DragAll"></iframe>
+</div>
+<div id="split-1">
+<div id="info"></div>
+<canvas id="canvas" width=375 height=246 style="background-color:black;"></canvas>
+&nbsp;<br>
+Paddle 1: <input type="range" class="paddle" id="pad1" min="1" max="220" value="120"><br>
+Paddle 2: <input type="range" class="paddle" id="pad2" min="1" max="220" value="120"><br>
+<p>
+The previous analog circuit triggers the paddles by bringing PADTRIGGER1 or PADTRIGGER2 high.
+(That circuit isn't shown here to speed up the simulation.)  When <span style="overline">VPAD1</span> or
+<span style="overline">VPAD2</span> goes low, the paddle gets drawn four pixels
+wide.  It starts on horizontal position 128 and 384, when 128H is high,
+then stops when the D flip flop in the lower left brings its output high,
+four pixels later.
+<p>
+You can manually turn on attract mode in the lower right.  That will hide the paddles.
+<p>
+Next: <a href="score.html">Drawing the Score</a>.
+<p>
+<a href="index.html">Index</a>
+</div>
+
+<script type="module">
+
+import Split from './split.js';
+
+Split(['#split-0', '#split-1'], { sizes: [70, 30] });
+
+// get iframe the simulator is running in.  Must have same origin as this file!
+var iframe = document.getElementById("circuitFrame");
+
+var sim;
+var freq, ampl;
+var clk, video, score, ctx;
+
+function round(x) {
+  return Math.round(x*1000)/1000;
+}
+
+var nettext = '';
+var highlightY = -1;
+var savedLine;
+var lastTime;
+
+function didAnalyze(sim) {
+  // get nodes we need
+  clk = sim.getNode("CLK");
+  video = sim.getNode("NET");
+}
+
+// called when simulator updates its display
+function didUpdate(sim) {
+  var info = document.getElementById("info");
+
+  // erase highlight
+  if (savedLine) {
+    ctx.putImageData(savedLine, 0, highlightY);
+    savedLine = null;
+  }
+  ctx.fillStyle = "red";
+  if (sim.getTime()-lastTime > 1/(60*200)) {
+    // draw highlight on part of line where we updated
+    highlightY = y-1;
+    savedLine = ctx.getImageData(0, highlightY, 455, 1);
+    ctx.fillRect(0, highlightY, 455, 1);
+  } else {
+    // draw highlight just above line we are updating
+    highlightY = y;
+    if (x > 0) {
+      savedLine = ctx.getImageData(0, y, x, 1);
+      ctx.fillRect(0, y, x, 1);
+    }
+  }
+  lastTime = sim.getTime();
+  ctx.fillStyle = "white";
+}
+
+var lastclk = -1;
+var x = -55, y = 0;
+var clearedY = -1;
+var moveBall = 0, moveBallX, moveBallY;
+
+// called every timestep, which is 6 nanoseconds of game time.
+// we do as little work in here as possible.
+function didStep(sim) {
+  var c = clk.getVoltage();
+  if (c == lastclk)
+    return;
+  if (c > 2.5) {
+    // positive clock transition, increase x
+    x++;
+    if (x == 375) {
+      x = -80;
+      y++;
+      if (sim.getNodeVoltage("VBLANK") > 2.5) {
+        // if we're in vertical blank, set y to 0
+        y = 0;
+        clearedY = -1;
+        sim.setExtVoltage("PADTRIGGER1", 5);
+        sim.setExtVoltage("PADTRIGGER2", 5);
+      }
+      if (y == parseInt(pad1.value))
+        sim.setExtVoltage("PADTRIGGER1", 0);
+      if (y == parseInt(pad2.value))
+        sim.setExtVoltage("PADTRIGGER2", 0);
+      ctx.fillStyle = "black";
+      ctx.fillRect(0, y, 455, 1);
+      ctx.fillStyle = "white";
+    } else if (y == 0 && sim.getNodeVoltage("HBLANK") > 2.5)
+      x = 0;
+
+    // draw video
+    if (video.getVoltage() > 2.5) {
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  lastclk = c;
+}
+
+// callback called when simulation is done initializing
+function simLoaded() {
+  // get simulator object
+  sim = iframe.contentWindow.CircuitJS1;
+
+  // set up callbacks on update and timestep
+  sim.onupdate = didUpdate;
+  sim.ontimestep = didStep;
+  sim.onanalyze = didAnalyze;
+
+  ctx = canvas.getContext("2d");
+  //ctx.fillRect(0, 0, 455, 262);
+  ctx.strokeStyle = "white";
+  ctx.fillStyle = "white";
+}
+
+// set up callback
+iframe.contentWindow.oncircuitjsloaded = simLoaded;
+
+</script>
+

@@ -1,0 +1,32 @@
+<meta name="viewport" content="width=820">
+<title>Circuit Simulator Applet</title>
+<link rel="SHORTCUT ICON" href="favicon.ico">
+<link rel="stylesheet" href="pong.css" type="text/css">
+<body>
+<hr>
+<div class="split">
+<div id="split-0">
+<iframe id="circuitFrame" src="../circuitjs.html?startCircuit=scoresound.txt&mouseMode=DragAll"></iframe>
+</div>
+<div id="split-1">
+<div id="info"></div>
+This is the circuit that generates the "score" or "miss" sound.  It uses the vertical counter.  When a
+miss happens, it starts a 555 timer that brings its output high for about 242 ms.  That output is
+NANDed with bit 5 of the vertical counter.  Since the vertical counter restarts at 262, the result
+is not a pure square wave; it has a harsher quality to it.
+<p>
+Wait for the Audio Out to fill up, then click "Play Audio".
+<p>
+Next: <a href="hitsound.html">Hit Sound</a>.
+<p>
+<a href="index.html">Index</a>
+</div>
+
+<script type="module">
+
+import Split from './split.js';
+
+Split(['#split-0', '#split-1'], { sizes: [70, 30] });
+
+</script>
+

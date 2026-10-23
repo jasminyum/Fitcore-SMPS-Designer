@@ -1,0 +1,412 @@
+﻿<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta content="text/html; charset=utf-8" http-equiv="content-type"/>
+<meta content="IE=edge" http-equiv="X-UA-Compatible"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SMPS 5th Order Input Filter Calculator | Bode and Middlebrook</title>
+<meta content="Bode and Middlebrook impedance analysis of a 5th-order input filter for SMPS." name="description"/>
+<meta content="SMPS input filter calculator, EMI filter design, Middlebrook impedance analysis, Bode plot" name="keywords"/>
+<meta content="index, follow, max-image-preview:large" name="robots"/>
+<link href="https://www.ataqileriteknoloji.com/filter" rel="canonical"/>
+<link href="https://www.ataqileriteknoloji.com/tr/filter" hreflang="tr" rel="alternate"/>
+<link href="https://www.ataqileriteknoloji.com/filter" hreflang="en" rel="alternate"/>
+<link href="https://www.ataqileriteknoloji.com/de/filter" hreflang="de" rel="alternate"/>
+<link href="https://www.ataqileriteknoloji.com/filter" hreflang="x-default" rel="alternate"/>
+<meta content="website" property="og:type"/>
+<meta content="SMPS Design Calculator" property="og:site_name"/>
+<meta content="en_US" property="og:locale"/>
+<meta content="tr_TR" property="og:locale:alternate"/>
+<meta content="de_DE" property="og:locale:alternate"/>
+<meta content="https://www.ataqileriteknoloji.com/filter" property="og:url"/>
+<meta content="SMPS 5th Order Input Filter Calculator | Bode and Middlebrook" property="og:title"/>
+<meta content="Bode and Middlebrook impedance analysis of a 5th-order input filter for SMPS." property="og:description"/>
+<meta content="https://www.ataqileriteknoloji.com/assets/img/og-image.jpg" property="og:image"/>
+<meta content="1200" property="og:image:width"/>
+<meta content="630" property="og:image:height"/>
+<meta content="SMPS Design Calculator" property="og:image:alt"/>
+<meta content="summary_large_image" name="twitter:card"/>
+<meta content="https://www.ataqileriteknoloji.com/assets/img/og-image.jpg" name="twitter:image"/>
+<meta content="SMPS 5th Order Input Filter Calculator | Bode and Middlebrook" name="twitter:title"/>
+<meta content="Bode and Middlebrook impedance analysis of a 5th-order input filter for SMPS." name="twitter:description"/>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebApplication", "name": "SMPS 5th Order Input Filter Calculator | Bode and Middlebrook", "url": "https://www.ataqileriteknoloji.com/filter", "applicationCategory": "EngineeringApplication", "operatingSystem": "Any", "browserRequirements": "Requires JavaScript", "inLanguage": "en", "description": "Bode and Middlebrook impedance analysis of a 5th-order input filter for SMPS."}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.ataqileriteknoloji.com/"}, {"@type": "ListItem", "position": 2, "name": "SMPS 5th Order Input Filter Calculator", "item": "https://www.ataqileriteknoloji.com/filter"}]}</script>
+<link href="/assets/img/favicon.png" rel="icon"/>
+<link href="/assets/img/apple-touch-icon.png" rel="apple-touch-icon"/>
+<link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,700,700i%7CRaleway:300,400,500,700,800" rel="stylesheet"/>
+<link href="/assets/vendor/aos/aos.css" rel="stylesheet"/>
+<link href="/assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet"/>
+<link href="/assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet"/>
+<link href="/assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet"/>
+<link href="/assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet"/>
+<link href="/assets/css/style.css" rel="stylesheet"/>
+<link href="/assets/css/design.css" rel="stylesheet"/>
+<style>
+        .cw {
+            fill: none;
+            stroke: #ffffff;
+            stroke-width: 2;
+        }
+        .cc {
+            fill: none;
+            stroke: #ffffff;
+            stroke-width: 2.5;
+            stroke-linejoin: round;
+        }
+        .cl {
+            font-family: 'Open Sans', sans-serif;
+            font-size: 12px;
+            fill: #ffffff;
+            font-weight: 600;
+        }
+
+        .clv {
+            font-family: 'Open Sans', sans-serif;
+            font-size: 10px;
+            fill: #cccccc;
+        }
+
+        .cn {
+            fill: #ffffff;
+        }
+        .cb {
+            fill: transparent;
+            stroke: #ffffff;
+            stroke-width: 1.5;
+        }
+        .gt {
+            fill: none;
+            stroke: #ffffff;
+            stroke-width: 1.5;
+        }
+        .param-group {
+            padding: 18px;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+            .param-group h5 {
+                font-family: 'Raleway',sans-serif;
+                font-weight: 700;
+                font-size: 15px;
+                margin-bottom: 12px;
+                color: #2c3e50;
+            }
+
+        .input-group-text {
+            min-width: 260px;
+        }
+    </style>
+</head>
+<body>
+<header class="d-flex align-items-center" id="header">
+<div class="container d-flex align-items-center justify-content-between">
+<a class="logo mr-auto" href="/"><img alt="" src="/assets/img/logo.png"/></a>
+<nav class="navbar" id="navbar">
+<ul>
+<li><a class="nav-link scrollto active" data-i18n="nav_home" href="/">Home</a></li>
+<li><a class="nav-link scrollto" data-i18n="nav_help" href="/yardim">Help</a></li>
+<li><a class="nav-link scrollto" data-i18n="nav_feedback" href="/#contact">Feedback Form</a></li>
+<li class="dropdown" id="language">
+<a href="javascript:void(0);" onclick="this.parentElement.classList.toggle('mobile-active');">
+<span>🌍 Dil / Language</span> <i class="bi bi-chevron-down"></i>
+</a>
+<ul>
+<li><a href="https://www.ataqileriteknoloji.com/tr/filter" hreflang="tr" lang="tr">🇹🇷 Türkçe</a></li>
+<li><a href="https://www.ataqileriteknoloji.com/filter" hreflang="en" lang="en">🇬🇧 English</a></li>
+<li><a href="https://www.ataqileriteknoloji.com/de/filter" hreflang="de" lang="de">🇩🇪 Deutsch</a></li>
+</ul>
+</li>
+</ul>
+<i class="bi bi-list mobile-nav-toggle"></i>
+</nav>
+</div>
+</header>
+<main id="main">
+<section class="breadcrumbs">
+<div class="container">
+<div class="d-flex justify-content-between align-items-center">
+<h2 data-i18n="card_filter_title">SMPS 5th Order Input Filter Calculator</h2>
+<ol>
+<li><a data-i18n="nav_home" href="/">Home</a></li>
+<li data-i18n="filter_breadcrumb">Input Filter Design</li>
+</ol>
+</div>
+</div>
+</section>
+<section class="inner-page">
+<div class="container" id="container">
+<div class="row mb-4">
+<div class="col-md-7" id="inputs">
+<h2 data-i18n="input_filter_header">System and Filter Parameters</h2>
+<div class="param-group">
+<h5 data-i18n="filter_5th_circuit_title">5th Order Input Filter – Circuit Diagram</h5>
+<div class="text-center w-100">
+<svg height="auto" viewbox="0 0 700 310" width="100%" xmlns="http://www.w3.org/2000/svg">
+<circle class="cb" cx="40" cy="130" r="25"></circle>
+<text class="cl" x="35" y="119">+</text>
+<text class="cl" x="35" y="146">−</text>
+<text class="clv" x="30" y="133">Vin</text>
+<line class="cw" x1="40" x2="40" y1="105" y2="55"></line>
+<line class="cw" x1="40" x2="75" y1="55" y2="55"></line>
+<path class="cc" d="M75,55 Q83,30 91,55 T107,55 T123,55 T139,55"></path>
+<text class="cl" text-anchor="middle" x="107" y="20">Ls</text>
+<text class="clv" text-anchor="middle" x="107" y="85">K5</text>
+<line class="cw" x1="139" x2="158" y1="55" y2="55"></line>
+<path class="cc" d="M158,55 L164,37 L174,73 L184,37 L194,73 L200,55"></path>
+<text class="cl" text-anchor="middle" x="179" y="20">Rs</text>
+<text class="clv" text-anchor="middle" x="179" y="85">K6</text>
+<line class="cw" x1="200" x2="240" y1="55" y2="55"></line>
+<circle class="cn" cx="240" cy="55" r="5"></circle>
+<line class="cw" x1="240" x2="270" y1="55" y2="55"></line>
+<path class="cc" d="M270,55 Q278,30 286,55 T302,55 T318,55 T334,55"></path>
+<text class="cl" text-anchor="middle" x="302" y="20">L2</text>
+<text class="clv" text-anchor="middle" x="302" y="85">K3</text>
+<line class="cw" x1="334" x2="353" y1="55" y2="55"></line>
+<path class="cc" d="M353,55 L359,37 L369,73 L379,37 L389,73 L395,55"></path>
+<text class="cl" text-anchor="middle" x="374" y="20">R2</text>
+<text class="clv" text-anchor="middle" x="374" y="85">K4</text>
+<line class="cw" x1="395" x2="460" y1="55" y2="55"></line>
+<circle class="cn" cx="460" cy="55" r="5"></circle>
+<line class="cw" x1="460" x2="570" y1="55" y2="55"></line>
+<rect fill="none" height="140" rx="6" stroke="#27ae60" stroke-width="2" width="118" x="570" y="45"></rect>
+<text class="cl" data-i18n="svg_switching" text-anchor="middle" x="629" y="105">Switching</text>
+<text class="cl" data-i18n="svg_power" text-anchor="middle" x="629" y="123">Power</text>
+<text class="cl" data-i18n="svg_supply" text-anchor="middle" x="629" y="141">Supply</text>
+<line class="cw" x1="240" x2="240" y1="55" y2="78"></line>
+<path class="cc" d="M240,78 L230,88 L250,100 L230,112 L250,124 L240,133"></path>
+<text class="cl" x="260" y="95">Rcf</text>
+<text class="clv" x="260" y="110">K12</text>
+<line class="cc" x1="225" x2="255" y1="136" y2="136"></line>
+<line class="cc" x1="225" x2="255" y1="146" y2="146"></line>
+<line class="cw" x1="240" x2="240" y1="133" y2="136"></line>
+<line class="cw" x1="240" x2="240" y1="146" y2="162"></line>
+<text class="cl" x="265" y="145">Cf</text>
+<text class="clv" x="265" y="157">K11</text>
+<line class="cw" x1="240" x2="240" y1="162" y2="260"></line>
+<line class="cw" x1="460" x2="460" y1="55" y2="78"></line>
+<path class="cc" d="M460,78 L450,88 L470,100 L450,112 L470,124 L460,133"></path>
+<text class="cl" x="480" y="95">Rf</text>
+<text class="clv" x="480" y="110">K8</text>
+<line class="cc" x1="445" x2="475" y1="156" y2="156"></line>
+<line class="cc" x1="445" x2="475" y1="166" y2="166"></line>
+<line class="cw" x1="460" x2="460" y1="133" y2="156"></line>
+<line class="cw" x1="460" x2="460" y1="166" y2="193"></line>
+<text class="cl" x="485" y="165">Cp</text>
+<text class="clv" x="485" y="177">K7</text>
+<line class="cw" x1="460" x2="460" y1="193" y2="260"></line>
+<circle class="cn" cx="530" cy="55" r="4"></circle>
+<line class="cw" x1="530" x2="530" y1="55" y2="78"></line>
+<path class="cc" d="M530,78 L520,88 L540,100 L520,112 L540,124 L530,133"></path>
+<text class="cl" x="545" y="95">Rd</text>
+<text class="clv" x="545" y="110">K10</text>
+<line class="cc" x1="515" x2="545" y1="136" y2="136"></line>
+<line class="cc" x1="515" x2="545" y1="146" y2="146"></line>
+<line class="cw" x1="530" x2="530" y1="133" y2="136"></line>
+<line class="cw" x1="530" x2="530" y1="146" y2="162"></line>
+<text class="cl" x="550" y="145">Cd</text>
+<text class="clv" x="550" y="157">K9</text>
+<line class="cw" x1="530" x2="530" y1="162" y2="260"></line>
+<line class="cw" x1="40" x2="570" y1="260" y2="260"></line>
+<line class="cw" x1="40" x2="40" y1="155" y2="260"></line>
+<line class="cw" x1="570" x2="570" y1="185" y2="260"></line>
+<line class="cw" x1="285" x2="285" y1="260" y2="275"></line>
+<line class="gt" x1="268" x2="302" y1="275" y2="275"></line>
+<line class="gt" x1="273" x2="297" y1="281" y2="281"></line>
+<line class="gt" x1="278" x2="292" y1="287" y2="287"></line>
+</svg>
+</div>
+</div> <div class="param-group">
+<h5 data-i18n="psu_params">Power Supply (SMPS) Ratings</h5>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_vin_min" for="V_in_min">Min. Input Voltage [V]</label>
+<input class="form-control" id="V_in_min" step="0.1" type="number" value="6.0"/>
+</div>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_vin_nom" for="V_in_nom">Nominal Input [V]</label>
+<input class="form-control" id="V_in_nom" step="0.1" type="number" value="12.0"/>
+</div>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_vin_max" for="V_in_max">Max. Input Voltage [V]</label>
+<input class="form-control" id="V_in_max" step="0.1" type="number" value="22.0"/>
+</div>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_vout" for="V_out">Output Voltage [V]</label>
+<input class="form-control" id="V_out" step="0.1" type="number" value="2.0"/>
+</div>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="chart_eff_pct" for="Efficiency_pct">Efficiency (%)</label>
+<input class="form-control" id="Efficiency_pct" step="0.1" type="number" value="90.0"/>
+</div>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_iout_max" for="I_out_max">Max. Output Current (I_out) [A]:</label>
+<input class="form-control" id="I_out_max" step="0.1" type="number" value="12.0"/>
+</div>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_fsw" for="F_sw">Switching Frequency [kHz]</label>
+<input class="form-control" id="F_sw" step="1" type="number" value="400.0"/>
+</div>
+</div>
+<div class="param-group">
+<h5 data-i18n="filter_series_inductors">Series Filter Inductors (K5/K6 and K3/K4)</h5>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_ls_source" for="L_s">Ls — Source Inductor (K5) [µH]:</label>
+<input class="form-control" id="L_s" step="0.1" type="number" value="3.0"/>
+</div>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_rs_series" for="R_s">Rs — Ls Series Resistance (K6) [Ω]:</label>
+<input class="form-control" id="R_s" step="0.01" type="number" value="0.05"/>
+</div>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_l2_series" for="L_f">L2 — Second Series Inductor (K3) [µH]:</label>
+<input class="form-control" id="L_f" step="0.1" type="number" value="2.0"/>
+</div>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_r2_series" for="R_f">R2 — L2 Series Resistance (K4) [Ω]:</label>
+<input class="form-control" id="R_f" step="0.01" type="number" value="0.05"/>
+</div>
+</div>
+<div class="param-group">
+<h5 data-i18n="filter_main_cap">Main Filter Capacitor (K11/K12)</h5>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_cf_filter" for="C_f">Cf — Filter Capacitor (K11) [µF]:</label>
+<input class="form-control" id="C_f" step="0.1" type="number" value="6.6"/>
+</div>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_rcf_esr" for="R_cf">Rcf — Cf ESR Resistance (K12) [Ω]:</label>
+<input class="form-control" id="R_cf" step="0.01" type="number" value="0.2"/>
+</div>
+</div>
+<div class="param-group">
+<h5 data-i18n="filter_parallel_branch">Parallel Output Capacitor Branch (K7/K8)</h5>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_cp_parallel" for="L_d">Cp — Parallel Capacitor (K7) [µF]:</label>
+<input class="form-control" id="L_d" step="0.1" type="number" value="2.2"/>
+</div>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_rf_series" for="R_d">Rf — Cp Series Resistance (K8) [Ω]:</label>
+<input class="form-control" id="R_d" step="0.01" type="number" value="1.0"/>
+</div>
+</div>
+<div class="param-group">
+<h5 data-i18n="filter_damping_network">Damping Network (K9/K10)</h5>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_cd_damping" for="C_d">Cd — Damping Capacitor (K9) [µF]:</label>
+<input class="form-control" id="C_d" step="1" type="number" value="44.0"/>
+</div>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_rd_damping" for="R_rd">Rd — Damping Resistance (K10) [Ω]:</label>
+<input class="form-control" id="R_rd" step="0.01" type="number" value="0.2"/>
+</div>
+</div>
+<div class="param-group">
+<h5 data-i18n="ramp_params">Compensating Ramp</h5>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_v_gate" for="V_gate">Gate Drive Voltage [V]:</label>
+<input class="form-control" id="V_gate" step="0.1" type="number" value="12.0"/>
+</div>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_r_ramp" for="R_ramp">Ramp Resistance [kΩ]:</label>
+<input class="form-control" id="R_ramp" step="0.1" type="number" value="23.0"/>
+</div>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_c_ramp" for="C_ramp">Ramp Capacitor [µF]:</label>
+<input class="form-control" id="C_ramp" step="0.001" type="number" value="0.01"/>
+</div>
+</div>
+<button class="btn btn-primary w-100 mt-3" data-i18n="btn_calc" id="calculateButton" onclick="hesaplaFiltre()">Calculate</button>
+</div> <div class="col-md-5 d-flex flex-column justify-content-between" id="results">
+<div>
+<h2 data-i18n="results_impedance_title">Results &amp; Impedance Analysis</h2>
+<table class="table table-bordered mb-2">
+<tr class="table-info">
+<th data-i18n="tbl_neg_rin">Negative Input Resistance |R_in|</th>
+<td><span id="res_Rin">-</span> <span>Ω</span></td>
+</tr>
+<tr class="table-warning">
+<th data-i18n="tbl_peak_zout">Filter Peak Output Impedance |Z_out|</th>
+<td><span id="res_Zout">-</span> <span>Ω</span></td>
+</tr>
+<tr>
+<th data-i18n="tbl_lc_fres">LC Resonance Frequency f_res</th>
+<td><span id="res_Fres">-</span> kHz</td>
+</tr>
+<tr>
+<th data-i18n="tbl_peak_ramp">Peak Ramp Value V_peak</th>
+<td><span id="res_Vpeak">-</span> V</td>
+</tr>
+<tr id="statusRow">
+<th data-i18n="tbl_middlebrook">Middlebrook Damping Status</th>
+<td><span class="badge bg-secondary" id="res_status">-</span></td>
+</tr>
+</table>
+<div class="alert alert-warning mt-3" data-i18n="warn_damping_oscillation" id="dampingWarning" style="display:none; font-size:14px;"><strong>WARNING:</strong> The filter impedance is too close to the power supply input impedance or not properly damped! Risk of oscillation exists.</div>
+<div class="param-group mt-3" style="font-size:12px;">
+<h5 data-i18n="k_var_ref_title" style="font-size:13px;">K-Variable Reference</h5>
+<table class="table table-sm mb-0">
+<tr><td><b>K3</b></td><td data-i18n="k_var_l2">L2 — 2nd series inductor</td></tr>
+<tr><td><b>K4</b></td><td data-i18n="k_var_r2">R2 — L2 series resistance</td></tr>
+<tr><td><b>K5</b></td><td data-i18n="k_var_ls">Ls — source / 1st series inductor</td></tr>
+<tr><td><b>K6</b></td><td data-i18n="k_var_rs">Rs — Ls series resistance</td></tr>
+<tr><td><b>K7</b></td><td data-i18n="k_var_cp">Cp — parallel output capacitor</td></tr>
+<tr><td><b>K8</b></td><td data-i18n="k_var_rf">Rf — Cp series resistance</td></tr>
+<tr><td><b>K9</b></td><td data-i18n="k_var_cd">Cd — damping capacitor</td></tr>
+<tr><td><b>K10</b></td><td data-i18n="k_var_rd">Rd — damping resistance</td></tr>
+<tr><td><b>K11</b></td><td data-i18n="k_var_cf">Cf — main filter capacitor</td></tr>
+<tr><td><b>K12</b></td><td data-i18n="k_var_rcf">Rcf — Cf ESR resistance</td></tr>
+</table>
+</div>
+</div>
+<div class="d-flex gap-2 justify-content-end mt-3" id="buttons">
+<button class="btn btn-primary" data-i18n="btn_print_report" onclick="window.print()">Print Report</button>
+<button class="btn btn-primary" data-i18n="btn_export_csv" onclick="exportFilterParams()">Export CSV</button>
+</div>
+</div>
+</div> <br/>
+<div class="mt-4" id="charts">
+<h2 data-i18n="bode_impedance_charts">Bode Plot and Impedance Charts</h2>
+<div class="row">
+<div class="col-md-6">
+<canvas height="300" id="bodeMagChart" width="600"></canvas>
+</div>
+<div class="col-md-6">
+<canvas height="300" id="bodePhaseChart" width="600"></canvas>
+</div>
+</div>
+<div class="row mt-3">
+<div class="col-md-6">
+<canvas height="300" id="impedanceChart" width="600"></canvas>
+</div>
+<div class="col-md-6">
+<canvas height="300" id="rampChart" width="600"></canvas>
+</div>
+</div>
+<br/>
+</div>
+</div>
+</section>
+</main>
+<footer id="footer">
+<div class="container">
+<div class="row">
+<div class="col-md-12">
+<div class="copyright">© Copyright <strong>ATAQ İleri Teknoloji A.Ş.</strong>. Tüm hakları saklıdır.</div>
+<div class="credits">Designed and developed by <a href="https://www.linkedin.com/in/yasemin-algin/" style="color:#00AEEF !important;">Yasemin Tuğba Algın</a></div>
+</div>
+</div>
+</div>
+</footer>
+<div id="preloader"></div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/assets/vendor/aos/aos.js"></script>
+<script src="/assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="/assets/vendor/glightbox/js/glightbox.min.js"></script>
+<script src="/assets/vendor/isotope-layout/isotope.pkgd.min.js"></script>
+<script src="/assets/vendor/swiper/swiper-bundle.min.js"></script>
+<script src="/assets/vendor/typed.js/typed.min.js"></script>
+<script src="/assets/js/common/lang-v6.js"></script>
+<script src="/assets/js/main.js?v5"></script>
+<script defer="" src="/assets/js/filters/filter1.js"></script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<meta name="viewport" content="width=820">
+<title>Circuit Simulator Applet</title>
+<link rel="SHORTCUT ICON" href="favicon.ico">
+<link rel="stylesheet" href="pong.css" type="text/css">
+<body>
+<hr>
+<div class="split">
+<div id="split-0">
+<iframe id="circuitFrame" src="../circuitjs.html?startCircuit=topsound.txt&mouseMode=DragAll"></iframe>
+</div>
+<div id="split-1">
+<div id="info"></div>
+This is the circuit that generates the sound played when the ball hits the top or bottom of the screen.  It uses
+ the vertical ball counter.
+<p>
+When VVID is active at the same time that VBLANK is active, that means the ball has entered the vertical blanking
+interval, which means the ball has hit the top or bottom of the screen.  This turns on the JK flip flop.  While it's
+on, VBALL32 is used to generate the sound to play.  VBALL32 has a frequency of about 490 Hz.
+<p>
+If <span class="overline">SERVE</span> is low, then the sound won't play.  This is important because when the
+serve timer is running, the vertical ball counter is still active, which means the ball could still bounce off
+the top or bottom of the screen, even though it's invisible.  So the bounce sound needs to be inhibited.
+<p>
+Wait for the Audio Out to fill up, then click "Play Audio".
+<p>
+<a href="index.html">Index</a>
+</div>
+
+<script type="module">
+
+import Split from './split.js';
+
+Split(['#split-0', '#split-1'], { sizes: [70, 30] });
+
+</script>
+

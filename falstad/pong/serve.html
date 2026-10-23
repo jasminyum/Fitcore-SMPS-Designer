@@ -1,0 +1,38 @@
+<meta name="viewport" content="width=820">
+<title>Circuit Simulator Applet</title>
+<link rel="SHORTCUT ICON" href="favicon.ico">
+<link rel="stylesheet" href="pong.css" type="text/css">
+<body>
+<hr>
+<div class="split">
+<div id="split-0">
+<iframe id="circuitFrame" src="../circuitjs.html?startCircuit=serve.txt&mouseMode=DragAll"></iframe>
+</div>
+<div id="split-1">
+<div id="info"></div>
+Here is the serve timer.  When a miss happens, or the game is reset, it triggers a 555 timer which
+keeps its output high for 1.7 seconds.  This keeps SERVE high during that time.
+<p>
+You can trigger a miss or a reset using the logic inputs at left.
+<p>
+When STOP G or <span class="overline">RUN</span> is high, that also keeps SERVE high.  This turns off the bounce
+sound.
+<p>
+When SERVE is high, the horizontal ball counter is kept cleared.  SERVE is cleared when the timer expires
+and PAD1 is high.  This causes the horizontal ball counter to start counting again, so the ball will be
+visible 508 counts later (which happens one line down and 134 pixels to the right).  This is just to the right
+of the net.  (The vertical ball counter is not cleared, so the ball's vertical position could be anything.)
+<p>
+Next: <a href="scoresound.html">Score/Miss Sound</a>.
+<p>
+<a href="index.html">Index</a>
+</div>
+
+<script type="module">
+
+import Split from './split.js';
+
+Split(['#split-0', '#split-1'], { sizes: [70, 30] });
+
+</script>
+

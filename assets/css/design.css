@@ -1,0 +1,177 @@
+        :root {
+            --bg-dark: #121212;
+            --surface-dark: #1e1e1e;
+            --border-color: #333333;
+            --text-main: #e0e0e0;
+            --text-muted: #e0e0e0;
+            --input-bg: #2a2a2a;
+            --btn-bg: #3f51b5;
+            --btn-hover: #5c6bc0;
+            --table-header-bg: #272727;
+        }
+
+.btn-outline-info {
+    border-color: #3f51b5;
+    color: #e0e0e0;
+}
+
+    .btn-outline-info:hover {
+        background-color: #3f51b5;
+        color: #ffffff;
+    }
+
+.btn-check:checked + .btn-outline-info {
+    background-color: #3f51b5;
+    border-color: #3f51b5;
+    color: #ffffff;
+}
+
+        .param-group {
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            margin-bottom: 15px;
+        }
+
+            .param-group h5 {
+                color: #81c784;
+                font-size: 16px;
+                margin-bottom: 10px;
+                border-bottom: 1px solid #333;
+                padding-bottom: 5px;
+            }
+
+        .ploss-table th, .ploss-table td {
+            color: #e0e0e0;
+            border-color: #333;
+        }
+
+        .ploss-table .total-row {
+            font-weight: bold;
+            color: #ffb74d;
+        }
+
+        body, #main {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+        }
+        
+        h1, h2, h3, h4, h5, h6, p, span, label, a {
+            color: var(--text-main) !important;
+        }
+        
+        .breadcrumbs {
+            background-color: var(--surface-dark) !important;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .inner-page {
+            justify-content: center;
+            margin: 20px auto;
+            background-color: var(--surface-dark);
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            border: 1px solid var(--border-color);
+        }
+
+        .form-control, .form-select {
+            background-color: var(--input-bg) !important;
+            color: var(--text-main) !important;
+            border: 1px solid var(--border-color) !important;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: var(--btn-bg) !important;
+            box-shadow: 0 0 0 0.25rem rgba(63, 81, 181, 0.25) !important;
+        }
+
+        .input-group-text {
+            background-color: var(--table-header-bg) !important;
+            color: var(--text-muted) !important;
+            border: 1px solid var(--border-color) !important;
+        }
+
+        /* 🔘 Butonlar */
+        .btn-primary {
+            background-color: var(--btn-bg) !important;
+            border-color: var(--btn-bg) !important;
+            font-weight: bold;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--btn-hover) !important;
+            border-color: var(--btn-hover) !important;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        table, .table {
+            color: var(--text-main) !important;
+            border-color: var(--border-color) !important;
+        }
+
+        table th, table td, .table th, .table td {
+            border: 1px solid var(--border-color) !important;
+            text-align: left;
+            padding: 10px;
+            background-color: transparent;
+        }
+
+        table th, .table th {
+            background-color: var(--table-header-bg) !important;
+            color: var(--text-main) !important;
+            font-weight: 600;
+        }
+
+        .table tbody tr {
+            transition: background 0.2s;
+        }
+
+        .table tbody tr:hover {
+            background-color: rgba(255,255,255,0.05) !important;
+        }
+
+        #modeWarning {
+            background-color: #332701 !important; 
+            color: #ffb74d !important;
+            border: 1px solid #664d00 !important;
+        }
+
+        @media (max-width: 768px) {
+            .inner-page {
+                margin: 10px;
+                padding: 15px;
+            }
+            .col-md-3, .col-md-9, .col-md-7, .col-md-5, .col-md-6, .col-md-4, .col-md-2 {
+                width: 100%;
+                flex: 100%;
+                max-width: 100%;
+            }
+            .d-flex {
+                display: block;
+            }
+            #buttons {
+                display: flex !important;
+                flex-direction: column;
+                align-items: stretch;
+                margin-top: 20px;
+            }
+            #buttons .btn {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+            table, th, td {
+                font-size: 12px;
+                padding: 6px;
+            }
+            canvas {
+                width: 100% !important;
+                height: auto !important;
+            }
+        }

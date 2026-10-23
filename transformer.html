@@ -1,0 +1,288 @@
+﻿<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta content="text/html; charset=utf-8" http-equiv="content-type"/>
+<meta content="IE=edge" http-equiv="X-UA-Compatible"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Linear Transformer Calculator | Core and Wire Selection</title>
+<meta content="Optimize core and wire selection for linear transformers." name="description"/>
+<meta content="linear transformer calculator, linear transformer design, core selection, wire gauge calculator" name="keywords"/>
+<meta content="index, follow, max-image-preview:large" name="robots"/>
+<link href="https://www.ataqileriteknoloji.com/transformer" rel="canonical"/>
+<link href="https://www.ataqileriteknoloji.com/tr/transformer" hreflang="tr" rel="alternate"/>
+<link href="https://www.ataqileriteknoloji.com/transformer" hreflang="en" rel="alternate"/>
+<link href="https://www.ataqileriteknoloji.com/de/transformer" hreflang="de" rel="alternate"/>
+<link href="https://www.ataqileriteknoloji.com/transformer" hreflang="x-default" rel="alternate"/>
+<meta content="website" property="og:type"/>
+<meta content="SMPS Design Calculator" property="og:site_name"/>
+<meta content="en_US" property="og:locale"/>
+<meta content="tr_TR" property="og:locale:alternate"/>
+<meta content="de_DE" property="og:locale:alternate"/>
+<meta content="https://www.ataqileriteknoloji.com/transformer" property="og:url"/>
+<meta content="Linear Transformer Calculator | Core and Wire Selection" property="og:title"/>
+<meta content="Optimize core and wire selection for linear transformers." property="og:description"/>
+<meta content="https://www.ataqileriteknoloji.com/assets/img/og-image.jpg" property="og:image"/>
+<meta content="1200" property="og:image:width"/>
+<meta content="630" property="og:image:height"/>
+<meta content="SMPS Design Calculator" property="og:image:alt"/>
+<meta content="summary_large_image" name="twitter:card"/>
+<meta content="https://www.ataqileriteknoloji.com/assets/img/og-image.jpg" name="twitter:image"/>
+<meta content="Linear Transformer Calculator | Core and Wire Selection" name="twitter:title"/>
+<meta content="Optimize core and wire selection for linear transformers." name="twitter:description"/>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebApplication", "name": "Linear Transformer Calculator | Core and Wire Selection", "url": "https://www.ataqileriteknoloji.com/transformer", "applicationCategory": "EngineeringApplication", "operatingSystem": "Any", "browserRequirements": "Requires JavaScript", "inLanguage": "en", "description": "Optimize core and wire selection for linear transformers."}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.ataqileriteknoloji.com/"}, {"@type": "ListItem", "position": 2, "name": "Linear Transformer Calculator", "item": "https://www.ataqileriteknoloji.com/transformer"}]}</script>
+<link href="/assets/img/favicon.png" rel="icon"/>
+<link href="/assets/img/apple-touch-icon.png" rel="apple-touch-icon"/>
+<link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,700,700i%7CRaleway:300,400,500,700,800" rel="stylesheet"/>
+<link href="/assets/vendor/aos/aos.css" rel="stylesheet"/>
+<link href="/assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet"/>
+<link href="/assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet"/>
+<link href="/assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet"/>
+<link href="/assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet"/>
+<link href="/assets/css/style.css" rel="stylesheet"/>
+<link href="/assets/css/design.css" rel="stylesheet"/>
+</head>
+<body>
+<header class="d-flex align-items-center" id="header">
+<div class="container d-flex align-items-center justify-content-between">
+<a class="logo mr-auto" href="/"><img alt="" src="/assets/img/logo.png"/></a>
+<nav class="navbar" id="navbar">
+<ul>
+<li><a class="nav-link scrollto active" data-i18n="nav_home" href="/">Home</a></li>
+<li><a class="nav-link scrollto" data-i18n="nav_help" href="/yardim">Help</a></li>
+<li><a class="nav-link scrollto" data-i18n="nav_feedback" href="/#contact">Feedback Form</a></li>
+<li class="dropdown" id="language">
+<a href="javascript:void(0);" onclick="this.parentElement.classList.toggle('mobile-active');">
+<span>🌍 Dil / Language</span> <i class="bi bi-chevron-down"></i>
+</a>
+<ul>
+<li><a href="https://www.ataqileriteknoloji.com/tr/transformer" hreflang="tr" lang="tr">🇹🇷 Türkçe</a></li>
+<li><a href="https://www.ataqileriteknoloji.com/transformer" hreflang="en" lang="en">🇬🇧 English</a></li>
+<li><a href="https://www.ataqileriteknoloji.com/de/transformer" hreflang="de" lang="de">🇩🇪 Deutsch</a></li>
+</ul>
+</li>
+</ul>
+<i class="bi bi-list mobile-nav-toggle"></i>
+</nav>
+</div>
+</header>
+<main id="main">
+<section class="breadcrumbs">
+<div class="container">
+<div class="d-flex justify-content-between align-items-center">
+<h2 data-i18n="card_transformer_title">Linear Transformer Calculator</h2>
+<ol>
+<li><a data-i18n="nav_home" href="/">Home</a></li>
+<li data-i18n="transformer_breadcrumb">Linear Transformer Calculation</li>
+</ol>
+</div>
+</div>
+</section>
+<section class="inner-page">
+<div class="container" id="container">
+<div class="row mb-4">
+<div class="col-md-7" id="inputs">
+<h2 data-i18n="input_header">Input Information</h2>
+<div class="param-group mb-3">
+<h5 data-i18n="primary_params">Primary Parameters</h5>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_R1" for="R1">R₁ [Ω]:</label>
+<input class="form-control" data-i18n="placeholder_ohm" id="R1" placeholder="Ω" step="0.1" type="number" value="15"/>
+</div>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_L1" for="L1">L₁ [mH]:</label>
+<input class="form-control" data-i18n="placeholder_mh" id="L1" placeholder="mH" step="0.1" type="number" value="2000"/>
+</div>
+</div>
+<div class="param-group mb-3">
+<h5 data-i18n="secondary_params">Secondary Parameters</h5>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_R2" for="R2">R₂ [Ω]:</label>
+<input class="form-control" data-i18n="placeholder_ohm" id="R2" placeholder="Ω" step="0.1" type="number" value="0.5"/>
+</div>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_L2" for="L2">L₂ [mH]:</label>
+<input class="form-control" data-i18n="placeholder_mh" id="L2" placeholder="mH" step="0.1" type="number" value="20"/>
+</div>
+</div>
+<div class="param-group mb-3">
+<h5 data-i18n="mutual_load_params">Mutual &amp; Load Parameters</h5>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_M" for="M_val">M [mH]:</label>
+<input class="form-control" data-i18n="placeholder_mh" id="M_val" placeholder="mH" step="0.1" type="number" value="196"/>
+</div>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_ZL_R" for="ZL_R">Z_L Real [Ω]:</label>
+<input class="form-control" data-i18n="placeholder_ohm" id="ZL_R" placeholder="Ω" step="1" type="number" value="10"/>
+</div>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_ZL_X" for="ZL_X">Z_L Imag [Ω]:</label>
+<input class="form-control" data-i18n="placeholder_imag" id="ZL_X" placeholder="Ω (- capacitive)" step="1" type="number" value="0"/>
+</div>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_freq" for="freq">Frequency [kHz]:</label>
+<input class="form-control" data-i18n="placeholder_khz" id="freq" placeholder="kHz" step="0.1" type="number" value="0.05"/>
+</div>
+</div>
+<div class="param-group mb-3">
+<h5 data-i18n="source_params">Source Voltage (Waveform)</h5>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_Vs" for="Vs_mag">|Vs| [V]:</label>
+<input class="form-control" data-i18n="placeholder_v" id="Vs_mag" placeholder="V" step="1" type="number" value="220"/>
+</div>
+<div class="input-group mb-2">
+<label class="input-group-text" data-i18n="label_Vs_phase" for="Vs_phase">∠Vs [°]:</label>
+<input class="form-control" data-i18n="placeholder_deg" id="Vs_phase" placeholder="degree" step="1" type="number" value="0"/>
+</div>
+</div>
+<div class="param-group mt-3" style="text-align: center; display: none;">
+<h5 style="border-bottom: none; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+<span data-i18n="core_selection_mode">Core Selection Mode</span>
+<button class="btn btn-sm btn-outline-warning" onclick="showModeInfo()" style="border-radius: 50%; width: 24px; height: 24px; padding: 0; line-height: 1; font-weight: bold;" type="button">i</button>
+</h5>
+<div class="btn-group w-75" role="group">
+<input checked="" class="btn-check" id="modeStandard" name="coreSelectionMode" type="radio" value="standard"/>
+<label class="btn btn-outline-info" data-i18n="mod1" for="modeStandard" style="border-color: #3f51b5; color: #e0e0e0;">Standard Mode</label>
+<input class="btn-check" id="modeAdvanced" name="coreSelectionMode" type="radio" value="advanced"/>
+<label class="btn btn-outline-info" data-i18n="mod2" for="modeAdvanced" style="border-color: #3f51b5; color: #e0e0e0; ">Advanced Mode (AI)</label>
+</div>
+</div>
+<button class="btn btn-primary w-100 mt-3" data-i18n="btn_calc" id="calculateButton" onclick="hesaplaTrafo()">Calculate</button>
+</div>
+<div class="col-md-5 d-flex flex-column justify-content-between" id="hello19">
+<div>
+<h2 data-i18n="results_title">Results</h2>
+<table class="table table-bordered mb-2">
+<tr>
+<th data-i18n="res_Zin">Input Impedance (Z_in)</th>
+<td><span id="res_Zin">-</span> Ω</td>
+</tr>
+<tr>
+<th data-i18n="res_Zprim">Primary Impedance</th>
+<td><span id="res_Zprim">-</span> Ω</td>
+</tr>
+<tr>
+<th data-i18n="res_ZR">Reflected Impedance (Z_R)</th>
+<td><span id="res_ZR">-</span> Ω</td>
+</tr>
+<tr>
+<th data-i18n="res_coupling">Coupling Coefficient (k)</th>
+<td><span id="res_k">-</span></td>
+</tr>
+<tr>
+<th data-i18n="res_I1">Primary Current (I₁)</th>
+<td><span id="res_I1">-</span> A</td>
+</tr>
+<tr>
+<th data-i18n="res_I2">Secondary Current (I₂)</th>
+<td><span id="res_I2">-</span> A</td>
+</tr>
+<tr>
+<th data-i18n="res_VL">Load Voltage (V_L)</th>
+<td><span id="res_VL">-</span> V</td>
+</tr>
+</table>
+<div class="param-group mb-2" id="teqDiv" style="display:none;">
+<h5 data-i18n="t_equiv_title" style="font-size:14px;">T-Equivalent Circuit Values</h5>
+<table class="table table-bordered table-sm">
+<tr>
+<th>L_a = L₁ − M</th>
+<td><span id="res_La">-</span> mH</td>
+</tr>
+<tr>
+<th>L_b = L₂ − M</th>
+<td><span id="res_Lb">-</span> mH</td>
+</tr>
+<tr>
+<th>L_c = M</th>
+<td><span id="res_Lc">-</span> mH</td>
+</tr>
+</table>
+</div>
+<table class="table table-bordered" id="powerResultTable" style="display:none;">
+<tr>
+<th data-i18n="res_P_in">Input Active Power</th>
+<td><span id="res_Pin">-</span> W</td>
+</tr>
+<tr>
+<th data-i18n="res_P_load">Power Dissipated at Load</th>
+<td><span id="res_Pload">-</span> W</td>
+</tr>
+<tr>
+<th data-i18n="res_eta">Efficiency (η)</th>
+<td><span id="res_eta">-</span> %</td>
+</tr>
+</table>
+<span id="VeOpt" style="display:none;">-</span>
+<span id="nOutput" style="display:none;">-</span>
+</div>
+<div class="d-flex gap-2 justify-content-end mt-auto flex-wrap" id="buttons">
+<button class="btn btn-primary" data-i18n="btn_print" id="printButton" onclick="window.print()">Print</button>
+<button class="btn btn-primary" id="testButton" onclick="runTrafoTests()">
+<i class="bi bi-cpu"></i> Test
+                            </button>
+<button class="btn btn-primary" data-i18n="btn_suggest2" id="openButton" onclick="window.openSelectedTable()">Suitable Core Suggestions</button>
+</div>
+</div>
+</div>
+<br/>
+<div class="mt-4" id="charts">
+<h2 data-i18n="charts_title">Charts</h2>
+<div class="row">
+<div class="col-md-6">
+<canvas height="300" id="currentChart" width="600"></canvas>
+</div>
+<div class="col-md-6">
+<canvas height="300" id="impedanceChart" width="600"></canvas>
+</div>
+</div>
+<div class="row mt-3">
+<div class="col-md-6">
+<canvas height="300" id="powerChart" width="600"></canvas>
+</div>
+<div class="col-md-6">
+<canvas height="300" id="phaseChart" width="600"></canvas>
+</div>
+</div>
+<br/>
+</div>
+</div>
+</section>
+</main>
+<footer id="footer">
+<div class="container">
+<div class="row">
+<div class="col-md-12">
+<div class="copyright"> © Copyright <strong>ATAQ İleri Teknoloji A.Ş.</strong>. <span data-i18n="footer_rights">All rights reserved.</span> </div>
+<div class="credits"> Designed and developed by <a href="https://www.linkedin.com/in/yasemin-algin/" style="color: #00AEEF !important;">Yasemin Tuğba Algın</a> </div>
+</div>
+</div>
+</div>
+</footer>
+<div id="preloader"></div>
+<!-- JS Kütüphaneleri -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/assets/vendor/aos/aos.js"></script>
+<script src="/assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="/assets/vendor/glightbox/js/glightbox.min.js"></script>
+<script src="/assets/vendor/isotope-layout/isotope.pkgd.min.js"></script>
+<script src="/assets/vendor/swiper/swiper-bundle.min.js"></script>
+<script src="/assets/vendor/typed.js/typed.min.js"></script>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
+<!-- UI ve Ortak Bileşenler -->
+<script src="/assets/js/common/lang-v6.js"></script>
+<script src="/assets/js/main.js?v5"></script>
+<script src="/assets/js/common/firebase_config.js"></script>
+<script src="/assets/js/common/api_service.js"></script>
+<script src="/assets/js/common/core_database.js"></script>
+<script src="/assets/js/common/magnetic_utils.js"></script>
+<script src="/assets/js/common/ui_modal.js"></script>
+<script defer="defer" src="/assets/js/common/advanced_optimizer.js"></script>
+<!-- Topology Script -->
+<script defer="defer" src="/assets/js/topologies/linear-transformer.js"></script>
+</body>
+</html>

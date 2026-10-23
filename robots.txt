@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /assets/js/functions/
+Disallow: /falstad/doc/
+
+Sitemap: https://www.ataqileriteknoloji.com/sitemap.xml

@@ -1,0 +1,107 @@
+<meta name="viewport" content="width=820">
+<title>Circuit Simulator Applet</title>
+<link rel="SHORTCUT ICON" href="favicon.ico">
+<body>
+<hr>
+<iframe id="circuitFrame" width="100%" height=850 src="circuitjs.html?startCircuit=pongfullscore4.txt&mouseMode=DragAll"></iframe>
+<p>
+<div id="info"></div>
+<canvas id="canvas" width=455 height=262 style="background-color:black;"></canvas>
+
+<script>
+
+// get iframe the simulator is running in.  Must have same origin as this file!
+var iframe = document.getElementById("circuitFrame");
+
+var sim;
+var freq, ampl;
+var clk, net, score, ctx;
+
+function round(x) {
+  return Math.round(x*1000)/1000;
+}
+
+var nettext = '';
+var highlightY = -1;
+var savedLine;
+
+// called when simulator updates its display
+function didUpdate(sim) {
+  var info = document.getElementById("info");
+  info.innerHTML = "time = " + round(sim.getTime()) + "<br>running = " + sim.isRunning();
+
+  // get voltage of labeled node "vsense"
+  if (clk == null)
+    clk = sim.getNode("CLK");
+  if (net == null)
+    net = sim.getNode("NET");
+  if (score == null)
+    score = sim.getNode("SCORE");
+
+  if (clk && net)
+    info.innerHTML += "<br>" + lastclk + " " + x + " "+ y ;
+
+  if (savedLine)
+    ctx.putImageData(savedLine, 0, highlightY);
+  highlightY = y-1;
+  ctx.fillStyle = "red";
+  savedLine = ctx.getImageData(0, highlightY, 455, 1);
+  ctx.fillRect(0, highlightY, 455, 1);
+  ctx.fillStyle = "white";
+}
+
+var lastclk = -1;
+var x = 0, y = 0;
+var clearedY = -1;
+
+// called every timestep
+function didStep(sim) {
+  if (!clk)
+    return;
+  var c = clk.getVoltage();
+  if (c == lastclk)
+    return;
+  if (c > 2.5) {
+    x++;
+    if (x == 456) {
+      x = 0;
+      y++;
+      if (sim.getNodeVoltage("VBLANK") > 2.5) {
+        y = 0;
+        clearedY = -1;
+      }
+    }
+  }
+  lastclk = c;
+  if (net.getVoltage() > 2.5 || score.getVoltage() > 2.5) {
+    if (clearedY < y) {
+      ctx.fillStyle = "black";
+      //ctx.fillRect(0, clearedY+1, 455, y-clearedY);
+      ctx.fillRect(0, 0, 455, 222); clearedY = 1000;
+      //clearedY = y+1;
+      ctx.fillStyle = "white";
+    }
+    ctx.fillRect(x, y, 1, 1);
+  }
+}
+
+// callback called when simulation is done initializing
+function simLoaded() {
+  // get simulator object
+  sim = iframe.contentWindow.CircuitJS1;
+
+  // set up callbacks on update and timestep
+  sim.onupdate = didUpdate;
+  sim.ontimestep = didStep;
+
+  ctx = canvas.getContext("2d");
+  //ctx.fillRect(0, 0, 455, 262);
+  ctx.strokeStyle = "white";
+  ctx.fillStyle = "white";
+}
+
+// set up callback
+iframe.contentWindow.oncircuitjsloaded = simLoaded;
+
+</script>
+

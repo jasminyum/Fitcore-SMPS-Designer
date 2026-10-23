@@ -1,0 +1,30 @@
+This is a simulation of the 1972 Atari game Pong at a circuit level.  The original Pong did not have
+any code or even a microprocessor.  It was a circuit,
+implemented mostly using digital logic chips, with a few timers and other
+analog components.
+<p>
+<ul>
+<li><a href="net.html">Drawing the Net</a></li>
+<li><a href="paddle1.html">Paddle Positioning</a></li>
+<li><a href="paddles.html">Drawing the Paddles</a></li>
+<li><a href="score.html">Drawing the Score</a></li>
+<li><a href="ball.html">The Ball</a></li>
+<li><a href="hbc.html">Horizontal Ball Control</a></li>
+<li><a href="vbc.html">Vertical Ball Control</a></li>
+<li><a href="vonly.html">Playing The Game (Vertical Only)</a></li>
+<li><a href="scorectrs.html">Score Counters</a></li>
+<li><a href="gamelogic.html">Game Logic</a></li>
+<li><a href="serve.html">Serve Timer</a></li>
+<li><a href="scoresound.html">Score/Miss Sound</a></li>
+<li><a href="hitsound.html">Hit Sound</a></li>
+<li><a href="topsound.html">Top/Bottom Bounce Sound</a></li>
+</ul>
+<p>
+<a href="https://www.arcade-museum.com/manuals-videogames/P/PongSchematic.pdf">Here is a link to full schematics.</a>
+Thanks to whoever made this.  I just found a few issues with it.
+The CLK input to the 7474 on page 2 should be HRESET, not CLK.  Also some of the nodes are inconsistently labeled.
+<p>
+Also see <a href="http://www1.cs.columbia.edu/~sedwards/papers/edwards2012reconstructing.pdf">Reconstructing Pong
+on an FPGA</a> by Stephen A. Edwards, which describes everything about the Pong circuit in exhaustive detail.
+This was an enormous help to me in understanding the schematic; huge thanks to him.
+

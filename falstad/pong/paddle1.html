@@ -1,0 +1,39 @@
+<meta name="viewport" content="width=820">
+<title>Circuit Simulator Applet</title>
+<link rel="SHORTCUT ICON" href="favicon.ico">
+<link rel="stylesheet" href="pong.css" type="text/css">
+<body>
+<hr>
+<div class="split">
+<div id="split-0">
+<iframe id="circuitFrame" src="../circuitjs.html?startCircuit=paddle1.txt&mouseMode=DragAll"></iframe>
+</div>
+<div id="split-1">
+<div id="info"></div>
+The position of the paddles is determined by an analog circuit.  Here is the circuit for paddle 1.  The paddle is
+a 5K potentiometer that controls the delay time of a 555 timer configured as a one-shot.  This one-shot is triggered
+at the end of every frame (when <span class="overline">256V</span> goes low), and when the delay has expired,
+that determines the vertical position of the top of paddle 1.  The larger the potentiometer resistance, the shorter
+the delay, and the further up on the screen the paddle will be.
+<p>
+When the 555 fires, it brings <span class="overline">VPAD1</span> low, and
+a counter starts counting horizontal lines.  When it reaches 15 (starting from 0),
+it brings <span class="overline">VPAD1</span> high again.  So, a paddle is 15 vertical lines high.
+<p>
+A second potentiometer,
+"Paddle 1 Control" is used to calibrate the circuit so that the paddle's position ranges from the top to the bottom of
+the screen.
+<p>
+Next: <a href="paddles.html">Drawing the Paddles</a>.
+<p>
+<a href="index.html">Index</a>
+</div>
+
+<script type="module">
+
+import Split from './split.js';
+
+Split(['#split-0', '#split-1'], { sizes: [70, 30] });
+
+</script>
+

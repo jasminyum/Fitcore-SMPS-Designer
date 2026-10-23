@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+
+<html lang="tr">
+<head>
+<meta content="text/html; charset=utf-8" http-equiv="content-type"/>
+<meta content="IE=edge" http-equiv="X-UA-Compatible"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PFC Hesaplama | Güç Faktörü Düzeltme (Power Factor Correction)</title>
+<meta content="Sinüzoidal şebeke akımı sağlayan güç faktörü düzeltme (PFC) ön regülatörünü hesaplayın." name="description"/>
+<meta content="PFC hesaplama, power factor correction, güç faktörü düzeltme, PFC tasarımı, aktif PFC" name="keywords"/>
+<meta content="index, follow, max-image-preview:large" name="robots"/>
+<link href="https://www.ataqileriteknoloji.com/tr/pfc" rel="canonical"/>
+<link href="https://www.ataqileriteknoloji.com/tr/pfc" hreflang="tr" rel="alternate"/>
+<link href="https://www.ataqileriteknoloji.com/pfc" hreflang="en" rel="alternate"/>
+<link href="https://www.ataqileriteknoloji.com/de/pfc" hreflang="de" rel="alternate"/>
+<link href="https://www.ataqileriteknoloji.com/pfc" hreflang="x-default" rel="alternate"/>
+<meta content="website" property="og:type"/>
+<meta content="SMPS Güç Kaynağı Hesaplayıcı" property="og:site_name"/>
+<meta content="tr_TR" property="og:locale"/>
+<meta content="en_US" property="og:locale:alternate"/>
+<meta content="de_DE" property="og:locale:alternate"/>
+<meta content="https://www.ataqileriteknoloji.com/tr/pfc" property="og:url"/>
+<meta content="PFC Hesaplama | Güç Faktörü Düzeltme (Power Factor Correction)" property="og:title"/>
+<meta content="Sinüzoidal şebeke akımı sağlayan güç faktörü düzeltme (PFC) ön regülatörünü hesaplayın." property="og:description"/>
+<meta content="https://www.ataqileriteknoloji.com/assets/img/og-image.jpg" property="og:image"/>
+<meta content="1200" property="og:image:width"/>
+<meta content="630" property="og:image:height"/>
+<meta content="SMPS Güç Kaynağı Hesaplayıcı" property="og:image:alt"/>
+<meta content="summary_large_image" name="twitter:card"/>
+<meta content="https://www.ataqileriteknoloji.com/assets/img/og-image.jpg" name="twitter:image"/>
+<meta content="PFC Hesaplama | Güç Faktörü Düzeltme (Power Factor Correction)" name="twitter:title"/>
+<meta content="Sinüzoidal şebeke akımı sağlayan güç faktörü düzeltme (PFC) ön regülatörünü hesaplayın." name="twitter:description"/>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebApplication", "name": "PFC Hesaplama | Güç Faktörü Düzeltme (Power Factor Correction)", "url": "https://www.ataqileriteknoloji.com/tr/pfc", "applicationCategory": "EngineeringApplication", "operatingSystem": "Any", "browserRequirements": "Requires JavaScript", "inLanguage": "tr", "description": "Sinüzoidal şebeke akımı sağlayan güç faktörü düzeltme (PFC) ön regülatörünü hesaplayın."}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Ana Sayfa", "item": "https://www.ataqileriteknoloji.com/tr/"}, {"@type": "ListItem", "position": 2, "name": "PFC Hesaplama", "item": "https://www.ataqileriteknoloji.com/tr/pfc"}]}</script>
+<link href="/assets/img/favicon.png" rel="icon"/>
+<link href="/assets/img/apple-touch-icon.png" rel="apple-touch-icon"/>
+<link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,700,700i%7CRaleway:300,400,500,700,800" rel="stylesheet"/>
+<link href="/assets/vendor/aos/aos.css" rel="stylesheet"/>
+<link href="/assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet"/>
+<link href="/assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet"/>
+<link href="/assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet"/>
+<link href="/assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet"/>
+<link href="/assets/css/style.css" rel="stylesheet"/>
+<link href="/assets/css/design.css" rel="stylesheet"/>
+<style>
+        /* SVG Devre Şeması Stilleri */
+        .wire {
+            fill: none;
+            stroke: var(--text-main);
+            stroke-width: 2.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .node {
+            fill: var(--text-main);
+        }
+
+        .comp-fill {
+            fill: var(--text-main);
+        }
+
+        .arrow-line {
+            fill: none;
+            stroke: #00AEEF;
+            stroke-width: 3.5;
+            marker-end: url(#arrowhead);
+        }
+
+        .svg-label {
+            fill: var(--text-main);
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .cyan-label {
+            fill: #e0e0e0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+<header class="d-flex align-items-center" id="header">
+<div class="container d-flex align-items-center justify-content-between">
+<a class="logo mr-auto" href="/tr/"><img alt="" src="/assets/img/logo.png"/></a>
+<nav class="navbar" id="navbar">
+<ul>
+<li><a class="nav-link scrollto active" data-i18n="nav_home" href="/tr/">Anasayfa</a></li>
+<li><a class="nav-link scrollto" data-i18n="nav_help" href="/tr/yardim">Yardım</a></li>
+<li><a class="nav-link scrollto" data-i18n="nav_feedback" href="/tr/#contact">Feedback Formu</a></li>
+<li class="dropdown" id="language">
+<a href="javascript:void(0);" onclick="this.parentElement.classList.toggle('mobile-active');">
+<span>🌍 Dil / Language</span> <i class="bi bi-chevron-down"></i>
+</a>
+<ul>
+<li><a href="https://www.ataqileriteknoloji.com/tr/pfc" hreflang="tr" lang="tr">🇹🇷 Türkçe</a></li>
+<li><a href="https://www.ataqileriteknoloji.com/pfc" hreflang="en" lang="en">🇬🇧 English</a></li>
+<li><a href="https://www.ataqileriteknoloji.com/de/pfc" hreflang="de" lang="de">🇩🇪 Deutsch</a></li>
+</ul>
+</li>
+</ul>
+<i class="bi bi-list mobile-nav-toggle"></i>
+</nav>
+</div>
+</header>
+<main id="main">
+<section class="breadcrumbs">
+<div class="container">
+<div class="d-flex justify-content-between align-items-center">
+<h2 data-i18n="card_pfc_title">Power Factor Pre-regulator(PFC) Hesapla</h2>
+<ol>
+<li data-i18n="nav_home">Anasayfa</li>
+<li data-i18n="pfc_breadcrumb">PFC Converter</li>
+</ol>
+</div>
+</div>
+</section>
+<section class="inner-page">
+<div id="container">
+<div class="row">
+<div class="col-md-4 d-flex align-items-center justify-content-center p-3">
+<svg style="width: 100%; height: auto; max-width: 750px;" viewbox="0 0 800 280" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrowhead" markerheight="6" markerwidth="8" orient="auto" refx="7" refy="3">
+<polygon fill="#00AEEF" points="0 0, 8 3, 0 6"></polygon>
+</marker>
+</defs>
+<line class="wire" x1="30" x2="200" y1="80" y2="80"></line>
+<line class="wire" x1="30" x2="200" y1="200" y2="200"></line>
+<circle class="node" cx="200" cy="80" r="4.5"></circle>
+<circle class="node" cx="200" cy="200" r="4.5"></circle>
+<line class="wire" x1="140" x2="140" y1="50" y2="250"></line>
+<polygon class="comp-fill" points="125,120 155,120 140,90"></polygon>
+<line class="wire" stroke-width="4" x1="125" x2="155" y1="90" y2="90"></line>
+<polygon class="comp-fill" points="125,240 155,240 140,210"></polygon>
+<line class="wire" stroke-width="4" x1="125" x2="155" y1="210" y2="210"></line>
+<circle class="node" cx="140" cy="80" r="4.5"></circle>
+<circle class="node" cx="140" cy="200" r="4.5"></circle>
+<line class="wire" x1="200" x2="200" y1="50" y2="250"></line>
+<polygon class="comp-fill" points="185,120 215,120 200,90"></polygon>
+<line class="wire" stroke-width="4" x1="185" x2="215" y1="90" y2="90"></line>
+<polygon class="comp-fill" points="185,240 215,240 200,210"></polygon>
+<line class="wire" stroke-width="4" x1="185" x2="215" y1="210" y2="210"></line>
+<line class="wire" x1="140" x2="200" y1="50" y2="50"></line>
+<line class="wire" x1="140" x2="200" y1="250" y2="250"></line>
+<circle class="node" cx="200" cy="50" r="4.5"></circle>
+<circle class="node" cx="200" cy="250" r="4.5"></circle>
+<line class="wire" x1="200" x2="380" y1="50" y2="50"></line>
+<line class="wire" x1="200" x2="770" y1="250" y2="250"></line>
+<path class="wire" d="M 380 50 Q 395 30 410 50 Q 425 30 440 50 Q 455 30 470 50 Q 485 30 500 50"></path>
+<text class="svg-label" x="435" y="25">L</text>
+<line class="wire" x1="500" x2="500" y1="50" y2="90"></line>
+<circle class="node" cx="500" cy="50" r="4.5"></circle>
+<circle class="node" cx="500" cy="90" r="4.5"></circle>
+<line class="wire" x1="500" x2="500" y1="130" y2="250"></line>
+<circle class="node" cx="500" cy="130" r="4.5"></circle>
+<circle class="node" cx="500" cy="250" r="4.5"></circle>
+<line class="wire" x1="485" x2="485" y1="90" y2="130"></line>
+<line class="wire" x1="465" x2="485" y1="110" y2="110"></line>
+<line class="wire" x1="500" x2="550" y1="50" y2="50"></line>
+<polygon class="comp-fill" points="550,40 550,60 580,50"></polygon>
+<line class="wire" stroke-width="4" x1="580" x2="580" y1="35" y2="65"></line>
+<line class="wire" x1="580" x2="680" y1="50" y2="50"></line>
+<line class="wire" x1="680" x2="680" y1="50" y2="140"></line>
+<line class="wire" stroke-width="4" x1="655" x2="705" y1="140" y2="140"></line>
+<line class="wire" stroke-width="4" x1="655" x2="705" y1="155" y2="155"></line>
+<line class="wire" x1="680" x2="680" y1="155" y2="250"></line>
+<circle class="node" cx="680" cy="50" r="4.5"></circle>
+<circle class="node" cx="680" cy="250" r="4.5"></circle>
+<text class="svg-label" x="640" y="180">Cout</text>
+<line class="wire" x1="680" x2="770" y1="50" y2="50"></line>
+<line class="arrow-line" x1="45" x2="45" y1="220" y2="100"></line>
+<text class="cyan-label" text-anchor="end" x="35" y="165">Vin</text>
+<line class="arrow-line" x1="60" x2="100" y1="135" y2="135"></line>
+<text class="cyan-label" text-anchor="middle" x="80" y="125">Iin</text>
+<line class="arrow-line" x1="250" x2="250" y1="210" y2="90"></line>
+<text class="cyan-label" text-anchor="start" x="260" y="155">|Vin|</text>
+<line class="arrow-line" x1="300" x2="350" y1="25" y2="25"></line>
+<text class="cyan-label" text-anchor="middle" x="325" y="15">IL</text>
+<line class="arrow-line" x1="730" x2="730" y1="210" y2="90"></line>
+<text class="cyan-label" text-anchor="start" x="740" y="155">Vout</text>
+<line class="arrow-line" x1="710" x2="760" y1="25" y2="25"></line>
+<text class="cyan-label" text-anchor="middle" x="735" y="15">Iout</text>
+</svg>
+</div>
+<div class="col-md-8">
+<div id="inputs">
+<h2 data-i18n="input_header">Giriş Bilgileri</h2>
+<div class="input-group mb-3">
+<label class="input-group-text" data-i18n="label_vin_min">Min. Giriş Gerilimi [V]</label>
+<input class="form-control" id="vin_min" placeholder="90" type="number"/>
+<label class="input-group-text" data-i18n="label_vin_max">Max. Giriş Gerilimi [V]</label>
+<input class="form-control" id="vin_max" placeholder="260" type="number"/>
+<label class="input-group-text" data-i18n="label_vin_nom">Nominal Giriş [V]</label>
+<input class="form-control" id="vin_nom" placeholder="90" type="number"/>
+</div>
+<div class="input-group mb-3">
+<label class="input-group-text" data-i18n="label_vout">Çıkış Gerilimi [V]</label>
+<input class="form-control" id="vout" placeholder="380" type="number"/>
+<label class="input-group-text" data-i18n="label_iout">Çıkış Akımı [A]</label>
+<input class="form-control" id="ilout" placeholder="1" type="number"/>
+<label class="input-group-text" data-i18n="label_fsw">Anahtarlama Frekansı [kHz]</label>
+<input class="form-control" id="f_khz" placeholder="50" type="number"/>
+</div>
+<div class="input-group mb-3" id="inductance" style="display:none;">
+<label class="input-group-text bg-warning text-dark border-warning" data-i18n="label_custom_l">L (μH) [Opsiyonel]</label>
+<input class="form-control border-warning" id="custom_L_uH" placeholder="e. g. 710" step="1" type="number"/>
+</div>
+<div class="input-group mb-3 flex-wrap flex-md-nowrap">
+<label class="input-group-text" data-i18n="label_fline">Şebeke Frekansı</label>
+<select class="form-select" id="f_line_hz">
+<option selected="" value="50">50 Hz (EU/APAC/TR)</option>
+<option value="60">60 Hz (NA)</option>
+</select>
+</div>
+<div class="input-group mb-3 flex-wrap flex-md-nowrap">
+<label class="input-group-text" data-i18n="label_mode">Çalışma Modu</label>
+<select class="form-select" id="mode">
+<option value="continuous">CCM</option>
+<option value="discontinuous">DCM</option>
+<option value="critical">CRM</option>
+</select>
+<label class="input-group-text" data-i18n="label_eff_mode">Verim Modu</label>
+<select class="form-select" id="effMode" onchange="toggleEffMode()">
+<option data-i18n="opt_ideal" value="ideal">İdeal</option>
+<option data-i18n="opt_real" value="real">Gerçek (Power Loss)</option>
+</select>
+<div id="idealInputGroup" style="display: contents;">
+<label class="input-group-text" data-i18n="label_eff" style="border-radius: 0;">Verim [Örnek: 80% için 80]</label>
+<input class="form-control eff-input" id="verim" placeholder="95" style="border-bottom-left-radius: 0; border-top-left-radius: 0;" type="number"/>
+</div>
+</div>
+</div>
+</div>
+<div id="inputs">
+<div id="realInputGroup" style="display:none;">
+<div class="row">
+<div class="col-md-6">
+<div class="param-group">
+<h5 data-i18n="mosfet_header">MOSFET (İletim &amp; Kapasitans)</h5>
+<div class="input-group input-group-sm mb-2"><span class="input-group-text">Ron_MOS [Ω]</span><input class="form-control" id="p_ron_h" type="number" value="0.150"/></div>
+<div class="input-group input-group-sm mb-2"><span class="input-group-text">Coss [pF]</span><input class="form-control" id="p_coss" type="number" value="100"/></div>
+<div class="input-group input-group-sm mb-2"><span class="input-group-text">Qg [nC]</span><input class="form-control" id="p_qg" type="number" value="30"/></div>
+<div class="input-group input-group-sm"><span class="input-group-text">Vgs [V]</span><input class="form-control" id="p_vgs" type="number" value="12.0"/></div>
+</div>
+</div>
+<div class="col-md-6">
+<div class="param-group">
+<h5 data-i18n="switching_header">Anahtarlama Süreleri &amp; Dead-Time</h5>
+<div class="input-group input-group-sm mb-2"><span class="input-group-text">tr / tf [ns]</span><input class="form-control" id="p_tr" type="number" value="20"/><input class="form-control" id="p_tf" type="number" value="20"/></div>
+<div class="input-group input-group-sm mb-2"><span class="input-group-text">Diode Vf [V]</span><input class="form-control" id="p_vd" type="number" value="1.0"/></div>
+<div class="input-group input-group-sm mb-2"><span class="input-group-text">trr [ns] / Irr [A]</span><input class="form-control" id="p_trr" type="number" value="20"/><input class="form-control" id="p_irr" type="number" value="1.0"/></div>
+</div>
+</div>
+<div class="col-md-12 mt-2">
+<div class="param-group">
+<h5 data-i18n="pasif_comp">Pasif Komponentler &amp; IC</h5>
+<div class="input-group input-group-sm">
+<span class="input-group-text">L DCR [Ω]</span><input class="form-control" id="p_dcr" type="number" value="0.050"/>
+<span class="input-group-text">IC Icc [mA]</span><input class="form-control" id="p_icc" type="number" value="2.0"/>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="form-check form-switch mt-4 mb-2 d-flex justify-content-center align-items-center gap-2">
+<input class="form-check-input" id="testOwnDesignCheck" onchange="toggleCustomDesign()" style="width: 40px; height: 20px; cursor: pointer; margin:0;" type="checkbox"/>
+<label class="form-check-label text-warning" data-i18n="label_test_own_design" for="testOwnDesignCheck" style="cursor: pointer; font-weight: bold; margin:0;">Zaten kendi tasarımım var, onu test etmek istiyorum</label>
+</div>
+<div class="param-group mt-3" id="coreSelectionGroup" style="text-align: center">
+<h5 style="border-bottom: none; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+<span data-i18n="core_selection_mode">Core Seçim Modu</span>
+<button class="btn btn-sm btn-outline-warning" onclick="showModeInfo()" style="border-radius: 50%; width: 24px; height: 24px; padding: 0; line-height: 1; font-weight: bold;" type="button">i</button>
+</h5>
+<div class="btn-group w-75" role="group">
+<input checked="" class="btn-check" id="modeStandard" name="coreSelectionMode" type="radio" value="standard"/>
+<label class="btn btn-outline-info" data-i18n="mod1" for="modeStandard" style="border-color: #3f51b5; color: #e0e0e0;">Standart Mod</label>
+<input class="btn-check" id="modeAdvanced" name="coreSelectionMode" type="radio" value="advanced"/>
+<label class="btn btn-outline-info" data-i18n="mod2" for="modeAdvanced" style="border-color: #3f51b5; color: #e0e0e0; ">Advanced Mod (AI)</label>
+</div>
+</div>
+<button class="btn btn-primary d-block mx-auto w-25" data-i18n="btn_calc" id="calculateButton" onclick="hesapla()">Hesapla</button>
+</div>
+<br/>
+<div id="modeWarning" style="display:none; padding:8px; margin:8px 0; border-radius:4px; background:#fff3cd;"></div>
+<div class="row">
+<div class="col-md-7">
+<h2 data-i18n="results_title">Sonuçlar</h2>
+<table class="table" id="outputsTable">
+<tr>
+<th data-i18n="res_L">Endüktans Değeri (L)</th>
+<th data-i18n="res_C">Çıkış Kapasitörü (C)</th>
+<th data-i18n="res_R">Eşdeğer Yük Direnci (R)</th>
+<th data-i18n="res_Wmax">Wmax (W)</th>
+</tr>
+<tr>
+<td><span id="lOutput">-</span> μH</td>
+<td><span id="cOutput">-</span> μF</td>
+<td><span id="rOutput">-</span> Ω</td>
+<td><span id="wmax1">-</span> µWs</td>
+</tr>
+<tr>
+<th data-i18n="pout1">Çıkış Gücü (Pout)</th>
+<th>ΔVout / V</th>
+<th>ΔIL (Max)</th>
+<th data-i18n="curr_in">Giriş Akımı (A)</th>
+</tr>
+<tr>
+<td><span id="pOutput">-</span> W</td>
+<td><span id="deltaVout"> Volt</span></td>
+<td><span id="deltaILMax">-</span></td>
+<td><span id="iin">-</span> A</td>
+</tr>
+</table>
+</div>
+<div style="display: none;">
+<p><span data-i18n="label_loss_est">Tahmini Verim Kaybı:</span> <span id="loss">-</span> %</p>
+</div>
+<div class="col-md-5 d-flex align-items-center justify-content-end">
+<div class="d-flex gap-2 flex-wrap" id="buttons">
+<button class="btn btn-primary" data-i18n="btn_print" id="printButton" onclick="printPage()">Yazdır</button>
+<button class="btn btn-primary" data-i18n="btn_coil" id="openButton" onclick="openSelectedTable()">Coil Data</button>
+<button class="btn btn-primary" data-i18n="btn_filter" id="filterButton" onclick="openFilterDesign()">Filtre Tasarımı</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<br/>
+<div id="charts">
+<h2 data-i18n="charts_title">Grafikler</h2>
+<div class="row">
+<div class="col-md-4">
+<canvas height="300" id="vinChart" width="400"></canvas>
+</div>
+<div class="col-md-4">
+<canvas height="300" id="idChart" width="400"></canvas>
+</div>
+<div class="col-md-4">
+<canvas height="300" id="ilChart" width="400"></canvas>
+</div>
+<div class="col-md-6 mt-3">
+<canvas height="300" id="powChart" width="600"></canvas>
+</div>
+<div class="col-md-6 mt-3">
+<canvas height="300" id="effChart" width="600"></canvas>
+</div>
+</div>
+</div>
+<br/>
+<button class="btn btn-primary" data-i18n="simm" id="btnFalstad" onclick="openFalstadPFCSimulation()">Simülasyon İçin Tıkla</button>
+<br/>
+<div id="simulationContainer" style="display: none; margin-top: 20px; border: 1px solid #333; border-radius: 12px; overflow: hidden; background: #000;">
+<iframe id="circuitFrame" style="width: 100%; height: 600px; border: none;"></iframe>
+</div>
+<div id="liveDataBox" style="display: none; padding: 15px; background: #121212; color: #81c784; font-family: 'Consolas', monospace; border-radius: 0 0 12px 12px; border: 1px solid #333; border-top: none;">
+                Loading...
+            </div>
+<br/>
+<div class="row mt-3" id="powerLossSection" style="display: none;">
+<div class="col-md-12">
+<div class="param-group">
+<h2 data-i18n="real_power_loss_title">Gerçek Güç Kaybı (Power Loss) Analizi</h2>
+<div class="table-responsive">
+<table class="table table-sm ploss-table text-center">
+<thead>
+<tr>
+<th data-i18n="b1">MOSFET İletim (Pon_MOS)</th>
+<th data-i18n="b2">MOSFET Anahtarlama (Psw_MOS)</th>
+<th data-i18n="b3">Diyot İletim (Pdiode_cond)</th>
+<th data-i18n="b4">Diyot Rev. Rec. (Pdiode_rr)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td id="res_pon_mos">-</td>
+<td id="res_psw_mos">-</td>
+<td id="res_pdiode_cond">-</td>
+<td id="res_pdiode_rr">-</td>
+</tr>
+</tbody>
+<thead class="mt-2">
+<tr>
+<th data-i18n="a1">Çıkış Kap. (Pcoss)</th>
+<th data-i18n="a2">Bobin İletim (Pl_dcr)</th>
+<th data-i18n="a3">Gate Şarj (Pgate)</th>
+<th data-i18n="a4">IC Tüketim (Pic)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td id="res_pcoss">-</td>
+<td id="res_pl_dcr">-</td>
+<td id="res_pgate">-</td>
+<td id="res_pic">-</td>
+</tr>
+</tbody>
+</table>
+<table class="table table-sm ploss-table mt-2">
+<tr class="total-row text-center" style="font-size: 1.2em;">
+<td width="50%"><span data-i18n="total_power_loss">Toplam Güç Kaybı (Ptotal):</span> <span id="res_ptotal">-</span></td>
+<td width="50%"><span data-i18n="calc_efficiency">Hesaplanan Genel Verim (η):</span> <span id="res_peff">-</span></td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+</div>
+<br/>
+<div id="table">
+<h2 data-i18n="table_header">Tablo</h2>
+<div class="table-responsive">
+<table class="table table-bordered" id="resultTable">
+<thead>
+<tr>
+<th data-i18n="col_time">Zaman [µs]</th>
+<th>|Vin|</th>
+<th>IL</th>
+<th>Pout</th>
+<th>Vout</th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+</main>
+<footer id="footer">
+<div class="container">
+<div class="row">
+<div class="col-md-12">
+<div class="copyright"> © Copyright <strong>ATAQ İleri Teknoloji A.Ş.</strong>. <span data-i18n="footer_rights">Tüm hakları saklıdır.</span> </div>
+<div class="credits"> Designed and developed by <a href="https://www.linkedin.com/in/yasemin-algin/" style="color: #00AEEF !important;">Yasemin Tuğba Algın</a> </div>
+</div>
+</div>
+</div>
+</footer>
+<div id="preloader"></div>
+<!-- JS Kütüphaneleri -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/assets/vendor/aos/aos.js"></script>
+<script src="/assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="/assets/vendor/glightbox/js/glightbox.min.js"></script>
+<script src="/assets/vendor/isotope-layout/isotope.pkgd.min.js"></script>
+<script src="/assets/vendor/swiper/swiper-bundle.min.js"></script>
+<script src="/assets/vendor/typed.js/typed.min.js"></script>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
+<!-- UI ve Ortak Bileşenler -->
+<script src="/assets/js/common/lang-v6.js"></script>
+<script src="/assets/js/main.js?v5"></script>
+<script src="/assets/js/common/firebase_config.js"></script>
+<script src="/assets/js/common/api_service.js"></script>
+<script src="/assets/js/common/core_database.js"></script>
+<script src="/assets/js/common/magnetic_utils.js"></script>
+<script src="/assets/js/common/ui_modal.js"></script>
+<script src="/assets/js/common/smps_filter.js"></script>
+<script defer="defer" src="/assets/js/common/advanced_optimizer.js"></script>
+<!-- Topology Script -->
+<script defer="defer" src="/assets/js/topologies/pfc.js"></script>
+</body>
+</html>

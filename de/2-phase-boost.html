@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+
+<html lang="de">
+<head>
+<meta content="text/html; charset=utf-8" http-equiv="content-type"/>
+<meta content="IE=edge" http-equiv="X-UA-Compatible"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>2-Phasen Interleaved Boost Rechner | Boost Entwurf</title>
+<meta content="Berechnen Sie Ströme, Spannungen und Bauteilwerte für einen 2-Phasen-Interleaved-Boost-Wandler." name="description"/>
+<meta content="Interleaved Boost Wandler Rechner, 2-Phasen Boost Design, Multiphase Boost" name="keywords"/>
+<meta content="index, follow, max-image-preview:large" name="robots"/>
+<link href="https://www.ataqileriteknoloji.com/de/2-phase-boost" rel="canonical"/>
+<link href="https://www.ataqileriteknoloji.com/tr/2-phase-boost" hreflang="tr" rel="alternate"/>
+<link href="https://www.ataqileriteknoloji.com/2-phase-boost" hreflang="en" rel="alternate"/>
+<link href="https://www.ataqileriteknoloji.com/de/2-phase-boost" hreflang="de" rel="alternate"/>
+<link href="https://www.ataqileriteknoloji.com/2-phase-boost" hreflang="x-default" rel="alternate"/>
+<meta content="website" property="og:type"/>
+<meta content="SMPS-Rechner" property="og:site_name"/>
+<meta content="de_DE" property="og:locale"/>
+<meta content="tr_TR" property="og:locale:alternate"/>
+<meta content="en_US" property="og:locale:alternate"/>
+<meta content="https://www.ataqileriteknoloji.com/de/2-phase-boost" property="og:url"/>
+<meta content="2-Phasen Interleaved Boost Rechner | Boost Entwurf" property="og:title"/>
+<meta content="Berechnen Sie Ströme, Spannungen und Bauteilwerte für einen 2-Phasen-Interleaved-Boost-Wandler." property="og:description"/>
+<meta content="https://www.ataqileriteknoloji.com/assets/img/og-image.jpg" property="og:image"/>
+<meta content="1200" property="og:image:width"/>
+<meta content="630" property="og:image:height"/>
+<meta content="SMPS-Rechner" property="og:image:alt"/>
+<meta content="summary_large_image" name="twitter:card"/>
+<meta content="https://www.ataqileriteknoloji.com/assets/img/og-image.jpg" name="twitter:image"/>
+<meta content="2-Phasen Interleaved Boost Rechner | Boost Entwurf" name="twitter:title"/>
+<meta content="Berechnen Sie Ströme, Spannungen und Bauteilwerte für einen 2-Phasen-Interleaved-Boost-Wandler." name="twitter:description"/>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebApplication", "name": "2-Phasen Interleaved Boost Rechner | Boost Entwurf", "url": "https://www.ataqileriteknoloji.com/de/2-phase-boost", "applicationCategory": "EngineeringApplication", "operatingSystem": "Any", "browserRequirements": "Requires JavaScript", "inLanguage": "de", "description": "Berechnen Sie Ströme, Spannungen und Bauteilwerte für einen 2-Phasen-Interleaved-Boost-Wandler."}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Startseite", "item": "https://www.ataqileriteknoloji.com/de/"}, {"@type": "ListItem", "position": 2, "name": "2-Phasen Interleaved Boost Rechner", "item": "https://www.ataqileriteknoloji.com/de/2-phase-boost"}]}</script>
+<link href="/assets/img/favicon.png" rel="icon"/>
+<link href="/assets/img/apple-touch-icon.png" rel="apple-touch-icon"/>
+<link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,700,700i%7CRaleway:300,400,500,700,800" rel="stylesheet"/>
+<link href="/assets/vendor/aos/aos.css" rel="stylesheet"/>
+<link href="/assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet"/>
+<link href="/assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet"/>
+<link href="/assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet"/>
+<link href="/assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet"/>
+<link href="/assets/css/style.css" rel="stylesheet"/>
+<link href="/assets/css/design.css" rel="stylesheet"/>
+</head>
+<body>
+<header class="d-flex align-items-center" id="header">
+<div class="container d-flex align-items-center justify-content-between">
+<a class="logo mr-auto" href="/de/"><img alt="" src="/assets/img/logo.png"/></a>
+<nav class="navbar" id="navbar">
+<ul>
+<li><a class="nav-link scrollto active" data-i18n="nav_home" href="/de/">Startseite</a></li>
+<li><a class="nav-link scrollto" data-i18n="nav_help" href="/de/yardim">Hilfe</a></li>
+<li><a class="nav-link scrollto" data-i18n="nav_feedback" href="/de/#contact">Feedback-Formular</a></li>
+<li class="dropdown" id="language">
+<a href="javascript:void(0);" onclick="this.parentElement.classList.toggle('mobile-active');">
+<span>🌍 Dil / Language</span> <i class="bi bi-chevron-down"></i>
+</a>
+<ul>
+<li><a href="https://www.ataqileriteknoloji.com/tr/2-phase-boost" hreflang="tr" lang="tr">🇹🇷 Türkçe</a></li>
+<li><a href="https://www.ataqileriteknoloji.com/2-phase-boost" hreflang="en" lang="en">🇬🇧 English</a></li>
+<li><a href="https://www.ataqileriteknoloji.com/de/2-phase-boost" hreflang="de" lang="de">🇩🇪 Deutsch</a></li>
+</ul>
+</li>
+</ul>
+<i class="bi bi-list mobile-nav-toggle"></i>
+</nav>
+</div>
+</header>
+<main id="main">
+<section class="breadcrumbs">
+<div class="container">
+<div class="d-flex justify-content-between align-items-center">
+<h2 data-i18n="card_interleaved_title">2-Phase Interleaved Boost Converter</h2>
+<ol>
+<li data-i18n="nav_home">Startseite</li>
+<li data-i18n="interleaved_breadcrumb">Interleaved Boost</li>
+</ol>
+</div>
+</div>
+</section>
+<section class="inner-page">
+<div id="container">
+<div class="row">
+<div class="col-md-4 d-flex align-items-center justify-content-center p-3">
+<svg style="width: 100%; height: auto; max-width: 550px;" viewbox="-50 0 850 290" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrowhead" markerheight="6" markerwidth="8" orient="auto" refx="7" refy="3">
+<polygon fill="#00AEEF" points="0 0, 8 3, 0 6"></polygon>
+</marker>
+<style>
+                                    .wire {
+                                        fill: none;
+                                        stroke: var(--text-main, #e0e0e0);
+                                        stroke-width: 2.5;
+                                        stroke-linecap: round;
+                                        stroke-linejoin: round;
+                                    }
+
+                                    .node {
+                                        fill: var(--text-main, #e0e0e0);
+                                    }
+
+                                    .comp-fill {
+                                        fill: var(--text-main, #e0e0e0);
+                                    }
+
+                                    .arrow-line {
+                                        fill: none;
+                                        stroke: #00AEEF;
+                                        stroke-width: 3.5;
+                                        marker-end: url(#arrowhead);
+                                    }
+
+                                    .svg-label {
+                                        fill: var(--text-main, #e0e0e0);
+                                        font-family: 'Segoe UI', Arial, sans-serif;
+                                        font-size: 16px;
+                                        font-weight: 500;
+                                    }
+
+                                    .cyan-label {
+                                        fill: #00AEEF;
+                                        font-family: 'Segoe UI', Arial, sans-serif;
+                                        font-size: 16px;
+                                        font-weight: 700;
+                                    }
+                                </style>
+</defs>
+<!-- Ground Wire -->
+<line class="wire" x1="50" x2="680" y1="280" y2="280"></line>
+<!-- Input Source (Vin) -->
+<circle class="wire" cx="50" cy="175" r="25"></circle>
+<line class="wire" stroke-width="2" x1="45" x2="55" y1="162" y2="162"></line>
+<line class="wire" stroke-width="2" x1="50" x2="50" y1="157" y2="167"></line>
+<line class="wire" stroke-width="2" x1="45" x2="55" y1="188" y2="188"></line>
+<text class="cyan-label" text-anchor="end" x="30" y="210">Vin</text>
+<!-- Input Connections -->
+<line class="wire" x1="50" x2="50" y1="150" y2="120"></line>
+<line class="wire" x1="50" x2="50" y1="200" y2="280"></line>
+<line class="wire" x1="50" x2="100" y1="120" y2="120"></line>
+<line class="wire" x1="100" x2="100" y1="70" y2="170"></line>
+<circle class="node" cx="100" cy="120" r="4.5"></circle>
+<!-- Branch 1 (Top) -->
+<line class="wire" x1="100" x2="120" y1="70" y2="70"></line>
+<polyline class="wire" points="120,70 125,60 135,80 145,60 155,80 160,70"></polyline> <!-- rL1 -->
+<text class="svg-label" text-anchor="middle" x="140" y="45">rL1</text>
+<line class="wire" x1="160" x2="190" y1="70" y2="70"></line>
+<path class="wire" d="M 190 70 A 12 12 0 0 1 214 70 A 12 12 0 0 1 238 70 A 12 12 0 0 1 262 70 A 12 12 0 0 1 286 70"></path> <!-- L1 -->
+<text class="svg-label" text-anchor="middle" x="200" y="50">L1</text>
+<line class="wire" x1="286" x2="330" y1="70" y2="70"></line>
+<circle class="node" cx="330" cy="70" r="4.5"></circle>
+<line class="wire" x1="330" x2="370" y1="70" y2="70"></line>
+<!-- MOSFET Q1 -->
+<line class="wire" x1="330" x2="330" y1="70" y2="95"></line>
+<line class="wire" x1="330" x2="320" y1="95" y2="95"></line>
+<line class="wire" x1="330" x2="330" y1="135" y2="280"></line>
+<line class="wire" x1="330" x2="320" y1="135" y2="135"></line>
+<line class="wire" x1="320" x2="320" y1="95" y2="135"></line>
+<line class="wire" x1="310" x2="310" y1="95" y2="135"></line>
+<line class="wire" x1="310" x2="295" y1="115" y2="115"></line>
+<circle class="node" cx="330" cy="280" r="4.5"></circle>
+<!-- Diode D1 -->
+<polygon class="comp-fill" points="370,55 370,85 400,70"></polygon>
+<line class="wire" stroke-width="4" x1="400" x2="400" y1="55" y2="85"></line>
+<line class="wire" x1="400" x2="520" y1="70" y2="70"></line>
+<text class="svg-label" text-anchor="middle" x="385" y="45">D1</text>
+<!-- Branch 2 (Bottom) -->
+<line class="wire" x1="100" x2="120" y1="170" y2="170"></line>
+<polyline class="wire" points="120,170 125,160 135,180 145,160 155,180 160,170"></polyline> <!-- rL2 -->
+<text class="svg-label" text-anchor="middle" x="140" y="145">rL2</text>
+<line class="wire" x1="160" x2="190" y1="170" y2="170"></line>
+<path class="wire" d="M 190 170 A 12 12 0 0 1 214 170 A 12 12 0 0 1 238 170 A 12 12 0 0 1 262 170 A 12 12 0 0 1 286 170"></path> <!-- L2 -->
+<text class="svg-label" text-anchor="middle" x="200" y="150">L2</text>
+<line class="wire" x1="286" x2="430" y1="170" y2="170"></line>
+<circle class="node" cx="430" cy="170" r="4.5"></circle>
+<line class="wire" x1="430" x2="470" y1="170" y2="170"></line>
+<!-- MOSFET Q2 -->
+<line class="wire" x1="430" x2="430" y1="170" y2="195"></line>
+<line class="wire" x1="430" x2="420" y1="195" y2="195"></line>
+<line class="wire" x1="430" x2="430" y1="235" y2="280"></line>
+<line class="wire" x1="430" x2="420" y1="235" y2="235"></line>
+<line class="wire" x1="420" x2="420" y1="195" y2="235"></line>
+<line class="wire" x1="410" x2="410" y1="195" y2="235"></line>
+<line class="wire" x1="410" x2="395" y1="215" y2="215"></line>
+<circle class="node" cx="430" cy="280" r="4.5"></circle>
+<!-- Diode D2 -->
+<polygon class="comp-fill" points="470,155 470,185 500,170"></polygon>
+<line class="wire" stroke-width="4" x1="500" x2="500" y1="155" y2="185"></line>
+<line class="wire" x1="500" x2="520" y1="170" y2="170"></line>
+<text class="svg-label" text-anchor="middle" x="485" y="145">D2</text>
+<!-- Common Output Line -->
+<line class="wire" x1="520" x2="520" y1="70" y2="170"></line>
+<line class="wire" x1="520" x2="680" y1="70" y2="70"></line>
+<circle class="node" cx="520" cy="70" r="4.5"></circle>
+<!-- Capacitor Branch (C + rc) -->
+<line class="wire" x1="600" x2="600" y1="70" y2="90"></line>
+<circle class="node" cx="600" cy="70" r="4.5"></circle>
+<polyline class="wire" points="600,90 590,95 610,105 590,115 610,125 600,130"></polyline>
+<text class="svg-label" text-anchor="end" x="585" y="115">rc</text>
+<line class="wire" x1="600" x2="600" y1="130" y2="160"></line>
+<line class="wire" stroke-width="4" x1="580" x2="620" y1="160" y2="160"></line>
+<line class="wire" stroke-width="4" x1="580" x2="620" y1="175" y2="175"></line>
+<text class="svg-label" text-anchor="end" x="570" y="172">C</text>
+<line class="wire" x1="600" x2="600" y1="175" y2="280"></line>
+<circle class="node" cx="600" cy="280" r="4.5"></circle>
+<!-- Load Resistor Branch (Ro) -->
+<line class="wire" x1="680" x2="680" y1="70" y2="120"></line>
+<polyline class="wire" points="680,120 670,130 690,150 670,170 690,190 680,200"></polyline>
+<text class="svg-label" text-anchor="start" x="700" y="165">Ro</text>
+<line class="wire" x1="680" x2="680" y1="200" y2="280"></line>
+<!-- Cyan Analysis Arrows and Labels -->
+<line class="arrow-line" x1="60" x2="90" y1="110" y2="110"></line>
+<text class="cyan-label" text-anchor="middle" x="77" y="95">Iin</text>
+<line class="arrow-line" x1="223" x2="253" y1="50" y2="50"></line>
+<text class="cyan-label" text-anchor="middle" x="238" y="38">IL1</text>
+<line class="arrow-line" x1="223" x2="253" y1="150" y2="150"></line>
+<text class="cyan-label" text-anchor="middle" x="238" y="138">IL2</text>
+<line class="arrow-line" x1="540" x2="570" y1="50" y2="50"></line>
+<text class="cyan-label" text-anchor="middle" x="555" y="35">Iout</text>
+<line class="arrow-line" x1="630" x2="630" y1="250" y2="190"></line>
+<text class="cyan-label" text-anchor="start" x="635" y="235">Vout</text>
+<!-- Cyan PWM / Gate Signals -->
+<line class="arrow-line" x1="255" x2="285" y1="115" y2="115"></line>
+<text class="svg-label" text-anchor="end" x="255" y="110">Q1</text>
+<line class="arrow-line" x1="355" x2="385" y1="215" y2="215"></line>
+<text class="svg-label" text-anchor="end" x="355" y="230">Q2</text>
+</svg>
+</div>
+<div class="col-md-8">
+<div id="inputs">
+<h2 data-i18n="input_header">Eingabedaten</h2>
+<div class="input-group mb-3">
+<label class="input-group-text" data-i18n="label_vin_min">Min. Eingangsspannung [V]</label>
+<input class="form-control" id="vin_min" placeholder="40" type="number"/>
+<label class="input-group-text" data-i18n="label_vin_max">Max. Eingangsspannung [V]</label>
+<input class="form-control" id="vin_max" placeholder="60" type="number"/>
+<label class="input-group-text" data-i18n="label_vin_nom">Nominaleingang [V]</label>
+<input class="form-control" id="vin_nom" placeholder="50" type="number"/>
+</div>
+<div class="input-group mb-3">
+<label class="input-group-text" data-i18n="label_vout">Ausgangsspannung [V]</label>
+<input class="form-control" id="vout" placeholder="181" type="number"/>
+<label class="input-group-text" data-i18n="label_iout">Ausgangsstrom [A]</label>
+<input class="form-control" id="ilout" placeholder="1.9" type="number"/>
+<label class="input-group-text" data-i18n="label_fsw">Schaltfrequenz [kHz]</label>
+<input class="form-control" id="f_khz" placeholder="100" type="number"/>
+</div>
+<div class="input-group mb-3" id="inductance" style="display:none;">
+<label class="input-group-text bg-warning text-dark border-warning" data-i18n="label_custom_l">L (μH) [Optional]</label>
+<input class="form-control border-warning" id="custom_L_uH" placeholder="e. g. 167" step="1" type="number"/>
+</div>
+<div class="input-group mb-3 flex-wrap flex-md-nowrap">
+<label class="input-group-text" data-i18n="label_mode">Betriebsmodus</label>
+<select class="form-select" id="mode">
+<option value="continuous">CCM</option>
+<option value="discontinuous">DCM</option>
+<option value="critical">CRM</option>
+</select>
+<label class="input-group-text" data-i18n="label_rect_type">Gleichrichter</label>
+<select class="form-select" id="rectifierMode" onchange="toggleEffMode()">
+<option data-i18n="opt_diode_async" value="async">Diode Asynchron</option>
+</select>
+<label class="input-group-text" data-i18n="label_eff_mode">Effizienzmodus</label>
+<select class="form-select" id="effMode" onchange="toggleEffMode()">
+<option data-i18n="opt_ideal" value="ideal">Ideal</option>
+<option data-i18n="opt_real" value="real">Wirkleistungsverlust</option>
+</select>
+<div id="idealInputGroup" style="display: contents;">
+<label class="input-group-text" data-i18n="label_eff" style="border-radius: 0;">Wirkungsgrad [Beispiel: 80 für 80 %]</label>
+<input class="form-control eff-input" id="verim" style="border-bottom-left-radius: 0; border-top-left-radius: 0;" type="number" value="90"/>
+</div>
+</div>
+</div>
+</div>
+<div id="inputs">
+<div id="realInputGroup" style="display:none;">
+<div class="row">
+<div class="col-md-6">
+<div class="param-group">
+<h5 data-i18n="mosfet_header">MOSFET (Leitung &amp; Kapazität)</h5>
+<div class="input-group input-group-sm mb-2" id="wrap_ron_h"><span class="input-group-text">Ron_Sync (High) [Ω]</span><input class="form-control" id="p_ron_h" type="number" value="0.100"/></div>
+<div class="input-group input-group-sm mb-2"><span class="input-group-text">Ron_Main (Low) [Ω]</span><input class="form-control" id="p_ron_l" type="number" value="0.050"/></div>
+<div class="input-group input-group-sm mb-2"><span class="input-group-text">Coss_L [pF]</span><input class="form-control" id="p_coss_l" type="number" value="120"/></div>
+<div class="input-group input-group-sm mb-2"><span class="input-group-text">Qg_L [nC]</span><input class="form-control" id="p_qg_l" type="number" value="15"/></div>
+<div class="input-group input-group-sm"><span class="input-group-text">Vgs [V]</span><input class="form-control" id="p_vgs" type="number" value="10.0"/></div>
+</div>
+</div>
+<div class="col-md-6">
+<div class="param-group">
+<h5 data-i18n="switching_header">Schaltzeiten &amp; Totzeit</h5>
+<div class="input-group input-group-sm mb-2"><span class="input-group-text">tr_L / tf_L [ns]</span><input class="form-control" id="p_tr_l" type="number" value="10"/><input class="form-control" id="p_tf_l" type="number" value="10"/></div>
+<div class="input-group input-group-sm mb-2" id="wrap_deadtime"><span class="input-group-text">tDr / tDf [ns]</span><input class="form-control" id="p_tdr" type="number" value="30"/><input class="form-control" id="p_tdf" type="number" value="30"/></div>
+<div class="input-group input-group-sm mb-2">
+<span class="input-group-text" id="lbl_vd">Diode Vd [V]</span>
+<input class="form-control" id="p_vd" type="number" value="0.7"/>
+</div>
+<div class="input-group input-group-sm">
+<span class="input-group-text" id="lbl_trr">trr [ns] / Irr [A]</span>
+<input class="form-control" id="p_trr" type="number" value="25"/>
+<input class="form-control" id="p_irr" type="number" value="0.5"/>
+</div>
+</div>
+</div>
+<div class="col-md-12 mt-2">
+<div class="param-group">
+<h5 data-i18n="pasif_comp">Passive Bauelemente und ICs</h5>
+<div class="input-group input-group-sm">
+<span class="input-group-text">L DCR [Ω]</span><input class="form-control" id="p_dcr" type="number" value="0.080"/>
+<span class="input-group-text">IC Icc [mA]</span><input class="form-control" id="p_icc" type="number" value="2.0"/>
+<span class="input-group-text">ESR_Cin [Ω]</span><input class="form-control" id="p_esrcin" type="number" value="0.003"/>
+<span class="input-group-text">ESR_Cout [Ω]</span><input class="form-control" id="p_esrcout" type="number" value="0.005"/>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="form-check form-switch mt-4 mb-2 d-flex justify-content-center align-items-center gap-2">
+<input class="form-check-input" id="testOwnDesignCheck" onchange="toggleCustomDesign()" style="width: 40px; height: 20px; cursor: pointer; margin:0;" type="checkbox"/>
+<label class="form-check-label text-warning" data-i18n="label_test_own_design" for="testOwnDesignCheck" style="cursor: pointer; font-weight: bold; margin:0;">Ich habe bereits mein eigenes Design, ich möchte es testen</label>
+</div>
+<div class="param-group mt-3" id="coreSelectionGroup" style="text-align: center">
+<h5 style="border-bottom: none; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+<span data-i18n="core_selection_mode">Kernauswahlmodus</span>
+<button class="btn btn-sm btn-outline-warning" onclick="showModeInfo()" style="border-radius: 50%; width: 24px; height: 24px; padding: 0; line-height: 1; font-weight: bold;" type="button">i</button>
+</h5>
+<div class="btn-group w-75" role="group">
+<input checked="" class="btn-check" id="modeStandard" name="coreSelectionMode" type="radio" value="standard"/>
+<label class="btn btn-outline-info" data-i18n="mod1" for="modeStandard" style="border-color: #3f51b5; color: #e0e0e0;">Standardmodus</label>
+<input class="btn-check" id="modeAdvanced" name="coreSelectionMode" type="radio" value="advanced"/>
+<label class="btn btn-outline-info" data-i18n="mod2" for="modeAdvanced" style="border-color: #3f51b5; color: #e0e0e0; ">Erweiterter Modus (KI)</label>
+</div>
+</div>
+<button class="btn btn-primary d-block mx-auto w-25" data-i18n="btn_calc" id="calculateButton">Berechnen</button>
+</div>
+<br/>
+<div id="modeWarning" style="display:none; padding:8px; margin:8px 0; border-radius:4px;"></div>
+<div class="row mt-10">
+<div class="col-md-6">
+<h2 data-i18n="results_title">Ergebnisse</h2>
+<table class="table" id="outputsTable">
+<tr>
+<th data-i18n="res_L111">Induktivitätswert (L1)</th>
+<th data-i18n="res_L222">Induktivitätswert (L2)</th>
+<th data-i18n="res_C">Ausgangskondensator (C)</th>
+<th data-i18n="res_R">Lastwiderstand (R)</th>
+</tr>
+<tr>
+<td><span id="lOutput1">-</span> µH</td>
+<td><span id="lOutput2">-</span> µH</td>
+<td><span id="cOutput">-</span> µF</td>
+<td><span id="rOutput">-</span> Ω</td>
+</tr>
+<tr>
+<th data-i18n="res_deltaIL1">ΔIL1 (Max)</th>
+<th data-i18n="res_deltaIL2">ΔIL2 (Max)</th>
+<th data-i18n="res_wmax_l1">Wmax (L1)</th>
+<th data-i18n="res_wmax_l2">Wmax (L2)</th>
+</tr>
+<tr>
+<td><span id="deltaIL1Max">-</span> A</td>
+<td><span id="deltaIL2Max">-</span> A</td>
+<td><span id="wmaxL1">-</span> µWs</td>
+<td><span id="wmaxL2">-</span> µWs</td>
+</tr>
+</table>
+</div>
+<div class="col-md-6 d-flex align-items-center justify-content-end">
+<div class="d-flex flex-wrap gap-2 justify-content-end" id="buttons">
+<button class="btn btn-primary" data-i18n="btn_print" id="printButton">Drucken</button>
+<button class="btn btn-primary" data-i18n="btn_inductors" id="openButton" onclick="openSelectedTable()">L1 &amp; L2 Spulendaten</button>
+<button class="btn btn-primary" data-i18n="btn_filter" id="filterButton" onclick="openFilterDesign()">Filterdesign</button>
+</div>
+</div>
+</div>
+</div>
+<br/>
+<div id="charts">
+<h2 data-i18n="charts_title">Diagramme</h2>
+<div class="row">
+<div class="col-md-6">
+<canvas height="300" id="ilChart" width="600"></canvas>
+</div>
+<div class="col-md-6">
+<canvas height="300" id="vdsChart" width="600"></canvas>
+</div>
+<div class="col-md-6">
+<canvas height="300" id="idChart" width="600"></canvas>
+</div>
+<div class="col-md-6">
+<canvas height="300" id="effChart" width="600"></canvas>
+</div>
+</div>
+</div>
+<br/>
+<button class="btn btn-primary" data-i18n="simm" id="btnFalstad" onclick="openFalstadInterleavedSimulation()">Klicken Sie, um zu simulieren</button>
+<br/>
+<div id="simulationContainer" style="display: none; margin-top: 20px; border: 1px solid #333; border-radius: 12px; overflow: hidden; background: #000;">
+<iframe id="circuitFrame" style="width: 100%; height: 600px; border: none;"></iframe>
+</div>
+<div id="liveDataBox" style="display: none; padding: 15px; background: #121212; color: #81c784; font-family: 'Consolas', monospace; border-radius: 0 0 12px 12px; border: 1px solid #333; border-top: none;">
+                Loading...
+            </div>
+<br/>
+<div class="row mt-3" id="powerLossSection" style="display: none;">
+<div class="col-md-12">
+<div class="param-group">
+<h2 data-i18n="real_power_loss_title">Wirkleistungsverlustanalyse</h2>
+<div class="table-responsive">
+<table class="table table-sm ploss-table text-center">
+<thead>
+<tr>
+<th data-i18n="res_pon_h_title" id="th_pon_h">High-Side Leitung (Pon_H)</th>
+<th data-i18n="res_pon_l_title">Low-Side Leitung (Pon_L)</th>
+<th data-i18n="res_psw_l_title">Schaltverlust L (Psw_L)</th>
+<th data-i18n="res_pdiode_title" id="th_pdiode">Diode Rev. Rec. (Pdiode)</th>
+<th data-i18n="res_pcoss_title">Ausgangskapazität (Pcoss)</th>
+<th data-i18n="res_pd_title">Totzeit (Pd)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td id="res_pon_h">-</td>
+<td id="res_pon_l">-</td>
+<td id="res_psw_l">-</td>
+<td id="res_pdiode">-</td>
+<td id="res_pcoss">-</td>
+<td id="res_pd">-</td>
+</tr>
+</tbody>
+<thead class="mt-2">
+<tr>
+<th data-i18n="res_pg_title">Gate-Ladung (Pg)</th>
+<th data-i18n="res_pic_title">IC-Verbrauch (Pic)</th>
+<th data-i18n="res_pl_dcr_title">Induktorleitung (Pl_dcr)</th>
+<th data-i18n="res_pcin_title">Eingang Cap ESR (Pcin)</th>
+<th data-i18n="res_pcout_title">Ausgang Cap ESR (Pcout)</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td id="res_pg">-</td>
+<td id="res_pic">-</td>
+<td id="res_pl_dcr">-</td>
+<td id="res_pcin">-</td>
+<td id="res_pcout">-</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<table class="table table-sm ploss-table mt-2">
+<tr class="total-row text-center" style="font-size: 1.2em;">
+<td width="50%"><span data-i18n="total_power_loss">Gesamtverlustleistung (Ptotal):</span> <span id="res_ptotal">-</span></td>
+<td width="50%"><span data-i18n="calc_efficiency">Berechneter Wirkungsgrad (η):</span> <span id="res_peff">-</span></td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+</div>
+<br/>
+<div id="table">
+<h2 data-i18n="table_header">Tabelle</h2>
+<div class="table-responsive">
+<table class="table table-bordered text-center" id="resultTable">
+<thead>
+<tr>
+<th data-i18n="col_time">Zeit [µs]</th>
+<th>Vds1 [V]</th>
+<th>Vds2 [V]</th>
+<th>IL1 [A]</th>
+<th>IL2 [A]</th>
+<th>Id1 [A]</th>
+<th>Id2 [A]</th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+</main>
+<footer id="footer">
+<div class="container">
+<div class="row">
+<div class="col-md-12">
+<div class="copyright"> © Copyright <strong>ATAQ İleri Teknoloji A.Ş.</strong>. <span data-i18n="footer_rights">Alle Rechte vorbehalten.</span> </div>
+</div>
+</div>
+</div>
+</footer>
+<div aria-hidden="true" aria-labelledby="buckWarningModalLabel" class="modal fade" id="buckWarningModal" tabindex="-1">
+<div class="modal-dialog modal-dialog-centered">
+<div class="modal-content" style="background-color: #1e1e1e; color: #e0e0e0; border: 1px solid #333;">
+<div class="modal-header text-white" style="background-color: #00AEEF; border-bottom: 1px solid #333;">
+<h5 class="modal-title" id="buckWarningModalLabel" style="color:#333 !important;">
+<i class="bi bi-exclamation-triangle-fill"></i> <span data-i18n="modal_warn_title" style="color:#333 !important;">Warnung: Topologiefehler!</span>
+</h5>
+<button aria-label="Close" class="btn-close btn-close-white" data-bs-dismiss="modal" type="button"></button>
+</div>
+<div class="modal-body text-start">
+<p data-i18n="modal_boost_error_desc">Bei Boost-Wandlern (Aufwärtswandler) darf die Ausgangsspannung (Vout) nicht kleiner oder gleich der Eingangsspannung (Vin) sein.</p>
+<p data-i18n="modal_ask_buck">Versuchen Sie, einen <strong>Buck-Wandler</strong> zu entwerfen?</p>
+</div>
+<div class="modal-footer" style="border-top: 1px solid #333;">
+<button class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="modal_btn_close" type="button">Schließen und Korrigieren</button>
+<a class="btn btn-primary" data-i18n="modal_btn_go_buck" href="/de/buck" style="background-color: #00AEEF; border-color: #00AEEF;">Zur Buck-Wandler-Seite</a>
+</div>
+</div>
+</div>
+</div>
+<div id="preloader"></div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/assets/vendor/aos/aos.js"></script>
+<script src="/assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="/assets/vendor/glightbox/js/glightbox.min.js"></script>
+<script src="/assets/vendor/isotope-layout/isotope.pkgd.min.js"></script>
+<script src="/assets/vendor/swiper/swiper-bundle.min.js"></script>
+<script src="/assets/vendor/typed.js/typed.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
+<script src="/assets/js/common/lang-v6.js"></script>
+<script src="/assets/js/main.js?v5"></script>
+<script src="/assets/js/common/firebase_config.js"></script>
+<script src="/assets/js/common/api_service.js"></script>
+<script src="/assets/js/common/core_database.js"></script>
+<script src="/assets/js/common/magnetic_utils.js"></script>
+<script src="/assets/js/common/ui_modal.js"></script>
+<script src="/assets/js/common/smps_filter.js"></script>
+<script defer="defer" src="/assets/js/common/advanced_optimizer.js"></script>
+<script defer="defer" src="/assets/js/topologies/2-phase-boost.js"></script>
+</body>
+</html>
